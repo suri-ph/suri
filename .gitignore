@@ -1,2 +1,6 @@
-server/venv
+.env
+venv
+face_database
 experiments/playground
+__pycache__/
+scripts/__pycache__/
