@@ -15,7 +15,6 @@ from experiments.prototype.utils import (
     detect_conditions
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 YOLO_MODEL_PATH = "experiments/detection/models/wider300e+300e-unisets.onnx"
 RECOG_MODEL_PATH = "experiments/recognition/models/edgeface-s.onnx"
 FACE_DATABASE_DIR = "face_database"

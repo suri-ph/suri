@@ -1,7 +1,6 @@
 import os, sys
 
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(project_root)
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from experiments.prototype.main import (
     AttendanceSystem, 
