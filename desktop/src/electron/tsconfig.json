@@ -1,0 +1,9 @@
+{
+      "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": "'../../dist-electron"
+  },
+}
