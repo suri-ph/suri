@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "electron/main",
+  "main": "src/electron/main",
   "scripts": {
     "dev:react": "vite",
     "dev:electron": "electron .",
