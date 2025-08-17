@@ -5,7 +5,7 @@ import isDev from "./util.js";
 app.on("ready", () => {
 	const mainWindow = new BrowserWindow();
     if (isDev()) {
-        mainWindow.loadFile("https://localhost:5123");
+        mainWindow.loadURL("https://localhost:5123");
     } else {
         mainWindow.loadFile(path.join(app.getAppPath(), "dist-react/index.html"));
     }
