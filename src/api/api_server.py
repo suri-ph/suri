@@ -1468,24 +1468,39 @@ async def process_single_image_endpoint(file: UploadFile = File(...)):
 async def get_system_stats():
     """Get system statistics that match your run.py functionality"""
     try:
+        if not attendance_system:
+            return {
+                "success": False,
+                "error": "SYSTEM_NOT_INITIALIZED",
+                "message": "Attendance system is not initialized"
+            }
+
+        # Safely access attendance system components with default values
         stats = {
-            "legacy_faces": len(attendance_system.face_database),
-            "template_count": sum(len(templates) for templates in attendance_system.multi_templates.values()),
-            "people_count": len(attendance_system.multi_templates),
+            "legacy_faces": len(getattr(attendance_system, 'face_database', {}) or {}),
+            "template_count": sum(len(templates) for templates in getattr(attendance_system, 'multi_templates', {}).values()),
+            "people_count": len(getattr(attendance_system, 'multi_templates', {})),
             "today_attendance": len([
-                record for record in attendance_system.attendance_log 
+                record for record in getattr(attendance_system, 'attendance_log', [])
                 if record.get("date") == datetime.now().strftime("%Y-%m-%d")
             ]),
-            "total_attendance": len(attendance_system.attendance_log),
-            "success_rate": sum(stats['successes'] for stats in attendance_system.recognition_stats.values()) / 
-                          max(1, sum(stats['attempts'] for stats in attendance_system.recognition_stats.values())),
-            "recognition_stats": dict(attendance_system.recognition_stats),
+            "total_attendance": len(getattr(attendance_system, 'attendance_log', [])),
+            "success_rate": sum(stats['successes'] for stats in getattr(attendance_system, 'recognition_stats', {}).values()) /
+                          max(1, sum(stats['attempts'] for stats in getattr(attendance_system, 'recognition_stats', {}).values())),
+            "recognition_stats": dict(getattr(attendance_system, 'recognition_stats', defaultdict(lambda: {'attempts': 0, 'successes': 0}))),
             "database_info": {
-                "multi_templates_people": list(attendance_system.multi_templates.keys()),
-                "legacy_people": list(attendance_system.face_database.keys())
+                "multi_templates_people": list(getattr(attendance_system, 'multi_templates', {}).keys()),
+                "legacy_people": list(getattr(attendance_system, 'face_database', {}).keys())
             }
         }
         return {"success": True, "stats": stats}
+    except Exception as e:
+        logger.error(f"Error getting system stats: {e}")
+        return {
+            "success": False,
+            "error": "INTERNAL_ERROR",
+            "message": f"Failed to get system stats: {str(e)}"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Stats error: {str(e)}")
 
