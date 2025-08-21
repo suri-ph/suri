@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld('suriVideo', {
     start: async (opts?: { device?: number; width?: number; height?: number; fps?: number; annotate?: boolean }) => {
         return ipcRenderer.invoke('video:start', opts)
     },
+    startFast: async (opts?: { device?: number; width?: number; height?: number; fps?: number; annotate?: boolean }) => {
+        return ipcRenderer.invoke('video:start-fast', opts)
+    },
     stop: async () => {
         return ipcRenderer.invoke('video:stop')
     },

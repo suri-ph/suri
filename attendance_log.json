@@ -22,5 +22,101 @@
         ]
       }
     }
+  },
+  {
+    "name": "JOHN RAIVEN OLAZO",
+    "timestamp": "2025-08-21T19:05:48.883101",
+    "confidence": 0.510957182483186,
+    "date": "2025-08-21",
+    "time": "19:05:48",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur",
+        "partial_occlusion"
+      ],
+      "threshold_used": 0.1,
+      "quality": 0.2351157500468222,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.510957182483186
+        ]
+      }
+    }
+  },
+  {
+    "name": "JOHN RAIVEN OLAZO",
+    "timestamp": "2025-08-21T19:06:28.796133",
+    "confidence": 0.7312661524449834,
+    "date": "2025-08-21",
+    "time": "19:06:28",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur",
+        "partial_occlusion"
+      ],
+      "threshold_used": 0.1,
+      "quality": 0.4484655649111725,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.7312661524449834
+        ]
+      }
+    }
+  },
+  {
+    "name": "JOHN RAIVEN OLAZO",
+    "timestamp": "2025-08-21T19:09:20.734297",
+    "confidence": 0.8135886884737619,
+    "date": "2025-08-21",
+    "time": "19:09:20",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur",
+        "partial_occlusion"
+      ],
+      "threshold_used": 0.1,
+      "quality": 0.2578115955048863,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.8135886884737619
+        ]
+      }
+    }
+  },
+  {
+    "name": "JOHN RAIVEN OLAZO",
+    "timestamp": "2025-08-21T19:10:16.683492",
+    "confidence": 0.18607590482468334,
+    "date": "2025-08-21",
+    "time": "19:10:16",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur",
+        "partial_occlusion"
+      ],
+      "threshold_used": 0.1,
+      "quality": 0.2390178864427488,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.18607590482468334
+        ]
+      }
+    }
   }
 ]

@@ -26,6 +26,7 @@ export default function LiveCameraRecognition() {
   const [newPersonName, setNewPersonName] = useState('')
   const [isAddingPerson, setIsAddingPerson] = useState(false)
   const [systemStats, setSystemStats] = useState({ today_records: 0, total_people: 0 })
+  const [cameraStatus, setCameraStatus] = useState<'stopped' | 'starting' | 'preview' | 'recognition'>('stopped')
   
   const imgRef = useRef<HTMLImageElement>(null)
   const frameUrlRef = useRef<string | null>(null)
@@ -72,6 +73,7 @@ export default function LiveCameraRecognition() {
     try {
       setIsStreaming(false)
       streamingRef.current = false
+      setCameraStatus('stopped')
       // Clean up blob URL if exists
       if (imgRef.current && imgRef.current.src) {
         if (imgRef.current.src.startsWith('blob:')) URL.revokeObjectURL(imgRef.current.src)
@@ -93,7 +95,18 @@ export default function LiveCameraRecognition() {
     try {
       await stopStream()
     if (!window.suriVideo) throw new Error('suriVideo API not available')
-    await window.suriVideo.start({ device: 0, annotate: true })
+    
+    // Set camera status to starting
+    setCameraStatus('starting')
+    
+    // Use fast startup for instant camera preview
+    await window.suriVideo.startFast({ device: 0, annotate: true })
+    
+    // Set UI to streaming immediately for instant feedback
+    setIsStreaming(true)
+    streamingRef.current = true
+    setCameraStatus('preview')  // Will upgrade to 'recognition' when models load
+    
   let lastSet = 0
   const offFrame = window.suriVideo.onFrame((buf) => {
         try {
@@ -119,12 +132,11 @@ export default function LiveCameraRecognition() {
       })
       // Keep unsubscriber in ref to cleanup when stopping
     window.__suriOffFrame = offFrame
-      setIsStreaming(true)
-      streamingRef.current = true
     } catch (error) {
       console.error('Failed to start stream:', error)
       setIsStreaming(false)
       streamingRef.current = false
+      setCameraStatus('stopped')
     }
   }, [stopStream])
 
@@ -132,8 +144,26 @@ export default function LiveCameraRecognition() {
     connectWebSocket()
     fetchTodayAttendance()
     
+    // Listen for video events to update camera status
+    const handleVideoEvent = (evt: Record<string, unknown>) => {
+      if (evt.type === 'video.fast_preview_ready') {
+        setCameraStatus('preview')
+      } else if (evt.type === 'video.recognition_ready') {
+        setCameraStatus('recognition')
+      } else if (evt.type === 'video.models_loaded') {
+        setCameraStatus('recognition')
+      } else if (evt.type === 'video.error') {
+        setCameraStatus('stopped')
+        setIsStreaming(false)
+        streamingRef.current = false
+      }
+    }
+    
+    const offVideoEvent = window.suriVideo?.onEvent?.(handleVideoEvent)
+    
     return () => {
       if (wsUnsubRef.current) wsUnsubRef.current()
+      if (offVideoEvent) offVideoEvent()
       stopStream()
     }
   }, [connectWebSocket, fetchTodayAttendance, stopStream])
@@ -286,7 +316,10 @@ export default function LiveCameraRecognition() {
           <div className="text-center px-4 py-2 bg-white/[0.02] backdrop-blur-xl border border-white/[0.05] rounded-xl">
             <div className="text-[10px] text-white/50 uppercase tracking-[0.1em] font-light">Status</div>
             <div className={`text-sm font-extralight ${isStreaming ? 'text-white' : 'text-white/40'}`}>
-              {isStreaming ? '● Live' : '○ Stopped'}
+              {cameraStatus === 'stopped' && '○ Stopped'}
+              {cameraStatus === 'starting' && '⏳ Starting...'}
+              {cameraStatus === 'preview' && '📹 Preview'}
+              {cameraStatus === 'recognition' && '● Recognition'}
             </div>
           </div>
           
@@ -331,6 +364,20 @@ export default function LiveCameraRecognition() {
                   className="w-full h-full object-contain bg-black rounded-2xl"
                   alt="Live camera feed"
                 />
+                
+                {/* Camera Status Overlay */}
+                {(cameraStatus === 'starting' || cameraStatus === 'preview') && (
+                  <div className="absolute top-6 right-6 px-4 py-3 rounded-xl backdrop-blur-xl text-xs bg-blue-500/[0.15] border border-blue-400/[0.25]">
+                    <div className="font-light text-blue-100">
+                      {cameraStatus === 'starting' && '🚀 Camera Starting...'}
+                      {cameraStatus === 'preview' && '⚡ Loading AI Models...'}
+                    </div>
+                    <div className="text-xs text-blue-200/60 mt-1">
+                      {cameraStatus === 'starting' && 'Opening camera instantly'}
+                      {cameraStatus === 'preview' && 'Recognition will activate shortly'}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Glass Recognition Overlays */}
                 {recognitionResults.length > 0 && (

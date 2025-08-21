@@ -11,6 +11,7 @@ declare global {
 
   interface SuriVideoAPI {
     start: (opts?: { device?: number; width?: number; height?: number; fps?: number; annotate?: boolean }) => Promise<boolean>
+    startFast: (opts?: { device?: number; width?: number; height?: number; fps?: number; annotate?: boolean }) => Promise<boolean>
     stop: () => Promise<boolean>
     pause: () => Promise<boolean>
     resume: () => Promise<boolean>

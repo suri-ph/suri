@@ -71,7 +71,7 @@ function stopBackend() {
     backendProc = null
 }
 
-function startVideo(opts?: { device?: number, annotate?: boolean }) {
+function startVideo(opts?: { device?: number, annotate?: boolean, fastPreview?: boolean }) {
     if (videoProc) return
     const pythonCmd = resolvePythonCmd()
     const args = [
@@ -80,6 +80,7 @@ function startVideo(opts?: { device?: number, annotate?: boolean }) {
         '--device', String(opts?.device ?? 0)
     ]
     if (opts?.annotate === false) args.push('--no-annotate')
+    if (opts?.fastPreview === true) args.push('--fast-preview')
 
     const cwd = path.join(app.getAppPath(), '..')
     console.log('[video] starting with args:', args)
@@ -186,6 +187,7 @@ function stopVideo() {
 
 // IPC bridge for renderer controls
 ipcMain.handle('video:start', (_evt, opts) => { startVideo(opts); return true })
+ipcMain.handle('video:start-fast', (_evt, opts) => { startVideo({...opts, fastPreview: true}); return true })
 ipcMain.handle('video:stop', () => { stopVideo(); return true })
 ipcMain.handle('video:pause', () => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'pause' }) + '\n'); return true })
 ipcMain.handle('video:resume', () => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'resume' }) + '\n'); return true })
@@ -194,19 +196,74 @@ ipcMain.handle('video:setDevice', (_evt, device: number) => { if (videoProc) vid
 async function preloadModels() {
     try {
         const pythonCmd = resolvePythonCmd()
-        const preloadProc = spawn(pythonCmd, [
-            '-c',
-            'from experiments.prototype.main import yolo_sess, input_size; import numpy as np; dummy=np.zeros((480,640,3),np.uint8); yolo_sess.run(None, {"images": dummy.reshape(1,input_size,input_size,3)})'
-        ], {
+        console.log('[main] Starting comprehensive model preload...')
+        
+        const preloadScript = `
+import sys
+import os
+sys.path.append('.')
+
+print("Loading YOLO detection model...")
+from experiments.prototype.main import yolo_sess, input_size, Main
+print("Loading face recognition model...")
+app = Main()
+print("Warming up models with dummy data...")
+
+import numpy as np
+import cv2
+
+# Warm up YOLO
+dummy_img = np.zeros((480, 640, 3), dtype=np.uint8)
+from experiments.prototype.main import preprocess_yolo, non_max_suppression, conf_thresh, iou_thresh
+input_blob, scale, dx, dy = preprocess_yolo(dummy_img)
+preds = yolo_sess.run(None, {'images': input_blob})[0]
+faces = non_max_suppression(preds, conf_thresh, iou_thresh, 
+                          img_shape=(480, 640), input_shape=(input_size, input_size), 
+                          pad=(dx, dy), scale=scale)
+
+# Warm up face recognition if we have a small dummy face
+if len(faces) == 0:
+    # Create a synthetic face region for recognition warmup
+    dummy_face = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+    try:
+        app.identify_face_enhanced(dummy_face, 0.8, 1)
+    except:
+        pass  # Expected to fail, just warming up the models
+
+print(f"Models preloaded successfully! YOLO ready, Recognition ready.")
+`
+        
+        const preloadProc = spawn(pythonCmd, ['-c', preloadScript], {
             cwd: path.join(app.getAppPath(), '..'),
             stdio: 'pipe'
         })
-        await new Promise((resolve, reject) => {
-            preloadProc.on('exit', (code) => code === 0 ? resolve(undefined) : reject(new Error(`Preload failed with code ${code}`)))
+        
+        preloadProc.stdout.on('data', (data) => {
+            console.log('[preload]', data.toString().trim())
         })
-        console.log('[main] Models preloaded successfully')
+        
+        preloadProc.stderr.on('data', (data) => {
+            console.warn('[preload][err]', data.toString().trim())
+        })
+        
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                preloadProc.kill()
+                reject(new Error('Preload timeout'))
+            }, 30000) // 30 second timeout
+            
+            preloadProc.on('exit', (code) => {
+                clearTimeout(timeout)
+                if (code === 0) {
+                    resolve(undefined)
+                } else {
+                    reject(new Error(`Preload failed with code ${code}`))
+                }
+            })
+        })
+        console.log('[main] ✅ Models preloaded successfully - camera should start instantly!')
     } catch (e) {
-        console.warn('[main] Model preload failed:', e)
+        console.warn('[main] ⚠️ Model preload failed:', e, '- camera may be slower on first start')
     }
 }
 

@@ -64,6 +64,7 @@ from experiments.prototype.utils import calculate_quality_score
 class Options:
     device: int = 0
     annotate: bool = True
+    fast_preview: bool = False
 
 
 class ControlState:
@@ -148,7 +149,17 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
         print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Could not open camera {opts.device}'})}", file=sys.stderr)
         return 2
 
-    print(f"EVT {json.dumps({'type': 'video.started', 'device': opts.device})}", file=sys.stderr)
+    # Configure camera for optimal performance
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    print(f"EVT {json.dumps({'type': 'video.started', 'device': opts.device, 'fast_preview': opts.fast_preview})}", file=sys.stderr)
+    
+    # In fast preview mode, start sending frames immediately without model loading
+    if opts.fast_preview:
+        print(f"EVT {json.dumps({'type': 'video.fast_preview_ready'})}", file=sys.stderr)
     
     consecutive_fail = 0
     frame_count = 0
@@ -227,7 +238,10 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
         h, w = frame.shape[:2]
         frame_count += 1
         
-        if opts.annotate:
+        # In fast preview mode, skip heavy processing for first few seconds
+        skip_recognition = opts.fast_preview and frame_count < 90  # ~3 seconds at 30fps
+        
+        if opts.annotate and not skip_recognition:
             try:
                 # Preprocess for YOLO (same as prototype)
                 input_blob, scale, dx, dy = preprocess_yolo(frame)
@@ -309,6 +323,19 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
                 
             except Exception as e:
                 print(f"[video_worker] inference error: {e}", file=sys.stderr)
+        elif skip_recognition:
+            # Show loading indicator during fast preview mode
+            cv2.putText(orig, "Mode: FAST PREVIEW - Loading Models...", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            cv2.putText(orig, f"Frame: {frame_count}/90", (10, 60), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+            # Signal when switching to full recognition mode
+            if frame_count == 90:
+                print(f"EVT {json.dumps({'type': 'video.recognition_ready'})}", file=sys.stderr)
+        else:
+            # Basic streaming mode without annotation
+            cv2.putText(orig, "Mode: PREVIEW ONLY", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         # Encode and send
         try:
@@ -332,14 +359,200 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
     return 0
 
 
+def streaming_camera_recognition_fast(model_future, opts: Options, ctrl: ControlState):
+    """Fast preview mode - start camera immediately, add recognition when models load"""
+    cap = cv2.VideoCapture(opts.device)
+    if not cap.isOpened():
+        print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Could not open camera {opts.device}'})}", file=sys.stderr)
+        return 2
+
+    # Configure camera for optimal performance
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    print(f"EVT {json.dumps({'type': 'video.started', 'device': opts.device, 'fast_preview': True})}", file=sys.stderr)
+    print(f"EVT {json.dumps({'type': 'video.fast_preview_ready'})}", file=sys.stderr)
+    
+    frame_count = 0
+    attendance = None
+    models_loaded = False
+    
+    while True:
+        paused, req_stop, _ = ctrl.get()
+        if req_stop:
+            break
+        if paused:
+            time.sleep(0.02)
+            continue
+
+        # Check if models are loaded
+        if not models_loaded and model_future.done():
+            try:
+                attendance = model_future.result()
+                models_loaded = True
+                print(f"EVT {json.dumps({'type': 'video.recognition_ready'})}", file=sys.stderr)
+            except Exception as e:
+                print(f"LOG Model loading error: {e}", file=sys.stderr)
+                models_loaded = True  # Prevent endless checking
+
+        # Handle device switching
+        nd = ctrl.consume_device_switch()
+        if nd is not None:
+            try:
+                if cap is not None:
+                    cap.release()
+                cap = cv2.VideoCapture(nd)
+                if not cap or not cap.isOpened():
+                    print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Failed to switch to camera {nd}'})}", file=sys.stderr)
+                else:
+                    opts.device = nd
+                    print(f"EVT {json.dumps({'type': 'video.device', 'device': nd})}", file=sys.stderr)
+            except Exception as e:
+                print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Switch device error: {e}'})}", file=sys.stderr)
+
+        if cap is None or not cap.isOpened():
+            time.sleep(0.05)
+            continue
+
+        ret, frame = cap.read()
+        if not ret or frame is None or frame.size == 0:
+            time.sleep(0.005)
+            continue
+        
+        orig = frame.copy()
+        h, w = frame.shape[:2]
+        frame_count += 1
+        
+        # Only do recognition if models are loaded and we want annotation
+        if models_loaded and attendance is not None and opts.annotate:
+            try:
+                # Full recognition pipeline
+                input_blob, scale, dx, dy = preprocess_yolo(frame)
+                preds = yolo_sess.run(None, {'images': input_blob})[0]
+                faces = non_max_suppression(preds, conf_thresh, iou_thresh, 
+                                           img_shape=(h, w), input_shape=(input_size, input_size), 
+                                           pad=(dx, dy), scale=scale)
+
+                scene_crowding = len(faces)
+                for box in faces:
+                    x1, y1, x2, y2, conf = box
+                    if x2 <= x1 or y2 <= y1:
+                        continue
+
+                    face_img = orig[y1:y2, x1:x2]
+                    if face_img.size == 0:
+                        continue
+                    
+                    quality = calculate_quality_score(face_img, conf)
+                    identified_name, similarity, should_log, info = attendance.identify_face_enhanced(
+                        face_img, conf, scene_crowding
+                    )
+                    
+                    if identified_name and should_log:
+                        attendance.log_attendance(identified_name, similarity, info)
+                    
+                    # Draw recognition results
+                    if identified_name and should_log:
+                        color = (0, 255, 0)
+                        method_text = info.get('method', 'unknown')[:8]
+                        label = f"{identified_name} ({similarity:.3f}) [{method_text}]"
+                    elif identified_name:
+                        color = (0, 255, 255)
+                        label = f"{identified_name}? ({similarity:.3f})"
+                    else:
+                        color = (0, 0, 255)
+                        label = f"Unknown (Q:{quality:.2f})"
+                    
+                    cv2.rectangle(orig, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(orig, label, (x1, y1 - 10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                
+                # Status overlay for full recognition mode
+                cv2.putText(orig, "Mode: FULL RECOGNITION", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(orig, f"Faces: {len(faces)}", (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                
+            except Exception as e:
+                print(f"LOG Recognition error: {e}", file=sys.stderr)
+                cv2.putText(orig, "Mode: PREVIEW (Recognition Error)", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        elif not models_loaded:
+            # Still loading models - show preview with loading indicator
+            cv2.putText(orig, "Mode: FAST PREVIEW - Loading Models...", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            cv2.putText(orig, "Camera ready instantly!", (10, 60), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        else:
+            # Preview only mode
+            cv2.putText(orig, "Mode: PREVIEW ONLY", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        # Encode and send frame
+        try:
+            ok, buf = cv2.imencode('.jpg', orig, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if ok and buf is not None:
+                write_frame(buf.tobytes())
+        except BrokenPipeError:
+            return 0
+        except Exception as e:
+            print(f"LOG Frame send error: {e}", file=sys.stderr)
+
+    cap.release()
+    print(f"EVT {json.dumps({'type': 'video.stopped'})}", file=sys.stderr)
+    return 0
+
+
 def run(opts: Options):
-    # Load recognition system once (same as prototype)
-    attendance = Main()
     ctrl = ControlState()
+    
+    if opts.fast_preview:
+        # In fast preview mode, start camera first, load models in background
+        print(f"EVT {json.dumps({'type': 'video.loading_models'})}", file=sys.stderr)
+        
+        # Start with minimal initialization for camera preview
+        attendance = None
+        
+        # Load models in background thread
+        def load_models():
+            global attendance
+            try:
+                print(f"LOG Background model loading started", file=sys.stderr)
+                temp_attendance = Main()
+                # Do a warmup inference
+                import numpy as np
+                dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                from experiments.prototype.main import preprocess_yolo, non_max_suppression, conf_thresh, iou_thresh, input_size
+                input_blob, scale, dx, dy = preprocess_yolo(dummy_frame)
+                _ = yolo_sess.run(None, {'images': input_blob})[0]
+                print(f"EVT {json.dumps({'type': 'video.models_loaded'})}", file=sys.stderr)
+                # Use a simple assignment instead of global modification during streaming
+                return temp_attendance
+            except Exception as e:
+                print(f"LOG Background model loading failed: {e}", file=sys.stderr)
+                return Main()  # Fallback to basic loading
+        
+        # Start model loading in background
+        import concurrent.futures
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        model_future = executor.submit(load_models)
+        
+        # Start camera immediately with no models for preview
+        attendance = None
+    else:
+        # Normal mode - load everything upfront
+        attendance = Main()
+    
     threading.Thread(target=control_loop, args=(ctrl,), daemon=True).start()
 
     # Use adapted prototype camera function
-    return streaming_camera_recognition(attendance, opts, ctrl)
+    if opts.fast_preview and attendance is None:
+        # Start with preview, switch to full recognition when models are ready
+        return streaming_camera_recognition_fast(model_future, opts, ctrl)
+    else:
+        return streaming_camera_recognition(attendance, opts, ctrl)
 
 
 def parse_args() -> Options:
@@ -347,8 +560,9 @@ def parse_args() -> Options:
     p = argparse.ArgumentParser()
     p.add_argument('--device', type=int, default=0)
     p.add_argument('--no-annotate', action='store_true')
+    p.add_argument('--fast-preview', action='store_true', help='Start with fast preview mode (no recognition for first 3 seconds)')
     a = p.parse_args()
-    return Options(device=a.device, annotate=not a.no_annotate)
+    return Options(device=a.device, annotate=not a.no_annotate, fast_preview=a.fast_preview)
 
 
 if __name__ == '__main__':
