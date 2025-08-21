@@ -26,53 +26,6 @@ function resolvePythonCmd(): string {
     return 'python'
 }
 
-function startVideoWorker() {
-    const args = [
-        'src.api.video_worker',
-    ]
-    
-    const pythonCmd = resolvePythonCmd()
-    
-    videoProc = spawn(pythonCmd, ['-m', ...args], {
-        cwd: path.join(app.getAppPath(), '..'),
-        env: { ...process.env },
-        stdio: 'pipe'
-    })
-    videoProc.stdout.on('data', (data) => {
-        try {
-            // Try to convert to string, if it fails it's likely binary data
-            const str = data.toString('utf8').trim()
-            if (!str) return
-            
-            const lines = str.split('\n')
-            for (const line of lines) {
-                if (!line.trim()) continue
-                try {
-                    const msg = JSON.parse(line)
-                    if (msg.type === 'frame' && mainWindowRef) {
-                        mainWindowRef.webContents.send('video:frame', msg.data)
-                    } else if (mainWindowRef) {
-                        mainWindowRef.webContents.send('video:event', msg)
-                    }
-                } catch {
-                    // Only log if it looks like text data
-                    if (/^[\x20-\x7E\n\r\t]*$/.test(line)) {
-                        console.log('[video][out]', line)
-                    }
-                }
-            }
-        } catch {
-            // Silently ignore binary data parsing errors
-            return
-        }
-    })
-    videoProc.stderr.on('data', (d) => console.error('[video][err]', d.toString()))
-    videoProc.on('exit', (code, signal) => {
-        console.log('[video] exited', { code, signal })
-        videoProc = null
-    })
-}
-
 function startBackend(): void {
     try {
         const args = [
@@ -122,13 +75,19 @@ function startVideo(opts?: { device?: number, annotate?: boolean }) {
     if (videoProc) return
     const pythonCmd = resolvePythonCmd()
     const args = [
-        '-m', 'src.api.video_worker',
-        '--device', String(opts?.device ?? 0),
+        '-m',
+        'src.api.video_worker',
+        '--device', String(opts?.device ?? 0)
     ]
     if (opts?.annotate === false) args.push('--no-annotate')
 
     const cwd = path.join(app.getAppPath(), '..')
-    videoProc = spawn(pythonCmd, args, { cwd, env: { ...process.env, SURI_LAZY_MODELS: '1' }, stdio: 'pipe' })
+    console.log('[video] starting with args:', args)
+    videoProc = spawn(pythonCmd, args, { 
+        cwd, 
+        env: { ...process.env }, 
+        stdio: 'pipe'
+    })
     console.log('[video] spawned', pythonCmd, args.join(' '))
 
     // Accumulate stdout buffer and emit frames via IPC
@@ -137,27 +96,45 @@ function startVideo(opts?: { device?: number, annotate?: boolean }) {
     const minIntervalMs = 1000 / 25 // throttle to ~25 fps to the renderer
 
     function handleData(chunk: Buffer) {
-        acc = Buffer.concat([acc, chunk])
-        while (acc.length >= 4) {
-            const len = acc.readUInt32LE(0)
-            // sanity guard: drop absurd sizes
-            if (len <= 0 || len > 10 * 1024 * 1024) { // >10MB is suspicious for 640x480 JPEG
-                console.warn('[video] invalid frame length, resetting buffer', len)
-                acc = Buffer.alloc(0)
-                break
-            }
-            if (acc.length < 4 + len) break
-            // Copy to detach from the underlying accumulator memory
-            const frame = Buffer.from(acc.subarray(4, 4 + len))
-            acc = acc.subarray(4 + len)
-            const now = Date.now()
-            if (now - lastSent >= minIntervalMs) {
-                lastSent = now
-                if (mainWindowRef) {
-                    // send as Buffer to avoid base64 overhead
-                    mainWindowRef.webContents.send('video:frame', frame)
+        try {
+            acc = Buffer.concat([acc, chunk])
+            while (acc.length >= 4) {
+                const len = acc.readUInt32LE(0)
+                // More strict sanity check for frame size
+                const maxSize = 1024 * 1024  // 1MB should be plenty for 640x480 JPEG
+                if (len <= 0 || len > maxSize) {
+                    console.warn('[video] invalid frame length, resetting buffer', { len, bufferSize: acc.length })
+                    acc = Buffer.alloc(0)
+                    break
+                }
+                if (acc.length < 4 + len) break
+                
+                try {
+                    // Copy to detach from the underlying accumulator memory
+                    const frame = Buffer.from(acc.subarray(4, 4 + len))
+                    acc = acc.subarray(4 + len)
+                    const now = Date.now()
+                    if (now - lastSent >= minIntervalMs) {
+                        lastSent = now
+                        if (mainWindowRef) {
+                            // send as Buffer to avoid base64 overhead
+                            mainWindowRef.webContents.send('video:frame', frame)
+                        }
+                    }
+                } catch (e) {
+                    console.error('[video] frame processing error:', e)
+                    acc = Buffer.alloc(0)
+                    break
                 }
             }
+            // Safety check - if buffer gets too large without finding valid frames, reset it
+            if (acc.length > maxSize) {
+                console.warn('[video] buffer overflow, resetting')
+                acc = Buffer.alloc(0)
+            }
+        } catch (e) {
+            console.error('[video] buffer handling error:', e)
+            acc = Buffer.alloc(0)
         }
     }
 
@@ -214,9 +191,28 @@ ipcMain.handle('video:pause', () => { if (videoProc) videoProc.stdin.write(JSON.
 ipcMain.handle('video:resume', () => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'resume' }) + '\n'); return true })
 ipcMain.handle('video:setDevice', (_evt, device: number) => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'set_device', device }) + '\n'); return true })
 
-app.on("ready", () => {
+async function preloadModels() {
+    try {
+        const pythonCmd = resolvePythonCmd()
+        const preloadProc = spawn(pythonCmd, [
+            '-c',
+            'from experiments.prototype.main import yolo_sess, input_size; import numpy as np; dummy=np.zeros((480,640,3),np.uint8); yolo_sess.run(None, {"images": dummy.reshape(1,input_size,input_size,3)})'
+        ], {
+            cwd: path.join(app.getAppPath(), '..'),
+            stdio: 'pipe'
+        })
+        await new Promise((resolve, reject) => {
+            preloadProc.on('exit', (code) => code === 0 ? resolve(undefined) : reject(new Error(`Preload failed with code ${code}`)))
+        })
+        console.log('[main] Models preloaded successfully')
+    } catch (e) {
+        console.warn('[main] Model preload failed:', e)
+    }
+}
+
+app.on("ready", async () => {
     startBackend()
-    startVideoWorker()
+    await preloadModels()
 	const preloadPath = path.join(__dirname, 'preload.js')
     console.log('[main] preload path:', preloadPath)
     // Diagnostics: confirm preload is loaded
