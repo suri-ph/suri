@@ -275,6 +275,7 @@ app.on("ready", async () => {
     // Diagnostics: confirm preload is loaded
     ipcMain.on('preload-ready', () => console.log('[main] preload ready'))
 	const mainWindow = new BrowserWindow({
+        autoHideMenuBar: true,
         webPreferences: {
             contextIsolation: true,
             sandbox: false,
