@@ -49,8 +49,34 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background: var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+/* #root fills the entire rounded window */
+#root {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Main electron window container - just structure, no styling */
+.electron-window-container {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+}
+
+/* Scrollable content area */
+.app-content-wrapper {
+  flex: 1;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -119,23 +145,24 @@ input::placeholder, textarea::placeholder {
   color: var(--text-muted);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
+/* Scrollbar styling - contained within rounded window */
+.app-content-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+.app-content-wrapper::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 0 12px 0;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
+.app-content-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border-hover);
+.app-content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* === APP LAYOUT === */

@@ -45,7 +45,10 @@ export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] h-8 bg-black/90 backdrop-blur-xl border-b border-white/[0.05] flex items-center justify-between px-4 select-none">
+    <div 
+      className="h-8 bg-black/95 backdrop-blur-xl border-b border-white/[0.05] flex items-center justify-between px-4 select-none flex-shrink-0"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    >
       {/* Drag Region - Left Side */}
       <div className="flex items-center space-x-3 flex-1">
         <div className="w-3 h-3 rounded-full bg-white/20"></div>
@@ -55,7 +58,10 @@ export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
       </div>
 
       {/* Window Controls - Right Side */}
-      <div className="flex items-center space-x-1">
+      <div 
+        className="flex items-center space-x-1"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
         <button
           onClick={handleMinimize}
           className="w-12 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.05] transition-all duration-200 group"

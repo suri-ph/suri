@@ -136,34 +136,37 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Custom TitleBar */}
+    <div className="electron-window-container">
+      {/* Custom TitleBar - Outside scrollable area */}
       <TitleBar title="SURI - Face Recognition System" />
       
-      {/* Glass Morphism Header - only when not on main menu */}
-      {currentMenu !== 'main' && (
-        <div className="fixed top-8 left-0 right-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/[0.05]">
-          <div className="flex items-center justify-between px-8 py-4">
-            <button
-              onClick={() => setCurrentMenu('main')}
-              className="group flex items-center space-x-4 text-white/60 hover:text-white transition-all duration-300"
-            >
-              <div className="w-2 h-2 rounded-full bg-white/60 group-hover:bg-white group-hover:scale-125 transition-all duration-300"></div>
-              <span className="text-sm font-light tracking-[0.15em] uppercase">SURI</span>
-              <span className="text-xs text-white/30">•</span>
-              <span className="text-xs font-light text-white/80">{getCurrentSectionName()}</span>
-            </button>
-            
-            <div className="flex items-center space-x-3">
-              <AppDropdown isConnected={isConnected} onRefreshStats={fetchSystemStats} />
+      {/* Scrollable content wrapper */}
+      <div className="app-content-wrapper">
+        {/* Glass Morphism Header - only when not on main menu */}
+        {currentMenu !== 'main' && (
+          <div className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/[0.05]">
+            <div className="flex items-center justify-between px-8 py-4">
+              <button
+                onClick={() => setCurrentMenu('main')}
+                className="group flex items-center space-x-4 text-white/60 hover:text-white transition-all duration-300"
+              >
+                <div className="w-2 h-2 rounded-full bg-white/60 group-hover:bg-white group-hover:scale-125 transition-all duration-300"></div>
+                <span className="text-sm font-light tracking-[0.15em] uppercase">SURI</span>
+                <span className="text-xs text-white/30">•</span>
+                <span className="text-xs font-light text-white/80">{getCurrentSectionName()}</span>
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <AppDropdown isConnected={isConnected} onRefreshStats={fetchSystemStats} />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Main content area */}
-      <div className={`${currentMenu !== 'main' ? 'pt-24' : 'pt-8'}`}>
-        {renderCurrentComponent()}
+        {/* Main content area */}
+        <div className={`${currentMenu !== 'main' ? 'pt-16' : 'pt-4'} text-white px-4`}>
+          {renderCurrentComponent()}
+        </div>
       </div>
     </div>
   )
