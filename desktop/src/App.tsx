@@ -5,6 +5,7 @@ import SingleImageRecognition from './components/SingleImageRecognition.tsx'
 import BatchImageProcessing from './components/BatchImageProcessing.tsx'
 import SystemManagement from './components/SystemManagement.tsx'
 import AppDropdown from './components/AppDropdown.tsx'
+import TitleBar from './components/TitleBar.tsx'
 import './App.css'
 
 export type MenuOption = 
@@ -136,9 +137,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Custom TitleBar */}
+      <TitleBar title="SURI - Face Recognition System" />
+      
       {/* Glass Morphism Header - only when not on main menu */}
       {currentMenu !== 'main' && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/[0.05]">
+        <div className="fixed top-8 left-0 right-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/[0.05]">
           <div className="flex items-center justify-between px-8 py-4">
             <button
               onClick={() => setCurrentMenu('main')}
@@ -158,7 +162,7 @@ function App() {
       )}
 
       {/* Main content area */}
-      <div className={`${currentMenu !== 'main' ? 'pt-16' : ''}`}>
+      <div className={`${currentMenu !== 'main' ? 'pt-24' : 'pt-8'}`}>
         {renderCurrentComponent()}
       </div>
     </div>

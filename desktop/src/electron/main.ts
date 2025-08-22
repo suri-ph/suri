@@ -193,6 +193,28 @@ ipcMain.handle('video:pause', () => { if (videoProc) videoProc.stdin.write(JSON.
 ipcMain.handle('video:resume', () => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'resume' }) + '\n'); return true })
 ipcMain.handle('video:setDevice', (_evt, device: number) => { if (videoProc) videoProc.stdin.write(JSON.stringify({ action: 'set_device', device }) + '\n'); return true })
 
+// Window control handlers
+ipcMain.handle('window:minimize', () => {
+    if (mainWindowRef) mainWindowRef.minimize()
+    return true
+})
+
+ipcMain.handle('window:maximize', () => {
+    if (mainWindowRef) {
+        if (mainWindowRef.isMaximized()) {
+            mainWindowRef.unmaximize()
+        } else {
+            mainWindowRef.maximize()
+        }
+    }
+    return true
+})
+
+ipcMain.handle('window:close', () => {
+    if (mainWindowRef) mainWindowRef.close()
+    return true
+})
+
 async function preloadModels() {
     try {
         const pythonCmd = resolvePythonCmd()
@@ -276,6 +298,11 @@ app.on("ready", async () => {
     ipcMain.on('preload-ready', () => console.log('[main] preload ready'))
 	const mainWindow = new BrowserWindow({
         autoHideMenuBar: true,
+        frame: false,
+        titleBarStyle: 'hidden',
+        titleBarOverlay: false,
+        transparent: false,
+        backgroundColor: '#000000',
         webPreferences: {
             contextIsolation: true,
             sandbox: false,
@@ -284,6 +311,16 @@ app.on("ready", async () => {
         }
     });
     mainWindowRef = mainWindow
+    
+    // Window state change events
+    mainWindow.on('maximize', () => {
+        mainWindow.webContents.send('window:maximized')
+    })
+    
+    mainWindow.on('unmaximize', () => {
+        mainWindow.webContents.send('window:unmaximized')
+    })
+    
     if (isDev()) {
         mainWindow.loadURL("http://localhost:5123");
     } else {

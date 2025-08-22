@@ -20,9 +20,18 @@ declare global {
     onEvent: (handler: (evt: Record<string, unknown>) => void) => () => void
   }
 
+  interface SuriElectronAPI {
+    minimize: () => Promise<boolean>
+    maximize: () => Promise<boolean>
+    close: () => Promise<boolean>
+    onMaximize: (callback: () => void) => () => void
+    onUnmaximize: (callback: () => void) => () => void
+  }
+
   interface Window {
     suriWS?: SuriWSClientAPI
     suriVideo?: SuriVideoAPI
+    suriElectron?: SuriElectronAPI
     __suriOffFrame?: () => void
   }
 }
