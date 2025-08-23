@@ -153,11 +153,11 @@ export default function MainMenu({
                   }`}
                 >
                   {/* Pure Glass Background */}
-                  <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl"></div>
+                  <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-xl border border-white/[0.08]"></div>
                   
                   {/* Hover Glass Enhancement */}
                   {!item.disabled && (
-                    <div className="absolute inset-0 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                    <div className="absolute inset-0 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
                   )}
                   
                   {/* Content */}
