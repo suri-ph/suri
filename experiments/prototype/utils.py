@@ -70,7 +70,7 @@ def extract_pyramid_features(face_img, session, face_size=112):
         return np.zeros(512)
 
 def preprocess_face_enhanced(face_img, face_size=112):
-    """EdgeFace-S specific preprocessing - FIXED for proper face recognition"""
+    """EdgeFace-S specific preprocessing - CORRECT ImageNet normalization"""
     
     # Resize to exact target size first
     face = cv2.resize(face_img, (face_size, face_size))
@@ -81,15 +81,17 @@ def preprocess_face_enhanced(face_img, face_size=112):
     # Convert to float32 and normalize to [0, 1]
     face_normalized = face_rgb.astype(np.float32) / 255.0
     
-    # EdgeFace-S specific normalization: mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
-    # This transforms [0, 1] to [-1, 1] range
-    face_normalized = (face_normalized - 0.5) / 0.5
+    # CORRECT: EdgeFace uses ImageNet normalization
+    # ImageNet mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    face_normalized = (face_normalized - mean) / std
     
     # Transpose to CHW format (channels, height, width)
     face_chw = np.transpose(face_normalized, (2, 0, 1))
     
-    # Add batch dimension
-    face_batch = np.expand_dims(face_chw, axis=0)
+    # Add batch dimension and ensure float32
+    face_batch = np.expand_dims(face_chw, axis=0).astype(np.float32)
     
     return face_batch
 
@@ -200,7 +202,7 @@ def enhance_face_preprocessing(face_img, bbox_conf):
     
     return enhanced_img, quality_score
 
-def get_adaptive_threshold(conditions, base_threshold=0.52):
+def get_adaptive_threshold(conditions, base_threshold=0.75):
     """BEST OF THE BEST - Optimal EdgeFace-S adaptive threshold"""
     condition_modifiers = {
         'low_light': +0.03,      # Precise adjustment for low light
@@ -216,54 +218,34 @@ def get_adaptive_threshold(conditions, base_threshold=0.52):
         if condition in condition_modifiers:
             threshold += condition_modifiers[condition]
     
-    # BEST OF THE BEST range - optimized for maximum accuracy
-    return max(0.42, min(0.70, threshold))
+    # BEST OF THE BEST range - balanced for real-world use
+    return max(0.65, min(0.85, threshold))
 
 def validate_face_region(face_img):
-    """Validate if the extracted region actually contains a face"""
+    """Validate if the extracted region actually contains a face - RELAXED for better recognition"""
     if face_img.size == 0:
         return False
     
     h, w = face_img.shape[:2]
-    if h < 30 or w < 30:
+    if h < 20 or w < 20:  # More relaxed size requirement
         return False
     
     # Convert to grayscale
     gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
     
-    # Check for facial features using simple heuristics
+    # More permissive validation - only basic checks
     
-    # 1. Edge density (faces have structured edges)
-    edges = cv2.Canny(gray, 30, 100)
-    edge_density = np.sum(edges > 0) / (h * w)
-    if edge_density < 0.02 or edge_density > 0.4:  # Too few or too many edges
-        return False
-    
-    # 2. Variance check (faces have reasonable texture variation)
+    # 1. Variance check (faces have some texture variation)
     variance = gray.var()
-    if variance < 200:  # Too uniform
+    if variance < 50:  # Much more relaxed - was 200
         return False
     
-    # 3. Brightness distribution (faces have reasonable brightness distribution)
-    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-    if np.max(hist) > (h * w * 0.8):  # Too concentrated in one brightness
+    # 2. Basic brightness check (not completely black or white)
+    mean_brightness = np.mean(gray)
+    if mean_brightness < 10 or mean_brightness > 245:
         return False
     
-    # 4. Symmetry check (rough horizontal symmetry)
-    left_half = gray[:, :w//2]
-    right_half = cv2.flip(gray[:, w//2:], 1)
-    
-    # Resize to match if needed
-    min_width = min(left_half.shape[1], right_half.shape[1])
-    left_half = left_half[:, :min_width]
-    right_half = right_half[:, :min_width]
-    
-    # Calculate symmetry score
-    if left_half.size > 0 and right_half.size > 0:
-        symmetry_score = cv2.matchTemplate(left_half, right_half, cv2.TM_CCOEFF_NORMED)[0][0]
-        if symmetry_score < 0.3:  # Very low symmetry
-            return False
-    
+    # Skip the complex edge density and symmetry checks that were too strict
     return True
 
 def detect_conditions(face_img, face_quality, detection_conf, scene_crowding=1.0):

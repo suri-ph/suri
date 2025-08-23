@@ -30,7 +30,7 @@ input_size = 640
 face_size = 112
 conf_thresh = 0.6  # Higher for better quality detections
 iou_thresh = 0.45
-base_recognition_threshold = 0.52  # Best of the best - optimal EdgeFace-S threshold
+base_recognition_threshold = 0.75  # Balanced threshold for real-world scenarios
 
 class Main:
     def __init__(self):
@@ -213,13 +213,13 @@ class Main:
                 if j == i or j in used_indices:
                     continue
                     
-                # EdgeFace-S optimized similarity for template clustering
+                # EdgeFace-S optimized similarity for template clustering - CORRECTED
                 try:
-                    # Ensure embeddings are normalized
-                    emb1 = embedding / np.linalg.norm(embedding) if np.linalg.norm(embedding) > 0 else embedding
-                    emb2 = other_embedding / np.linalg.norm(other_embedding) if np.linalg.norm(other_embedding) > 0 else other_embedding
-                    similarity = np.dot(emb1, emb2)
-                    similarity = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
+                    # Embeddings should already be L2 normalized from extract_pyramid_features
+                    similarity = np.dot(embedding, other_embedding)
+                    # Convert cosine similarity from [-1, 1] to [0, 1]
+                    similarity = (similarity + 1.0) / 2.0
+                    similarity = max(0.0, min(1.0, similarity))
                 except Exception:
                     similarity = 0.0
                 
@@ -324,11 +324,12 @@ class Main:
                 similarities = []
                 for template in templates:
                     try:
-                        # EdgeFace-S optimized similarity computation
+                        # EdgeFace-S optimized similarity computation - CORRECTED
                         # Use dot product since embeddings are already L2 normalized
                         similarity = np.dot(query_embedding, template['embedding'])
-                        # Clamp to [0, 1] range for consistency
-                        similarity = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
+                        # Convert cosine similarity from [-1, 1] to [0, 1]
+                        similarity = (similarity + 1.0) / 2.0
+                        similarity = max(0.0, min(1.0, similarity))
                         similarities.append(similarity)
                     except Exception as e:
                         print(f"[WARNING] Error comparing with template for {person_name}: {e}")
@@ -420,18 +421,14 @@ class Main:
         for name, data in self.face_database.items():
             stored_embedding = data['embedding']
             
-            # EdgeFace-S optimized similarity (same as template matching)
+            # EdgeFace-S optimized similarity - CORRECT implementation
             try:
-                # Ensure both embeddings are L2 normalized
-                if np.linalg.norm(stored_embedding) > 0:
-                    stored_embedding = stored_embedding / np.linalg.norm(stored_embedding)
-                if np.linalg.norm(embedding) > 0:
-                    embedding = embedding / np.linalg.norm(embedding)
-                
-                # Use dot product for normalized embeddings
+                # Both embeddings should already be L2 normalized from extract_pyramid_features
+                # Use cosine similarity (dot product of normalized vectors)
                 similarity = np.dot(embedding, stored_embedding)
-                # Transform to [0, 1] range
-                similarity = max(0.0, min(1.0, (similarity + 1.0) / 2.0))
+                # Cosine similarity is already in [-1, 1], convert to [0, 1] if needed
+                similarity = (similarity + 1.0) / 2.0
+                similarity = max(0.0, min(1.0, similarity))
             except Exception as e:
                 print(f"[WARNING] Error computing similarity with {name}: {e}")
                 similarity = 0.0
