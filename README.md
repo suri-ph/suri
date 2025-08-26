@@ -23,7 +23,7 @@ You can find the details of the model here:
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Python 3.8+](https://www.python.org/downloads)
+- [Python 3.13+](https://www.python.org/downloads)
 - [Git](https://git-scm.com/downloads)
 
 ### 1. Clone & Setup
