@@ -91,10 +91,11 @@ function startVideo(opts?: { device?: number, annotate?: boolean, fastPreview?: 
     })
     console.log('[video] spawned', pythonCmd, args.join(' '))
 
-    // Accumulate stdout buffer and emit frames via IPC
+    // Optimized frame handling for smooth real-time performance
     let acc: Buffer = Buffer.alloc(0)
     let lastSent = 0
-    const minIntervalMs = 1000 / 25 // throttle to ~25 fps to the renderer
+    const minIntervalMs = 1000 / 30 // Optimized to 30 fps for smooth performance
+    let frameDropped = 0
 
     function handleData(chunk: Buffer) {
         const maxSize = 1024 * 1024  // 1MB should be plenty for 640x480 JPEG
@@ -117,9 +118,16 @@ function startVideo(opts?: { device?: number, annotate?: boolean, fastPreview?: 
                     const now = Date.now()
                     if (now - lastSent >= minIntervalMs) {
                         lastSent = now
+                        frameDropped = 0 // Reset dropped counter on successful send
                         if (mainWindowRef) {
                             // send as Buffer to avoid base64 overhead
                             mainWindowRef.webContents.send('video:frame', frame)
+                        }
+                    } else {
+                        frameDropped++
+                        // Log performance info occasionally
+                        if (frameDropped % 50 === 0) {
+                            console.log(`[video] Performance: ${frameDropped} frames skipped for smooth playback`)
                         }
                     }
                 } catch (e) {

@@ -319,5 +319,120 @@
         ]
       }
     }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-26T10:23:06.812980",
+    "confidence": 0.955870677547847,
+    "date": "2025-08-26",
+    "time": "10:23:06",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.4554295567457163,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.955870677547847
+        ]
+      }
+    }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-26T10:25:10.267333",
+    "confidence": 0.9584985678983067,
+    "date": "2025-08-26",
+    "time": "10:25:10",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.4361021562924371,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.9584985678983067
+        ]
+      }
+    }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-26T10:30:24.577938",
+    "confidence": 0.971449940707628,
+    "date": "2025-08-26",
+    "time": "10:30:24",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.51374720105679,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.971449940707628
+        ]
+      }
+    }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-26T10:30:55.095699",
+    "confidence": 0.957573405254063,
+    "date": "2025-08-26",
+    "time": "10:30:55",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.5464897949152842,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.957573405254063
+        ]
+      }
+    }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-26T10:31:52.198462",
+    "confidence": 0.9227497834815241,
+    "date": "2025-08-26",
+    "time": "10:31:52",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.4578229837590355,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.9227497834815241
+        ]
+      }
+    }
   }
 ]

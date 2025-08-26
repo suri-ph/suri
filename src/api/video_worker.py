@@ -198,18 +198,24 @@ def write_frame(jpeg: bytes):
 
 
 def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
-    """Adapted from prototype's live_camera_recognition for streaming"""
+    """Optimized streaming with intelligent frame processing"""
     # Use robust camera opening with DirectShow on Windows to avoid obsensor conflicts
     cap = open_camera_robust(opts.device)
     if not cap.isOpened():
         print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Could not open camera {opts.device}'})}", file=sys.stderr)
         return 2
 
-    # Configure camera for optimal performance
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
+    # Configure camera for maximum performance
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Slightly larger buffer for stability
     cap.set(cv2.CAP_PROP_FPS, 30)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    
+    # Try to disable auto-exposure for consistent performance
+    try:
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Manual exposure
+    except:
+        pass
 
     print(f"EVT {json.dumps({'type': 'video.started', 'device': opts.device, 'fast_preview': opts.fast_preview})}", file=sys.stderr)
     
@@ -221,6 +227,13 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
     frame_count = 0
     last_db_check = time.time()
     db_check_interval = 2.0  # Check for database updates every 2 seconds
+    
+    # Performance optimization variables
+    last_recognition_time = 0
+    recognition_interval = 0.2  # Run recognition every 200ms (5 FPS recognition)
+    last_frame_time = time.time()
+    target_fps = 25  # Target streaming FPS
+    frame_interval = 1.0 / target_fps
     
     while True:
         paused, req_stop, _ = ctrl.get()
@@ -267,8 +280,15 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
 
         consecutive_fail = 0
         
-        # Check for database updates periodically
+        # Frame rate limiting for smooth streaming
         current_time = time.time()
+        time_since_last_frame = current_time - last_frame_time
+        if time_since_last_frame < frame_interval:
+            time.sleep(0.005)  # Small sleep to prevent busy waiting
+            continue
+        last_frame_time = current_time
+        
+        # Check for database updates periodically
         if current_time - last_db_check > db_check_interval:
             try:
                 # Reload face databases to pick up new people added via API
@@ -289,7 +309,7 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
                 print(f"LOG Database reload error: {e}", file=sys.stderr)
                 last_db_check = current_time  # Don't spam errors
         
-        # Use prototype's exact processing logic
+        # Use optimized processing logic with intelligent frame skipping
         orig = frame.copy()
         h, w = frame.shape[:2]
         frame_count += 1
@@ -297,7 +317,11 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
         # In fast preview mode, skip heavy processing for first few seconds
         skip_recognition = opts.fast_preview and frame_count < 90  # ~3 seconds at 30fps
         
-        if opts.annotate and not skip_recognition:
+        # Intelligent recognition: only run every recognition_interval to maintain performance
+        should_run_recognition = (current_time - last_recognition_time) >= recognition_interval
+        
+        if opts.annotate and not skip_recognition and should_run_recognition:
+            last_recognition_time = current_time
             try:
                 # Preprocess for YOLO (same as prototype)
                 input_blob, scale, dx, dy = preprocess_yolo(frame)
@@ -389,13 +413,20 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
             # Signal when switching to full recognition mode
             if frame_count == 90:
                 print(f"EVT {json.dumps({'type': 'video.recognition_ready'})}", file=sys.stderr)
+        elif not should_run_recognition and opts.annotate:
+            # Frame skipped for performance - show smooth preview with indicator
+            cv2.putText(orig, "Mode: REAL-TIME PREVIEW", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.putText(orig, f"Recognition: {1/recognition_interval:.0f} FPS", (10, 60), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         else:
             # Basic streaming mode without annotation
             cv2.putText(orig, "Mode: PREVIEW ONLY", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        # Encode and send
+        # Encode and send with optimized quality for streaming
         try:
-            ok, buf = cv2.imencode('.jpg', orig, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            # Use lower quality for smooth streaming performance
+            ok, buf = cv2.imencode('.jpg', orig, [cv2.IMWRITE_JPEG_QUALITY, 75])
         except Exception as e:
             print(f"[video_worker] encode error: {e}", file=sys.stderr)
             ok, buf = False, None
@@ -423,11 +454,17 @@ def streaming_camera_recognition_fast(model_future, opts: Options, ctrl: Control
         print(f"EVT {json.dumps({'type': 'video.error', 'message': f'Could not open camera {opts.device}'})}", file=sys.stderr)
         return 2
 
-    # Configure camera for optimal performance
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    # Configure camera for maximum performance
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
     cap.set(cv2.CAP_PROP_FPS, 30)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    
+    # Try to disable auto-exposure for consistent performance
+    try:
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+    except:
+        pass
 
     print(f"EVT {json.dumps({'type': 'video.started', 'device': opts.device, 'fast_preview': True})}", file=sys.stderr)
     print(f"EVT {json.dumps({'type': 'video.fast_preview_ready'})}", file=sys.stderr)
@@ -547,9 +584,9 @@ def streaming_camera_recognition_fast(model_future, opts: Options, ctrl: Control
             cv2.putText(orig, "Mode: PREVIEW ONLY", (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        # Encode and send frame
+        # Encode and send frame with optimized quality
         try:
-            ok, buf = cv2.imencode('.jpg', orig, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            ok, buf = cv2.imencode('.jpg', orig, [cv2.IMWRITE_JPEG_QUALITY, 75])
             if ok and buf is not None:
                 write_frame(buf.tobytes())
         except BrokenPipeError:

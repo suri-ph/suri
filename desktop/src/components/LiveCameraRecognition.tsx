@@ -117,8 +117,9 @@ export default function LiveCameraRecognition() {
     streamingRef.current = true
     setCameraStatus('preview')  // Skip 'starting' status for instant feel
     
-    // Set up frame handler BEFORE starting camera for instant response
+    // Set up optimized frame handler for smooth real-time display
     let lastSet = 0
+    const frameQueue: string[] = []
     const offFrame = window.suriVideo.onFrame((buf) => {
         try {
           const u8 = (buf instanceof ArrayBuffer) ? new Uint8Array(buf) : (buf as Uint8Array)
@@ -126,16 +127,31 @@ export default function LiveCameraRecognition() {
           new Uint8Array(ab).set(u8)
           const blob = new Blob([ab], { type: 'image/jpeg' })
           const url = URL.createObjectURL(blob)
+          
           if (imgRef.current) {
             const now = performance.now()
-            if (now - lastSet < 12) { // ~80 fps guard; avoid thrash
+            // Optimized frame rate limiting for smooth 25-30 FPS display
+            if (now - lastSet < 33) { // ~30 fps max, prevents overwhelming browser
               URL.revokeObjectURL(url)
               return
             }
-            if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current)
+            
+            // Clean up old frames to prevent memory leaks
+            if (frameUrlRef.current) {
+              URL.revokeObjectURL(frameUrlRef.current)
+            }
+            
+            // Clean up frame queue if it gets too long
+            while (frameQueue.length > 2) {
+              const oldUrl = frameQueue.shift()
+              if (oldUrl) URL.revokeObjectURL(oldUrl)
+            }
+            
             frameUrlRef.current = url
+            frameQueue.push(url)
             imgRef.current.src = url
             lastSet = now
+            
             // Auto-upgrade to preview on first frame
             if (streamingRef.current) setCameraStatus('preview')
           }

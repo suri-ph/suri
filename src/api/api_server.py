@@ -323,20 +323,23 @@ def open_camera(prefer: Optional[int] = None, api_pref: Optional[int] = None) ->
     return cap
 
 def configure_camera_settings(cap: cv2.VideoCapture) -> None:
-    """Configure camera settings for optimal performance and reliability."""
+    """Configure camera settings for maximum streaming performance."""
     try:
-        # Reduce buffer size to minimize latency and frame drops
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # Optimized buffer size for low latency streaming
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
         
-        # Set reasonable FPS (not too high to avoid frame drops)
+        # Set target FPS for smooth streaming
         cap.set(cv2.CAP_PROP_FPS, 30)
         
-        # Set reasonable resolution (balance between quality and performance)
+        # Optimize resolution for streaming performance
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         
-        # Disable auto-exposure for more consistent frames (optional)
-        # cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Manual exposure
+        # Disable auto-exposure for consistent frame timing
+        try:
+            cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Manual exposure
+        except:
+            pass
         
         # Enable auto-focus if available
         try:
@@ -344,7 +347,14 @@ def configure_camera_settings(cap: cv2.VideoCapture) -> None:
         except:
             pass
         
-        print(f"[DEBUG] Camera configured - Resolution: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}, FPS: {cap.get(cv2.CAP_PROP_FPS)}")
+        # Try to optimize for streaming (reduce processing overhead)
+        try:
+            cap.set(cv2.CAP_PROP_BRIGHTNESS, 0)  # Reset to default
+            cap.set(cv2.CAP_PROP_CONTRAST, 0)    # Reset to default
+        except:
+            pass
+        
+        print(f"[DEBUG] Camera optimized for streaming - Resolution: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}, FPS: {cap.get(cv2.CAP_PROP_FPS)}")
     except Exception as e:
         print(f"[DEBUG] Could not configure camera settings: {e}")
 
