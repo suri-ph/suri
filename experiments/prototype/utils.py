@@ -178,27 +178,32 @@ def deblur_face(face_img):
     return face_img
 
 def enhance_face_preprocessing(face_img, bbox_conf):
-    """EdgeFace-S optimized preprocessing pipeline"""
+    """LIGHTING-INVARIANT preprocessing pipeline for robust face recognition"""
     
     # 1. Quality assessment
     quality_score = calculate_quality_score(face_img, bbox_conf)
     
-    # 2. Conservative enhancement only for very poor quality
+    # 2. LIGHTING-INVARIANT preprocessing - always apply for consistency
     enhanced_img = face_img.copy()
     
-    # Only apply enhancements if quality is very poor
-    if quality_score < 0.3:
-        # Very subtle CLAHE for extreme lighting only
-        brightness = np.mean(cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY))
-        if brightness < 60 or brightness > 200:  # Only extreme cases
-            lab = cv2.cvtColor(face_img, cv2.COLOR_BGR2LAB)
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            lab[:,:,0] = clahe.apply(lab[:,:,0])
-            enhanced_img = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-        
-        # Very light denoising for very blurry images
-        if detect_blur(face_img):
-            enhanced_img = cv2.bilateralFilter(enhanced_img, 5, 20, 20)
+    # Convert to LAB color space for better lighting handling
+    lab = cv2.cvtColor(face_img, cv2.COLOR_BGR2LAB)
+    
+    # Apply CLAHE to L channel for lighting normalization
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    lab[:,:,0] = clahe.apply(lab[:,:,0])
+    
+    # Convert back to BGR
+    enhanced_img = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    
+    # Apply gamma correction for better lighting balance
+    gamma = 1.2
+    inv_gamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+    enhanced_img = cv2.LUT(enhanced_img, table)
+    
+    # Apply bilateral filtering for noise reduction while preserving edges
+    enhanced_img = cv2.bilateralFilter(enhanced_img, 9, 75, 75)
     
     return enhanced_img, quality_score
 
@@ -247,6 +252,39 @@ def validate_face_region(face_img):
     
     # Skip the complex edge density and symmetry checks that were too strict
     return True
+
+def create_lighting_variations(face_img):
+    """Create multiple lighting variations for robust recognition"""
+    variations = [face_img]  # Original image
+    
+    # Convert to float for processing
+    face_float = face_img.astype(np.float32)
+    
+    # 1. Brighter variation (simulate better lighting)
+    bright_factor = 1.3
+    bright_variation = np.clip(face_float * bright_factor, 0, 255).astype(np.uint8)
+    variations.append(bright_variation)
+    
+    # 2. Darker variation (simulate low lighting)
+    dark_factor = 0.7
+    dark_variation = np.clip(face_float * dark_factor, 0, 255).astype(np.uint8)
+    variations.append(dark_variation)
+    
+    # 3. Contrast enhanced variation
+    lab = cv2.cvtColor(face_img, cv2.COLOR_BGR2LAB)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    lab[:,:,0] = clahe.apply(lab[:,:,0])
+    contrast_variation = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    variations.append(contrast_variation)
+    
+    # 4. Gamma corrected variation (for different lighting conditions)
+    gamma = 0.8
+    inv_gamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+    gamma_variation = cv2.LUT(face_img, table)
+    variations.append(gamma_variation)
+    
+    return variations
 
 def detect_conditions(face_img, face_quality, detection_conf, scene_crowding=1.0):
     """Automatically detect conditions affecting recognition"""

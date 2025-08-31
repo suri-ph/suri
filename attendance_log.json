@@ -1,62 +1,46 @@
 [
   {
     "name": "raiven",
-    "timestamp": "2025-08-31T17:50:53.537501",
-    "confidence": 0.8362917090814078,
+    "timestamp": "2025-08-31T18:19:25.177889",
+    "confidence": 0.7950620796576147,
     "date": "2025-08-31",
-    "time": "17:50:53",
+    "time": "18:19:25",
     "recognition_info": {
       "method": "enhanced_templates",
       "conditions": [],
       "threshold_used": 0.75,
-      "quality": 0.6516195025308603,
+      "quality": 0.6323383809730322,
       "template_info": {
         "best_template_idx": 0,
         "num_templates": 1,
         "individual_similarities": [
-          0.8362917090814078
+          0.7950620796576147
         ]
       }
     }
   },
   {
     "name": "raiven",
-    "timestamp": "2025-08-31T17:52:05.592844",
-    "confidence": 0.783863989991448,
+    "timestamp": "2025-08-31T18:20:10.928641",
+    "confidence": 0.801284670829773,
     "date": "2025-08-31",
-    "time": "17:52:05",
+    "time": "18:20:10",
     "recognition_info": {
-      "method": "enhanced_templates",
-      "conditions": [],
-      "threshold_used": 0.75,
-      "quality": 0.7341552153393935,
-      "template_info": {
-        "best_template_idx": 0,
-        "num_templates": 1,
-        "individual_similarities": [
-          0.783863989991448
-        ]
-      }
+      "method": "legacy_database",
+      "threshold_used": 0.79,
+      "quality": 0.44310604168883105
     }
   },
   {
     "name": "raiven",
-    "timestamp": "2025-08-31T17:53:20.127157",
-    "confidence": 0.9406788158026294,
+    "timestamp": "2025-08-31T18:20:56.318473",
+    "confidence": 0.9008322358131409,
     "date": "2025-08-31",
-    "time": "17:53:20",
+    "time": "18:20:56",
     "recognition_info": {
-      "method": "enhanced_templates",
-      "conditions": [],
-      "threshold_used": 0.75,
-      "quality": 0.6302105895444249,
-      "template_info": {
-        "best_template_idx": 0,
-        "num_templates": 1,
-        "individual_similarities": [
-          0.9406788158026294
-        ]
-      }
+      "method": "legacy_database",
+      "threshold_used": 0.8400000000000001,
+      "quality": 0.410578939534284
     }
   }
 ]

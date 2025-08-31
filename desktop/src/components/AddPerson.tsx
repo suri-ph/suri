@@ -97,20 +97,22 @@ export default function AddPerson() {
           })
         } else {
           // Fallback to default camera
-          stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              width: { ideal: 640 },
-              height: { ideal: 480 }
-            } 
-          })
+                  stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640, min: 320, max: 1920 },
+            height: { ideal: 480, min: 240, max: 1080 },
+            facingMode: 'user'
+          } 
+        })
         }
       } catch (error) {
         // If specific device fails, try default camera
         console.warn('Failed to get specific camera, trying default:', error)
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
-            width: { ideal: 640 },
-            height: { ideal: 480 }
+            width: { ideal: 640, min: 320, max: 1920 },
+            height: { ideal: 480, min: 240, max: 1080 },
+            facingMode: 'user'
           } 
         })
       }

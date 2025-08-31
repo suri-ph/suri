@@ -13,7 +13,8 @@ from experiments.prototype.utils import (
     calculate_quality_score,
     get_adaptive_threshold,
     detect_conditions,
-    validate_face_region
+    validate_face_region,
+    create_lighting_variations
 )
 
 YOLO_MODEL_PATH = "experiments/detection/models/wider300e+300e-unisets.onnx"
@@ -168,22 +169,49 @@ class Main:
                     pass
     
     def add_new_face_enhanced(self, face_images, name):
-        """Add new face using enhanced multi-template system"""
+        """Add new face using LIGHTING-INVARIANT multi-template system"""
         if not isinstance(face_images, list):
             face_images = [face_images]
+        
+        print(f"[DEBUG] Adding {name} with {len(face_images)} face images")
         
         embeddings = []
         qualities = []
         
-        for face_img in face_images:
-            # Enhanced preprocessing
-            enhanced_face, quality = enhance_face_preprocessing(face_img, 0.8)
+        for i, face_img in enumerate(face_images):
+            print(f"[DEBUG] Processing face image {i+1}/{len(face_images)}")
             
-            # Extract multi-scale features
-            embedding = extract_pyramid_features(enhanced_face, recog_sess, face_size)
+            # Validate face image
+            if face_img.size == 0:
+                print(f"[ERROR] Face image {i+1} is empty")
+                continue
+                
+            if not validate_face_region(face_img):
+                print(f"[ERROR] Face image {i+1} failed validation")
+                continue
             
-            embeddings.append(embedding)
-            qualities.append(quality)
+            try:
+                # Create lighting variations for robust recognition
+                lighting_variations = create_lighting_variations(face_img)
+                print(f"[DEBUG] Created {len(lighting_variations)} lighting variations")
+                
+                for j, variation in enumerate(lighting_variations):
+                    # Enhanced preprocessing with lighting invariance
+                    enhanced_face, quality = enhance_face_preprocessing(variation, 0.8)
+                    
+                    # Extract multi-scale features
+                    embedding = extract_pyramid_features(enhanced_face, recog_sess, face_size)
+                    
+                    embeddings.append(embedding)
+                    qualities.append(quality)
+                    print(f"[DEBUG] Variation {j+1} quality: {quality:.3f}")
+                    
+            except Exception as e:
+                print(f"[ERROR] Error processing face image {i+1}: {e}")
+                continue
+        
+        print(f"[DEBUG] Total embeddings created: {len(embeddings)}")
+        print(f"[DEBUG] Quality scores: {[f'{q:.3f}' for q in qualities]}")
         
         # Filter good quality embeddings (lowered threshold for better acceptance)
         good_indices = [i for i, q in enumerate(qualities) if q > 0.40]
@@ -195,7 +223,8 @@ class Main:
         # Create templates from good embeddings
         good_embeddings = [embeddings[i] for i in good_indices]
         good_qualities = [qualities[i] for i in good_indices]
-        good_images = [face_images[i] for i in good_indices]
+        # Use the original face image for all templates since we created variations from it
+        good_images = [face_images[0] for _ in good_indices]
         
         # Simple clustering by similarity
         templates = []
@@ -262,9 +291,9 @@ class Main:
             'added_date': datetime.now().isoformat()
         }
         
-        # Save face image
+        # Save face image (use original face image, not the processed variations)
         face_img_path = os.path.join(FACE_DATABASE_DIR, f"{name}.jpg")
-        cv2.imwrite(face_img_path, face_images[best_idx])
+        cv2.imwrite(face_img_path, face_images[0])
         
         self.save_face_database()
         self.save_multi_templates()
@@ -295,7 +324,7 @@ class Main:
             if not validate_face_region(face_img):
                 return None, 0.0, False, {'method': 'error', 'error': 'invalid_face_region'}
             
-            # Enhanced preprocessing
+            # LIGHTING-INVARIANT preprocessing for robust recognition
             enhanced_face, quality = enhance_face_preprocessing(face_img, bbox_conf)
             
             # Extract multi-scale features
@@ -432,12 +461,15 @@ class Main:
                 return None, 0.0, False, {'method': 'error', 'error': str(e)}
     
     def identify_face_legacy(self, face_img, quality, threshold):
-        """Legacy identification for backward compatibility"""
+        """Legacy identification with LIGHTING-INVARIANT processing"""
         if not self.face_database:
             return None, 0.0, False, {'method': 'legacy_fallback'}
         
+        # Apply lighting-invariant preprocessing
+        enhanced_face, _ = enhance_face_preprocessing(face_img, 0.8)
+        
         # Get embedding for input face
-        embedding = extract_pyramid_features(face_img, recog_sess, face_size)
+        embedding = extract_pyramid_features(enhanced_face, recog_sess, face_size)
         
         best_match = None
         best_similarity = 0.0
@@ -737,7 +769,8 @@ def process_single_image(app, image_path):
             
             # BALANCED: Visualize results with reasonable thresholds
             if identified_name and should_log and similarity >= 0.75:
-                color = (0, 255, 0)  # Green for recognized
+                color = (0, 255, 0)  # Green for recognizedclear
+                
                 method_text = info.get('method', 'unknown')[:8]
                 
                 # Check data types
