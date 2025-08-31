@@ -1289,6 +1289,8 @@ async def get_today_attendance():
     📋 Get today's attendance records
     """
     try:
+        # Reload attendance log from disk to get latest records from video worker
+        attendance_system.load_attendance_log()
         records = attendance_system.get_today_attendance()
         
         # Statistics

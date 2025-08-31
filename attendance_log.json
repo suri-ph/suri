@@ -1,10 +1,10 @@
 [
   {
-    "name": "raiven",
-    "timestamp": "2025-08-31T15:24:51.884674",
-    "confidence": 0.8072371993805841,
+    "name": "gago",
+    "timestamp": "2025-08-31T15:57:18.116262",
+    "confidence": 0.877163736459491,
     "date": "2025-08-31",
-    "time": "15:24:51",
+    "time": "15:57:18",
     "recognition_info": {
       "method": "enhanced_templates",
       "conditions": [
@@ -12,81 +12,12 @@
         "motion_blur"
       ],
       "threshold_used": 0.805,
-      "quality": 0.45620210736594496,
+      "quality": 0.37989093588964934,
       "template_info": {
         "best_template_idx": 0,
         "num_templates": 1,
         "individual_similarities": [
-          0.8072371993805841
-        ]
-      }
-    }
-  },
-  {
-    "name": "raiven",
-    "timestamp": "2025-08-31T15:25:25.140162",
-    "confidence": 0.9752808562564452,
-    "date": "2025-08-31",
-    "time": "15:25:25",
-    "recognition_info": {
-      "method": "enhanced_templates",
-      "conditions": [
-        "low_light",
-        "motion_blur"
-      ],
-      "threshold_used": 0.805,
-      "quality": 0.5008711161540914,
-      "template_info": {
-        "best_template_idx": 0,
-        "num_templates": 1,
-        "individual_similarities": [
-          0.9752808562564452
-        ]
-      }
-    }
-  },
-  {
-    "name": "raiven",
-    "timestamp": "2025-08-31T15:25:58.358356",
-    "confidence": 0.9602947595490992,
-    "date": "2025-08-31",
-    "time": "15:25:58",
-    "recognition_info": {
-      "method": "enhanced_templates",
-      "conditions": [
-        "low_light",
-        "motion_blur"
-      ],
-      "threshold_used": 0.805,
-      "quality": 0.4822321413204191,
-      "template_info": {
-        "best_template_idx": 0,
-        "num_templates": 1,
-        "individual_similarities": [
-          0.9602947595490992
-        ]
-      }
-    }
-  },
-  {
-    "name": "raiven",
-    "timestamp": "2025-08-31T15:27:00.172615",
-    "confidence": 0.853602262942162,
-    "date": "2025-08-31",
-    "time": "15:27:00",
-    "recognition_info": {
-      "method": "enhanced_templates",
-      "conditions": [
-        "low_light",
-        "motion_blur"
-      ],
-      "threshold_used": 0.805,
-      "quality": 0.4143760683435069,
-      "template_info": {
-        "best_template_idx": 0,
-        "num_templates": 1,
-        "individual_similarities": [
-          0.853602262942162
+          0.877163736459491
         ]
       }
     }

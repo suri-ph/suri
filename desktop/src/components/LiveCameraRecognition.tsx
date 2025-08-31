@@ -201,7 +201,7 @@ export default function LiveCameraRecognition() {
     const refreshInterval = setInterval(() => {
       console.log('Periodic attendance refresh...')
       fetchTodayAttendance()
-    }, 3000) // Refresh every 3 seconds for more responsive updates
+    }, 15000) // Refresh every 15 seconds to avoid conflicts with real-time updates
     
     // Listen for video events to update camera status
     const handleVideoEvent = (evt: Record<string, unknown>) => {
