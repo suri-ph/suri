@@ -44,5 +44,51 @@
         ]
       }
     }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-31T15:25:58.358356",
+    "confidence": 0.9602947595490992,
+    "date": "2025-08-31",
+    "time": "15:25:58",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.4822321413204191,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.9602947595490992
+        ]
+      }
+    }
+  },
+  {
+    "name": "raiven",
+    "timestamp": "2025-08-31T15:27:00.172615",
+    "confidence": 0.853602262942162,
+    "date": "2025-08-31",
+    "time": "15:27:00",
+    "recognition_info": {
+      "method": "enhanced_templates",
+      "conditions": [
+        "low_light",
+        "motion_blur"
+      ],
+      "threshold_used": 0.805,
+      "quality": 0.4143760683435069,
+      "template_info": {
+        "best_template_idx": 0,
+        "num_templates": 1,
+        "individual_similarities": [
+          0.853602262942162
+        ]
+      }
+    }
   }
 ]

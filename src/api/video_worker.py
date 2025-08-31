@@ -559,6 +559,13 @@ def streaming_camera_recognition(app, opts: Options, ctrl: ControlState):
                         if logged_successfully:
                             print(f"LOG Attendance logged: {identified_name} (confidence: {similarity:.3f})", file=sys.stderr)
                             
+                            # Save attendance to disk immediately
+                            try:
+                                app.save_attendance_log()
+                                print(f"LOG Attendance saved to disk", file=sys.stderr)
+                            except Exception as e:
+                                print(f"LOG Failed to save attendance: {e}", file=sys.stderr)
+                            
                             # Get the latest attendance record for WebSocket notification
                             try:
                                 latest_record = app.attendance_log[-1] if app.attendance_log else None
