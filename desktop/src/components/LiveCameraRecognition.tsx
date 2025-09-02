@@ -10,17 +10,9 @@ interface DetectionResult {
   };
 }
 
-interface AttendanceRecord {
-  name: string
-  timestamp: string
-  confidence: number
-  time: string
-}
-
 export default function LiveCameraRecognition() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [detectionResults, setDetectionResults] = useState<DetectionResult[]>([])
-  const [todayAttendance] = useState<AttendanceRecord[]>([])
   const [systemStats, setSystemStats] = useState({ today_records: 0, total_people: 0 })
   const [cameraStatus, setCameraStatus] = useState<'stopped' | 'starting' | 'preview' | 'recognition'>('stopped')
   const [fps, setFps] = useState(0)
