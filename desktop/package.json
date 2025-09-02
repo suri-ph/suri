@@ -17,6 +17,7 @@
     "dist:linux": "npm run transpile:electron && npm run build && electron-builder --mac --arm64"
   },
   "dependencies": {
+    "onnxruntime-node": "1.22.0-rev",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.12"
