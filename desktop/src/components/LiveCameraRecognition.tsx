@@ -161,15 +161,19 @@ export default function LiveCameraRecognition() {
               // Get the actual display size of the video element
               const rect = video.getBoundingClientRect()
               
-              // Set canvas to match video display size for perfect overlay
-              canvas.width = rect.width
-              canvas.height = rect.height
+              // Set canvas to match video display size for perfect overlay (rounded for stability)
+              const stableWidth = Math.round(rect.width)
+              const stableHeight = Math.round(rect.height)
+              
+              canvas.width = stableWidth
+              canvas.height = stableHeight
               canvasInitializedRef.current = true
               
-              console.log('Canvas initialized with display size:', canvas.width, 'x', canvas.height)
+              console.log('Canvas initialized with stable size:', canvas.width, 'x', canvas.height)
               console.log('Video natural size:', video.videoWidth, 'x', video.videoHeight)
+              console.log('Video display size:', stableWidth, 'x', stableHeight)
             }
-          }, 100)
+          }, 150) // Slightly longer delay to ensure video is fully rendered
           
           // Initialize pipeline (it will start processing automatically)
           initializePipeline()
@@ -481,13 +485,18 @@ export default function LiveCameraRecognition() {
     
     // Use requestAnimationFrame for smooth drawing
     requestAnimationFrame(() => {
-      // Ensure canvas matches the video element's display size exactly
+      // Get current video display size
       const rect = video.getBoundingClientRect()
-      const displayWidth = rect.width
-      const displayHeight = rect.height
+      const displayWidth = Math.round(rect.width)  // Round to prevent fractional sizes
+      const displayHeight = Math.round(rect.height)
       
-      // Set canvas size to match video display size for perfect overlay
-      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      // Only resize canvas if there's a significant size change (prevent micro-adjustments)
+      const sizeDiffThreshold = 2 // pixels
+      const widthDiff = Math.abs(canvas.width - displayWidth)
+      const heightDiff = Math.abs(canvas.height - displayHeight)
+      
+      if (widthDiff > sizeDiffThreshold || heightDiff > sizeDiffThreshold) {
+        console.log(`Canvas size adjustment: ${canvas.width}x${canvas.height} → ${displayWidth}x${displayHeight}`)
         canvas.width = displayWidth
         canvas.height = displayHeight
       }
@@ -496,8 +505,9 @@ export default function LiveCameraRecognition() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       // Calculate scale factors from video natural size to display size
-      const scaleX = displayWidth / video.videoWidth
-      const scaleY = displayHeight / video.videoHeight
+      // Use current canvas size instead of rect to ensure consistency
+      const scaleX = canvas.width / video.videoWidth
+      const scaleY = canvas.height / video.videoHeight
       
       // Draw detections with optimized rendering
       detectionResults.forEach((detection) => {
@@ -554,23 +564,42 @@ export default function LiveCameraRecognition() {
 
   // Handle window resize to keep canvas aligned
   useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout
+    
     const handleResize = () => {
-      if (videoRef.current && canvasRef.current && canvasInitializedRef.current) {
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        const rect = video.getBoundingClientRect()
-        
-        // Update canvas size to match current video display size
-        canvas.width = rect.width
-        canvas.height = rect.height
-        
-        // Redraw detections with new size
-        drawDetections()
-      }
+      // Debounce resize events to prevent constant recalculation
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        if (videoRef.current && canvasRef.current && canvasInitializedRef.current) {
+          const video = videoRef.current
+          const canvas = canvasRef.current
+          const rect = video.getBoundingClientRect()
+          
+          // Update canvas size to match current video display size (with stability threshold)
+          const newWidth = Math.round(rect.width)
+          const newHeight = Math.round(rect.height)
+          const sizeDiffThreshold = 5 // Larger threshold for resize events
+          
+          const widthDiff = Math.abs(canvas.width - newWidth)
+          const heightDiff = Math.abs(canvas.height - newHeight)
+          
+          if (widthDiff > sizeDiffThreshold || heightDiff > sizeDiffThreshold) {
+            console.log(`Resize: Canvas ${canvas.width}x${canvas.height} → ${newWidth}x${newHeight}`)
+            canvas.width = newWidth
+            canvas.height = newHeight
+            
+            // Redraw detections with new size
+            drawDetections()
+          }
+        }
+      }, 100) // 100ms debounce
     }
 
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      clearTimeout(resizeTimeout)
+    }
   }, [drawDetections])
 
   // Cleanup on unmount
@@ -646,7 +675,12 @@ export default function LiveCameraRecognition() {
           <div className="relative w-full h-full overflow-hidden">
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover block"
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                maxHeight: '100%'
+              }}
               autoPlay
               playsInline
               muted
@@ -658,7 +692,8 @@ export default function LiveCameraRecognition() {
               className="absolute top-0 left-0 w-full h-full pointer-events-none"
               style={{ 
                 zIndex: 1000,
-                mixBlendMode: 'normal'
+                mixBlendMode: 'normal',
+                position: 'absolute'
               }}
             />
             

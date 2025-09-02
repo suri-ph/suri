@@ -3,7 +3,7 @@ import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
 import { SimpleScrfdService } from "../services/SimpleScrfdService.js";
-import type { DetectionResult, SerializableImageData } from "../services/SimpleScrfdService.js";
+import type { SerializableImageData } from "../services/SimpleScrfdService.js";
 
 let mainWindowRef: BrowserWindow | null = null
 let scrfdService: SimpleScrfdService | null = null
@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Face Recognition Pipeline IPC handlers
-ipcMain.handle('face-recognition:initialize', async (_evt, options) => {
+ipcMain.handle('face-recognition:initialize', async () => {
     try {
         if (!scrfdService) {
             scrfdService = new SimpleScrfdService()
@@ -21,10 +21,8 @@ ipcMain.handle('face-recognition:initialize', async (_evt, options) => {
         const weightsDir = path.join(__dirname, '../../../weights')
         await scrfdService.initialize(path.join(weightsDir, 'det_500m.onnx'))
         
-        console.log('Simple SCRFD service initialized successfully')
         return { success: true, message: 'Simple SCRFD service initialized successfully' }
     } catch (error) {
-        console.error('Failed to initialize SCRFD service:', error)
         return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 })
@@ -57,7 +55,6 @@ ipcMain.handle('face-recognition:process-frame', async (_evt, imageData: Seriali
         
         return result
     } catch (error) {
-        console.error('Frame processing error:', error)
         return {
             detections: [],
             processingTime: 0,
@@ -66,14 +63,12 @@ ipcMain.handle('face-recognition:process-frame', async (_evt, imageData: Seriali
     }
 })
 
-ipcMain.handle('face-recognition:register-person', async (_evt, personId, imageData, landmarks) => {
+ipcMain.handle('face-recognition:register-person', async () => {
     try {
         // For now, just return success since we're focusing on detection
         // TODO: Implement face registration when recognition service is added
-        console.log(`Registration request for person: ${personId} (detection only for now)`)
         return true
-    } catch (error) {
-        console.error('Person registration error:', error)
+    } catch {
         return false
     }
 })
@@ -83,20 +78,17 @@ ipcMain.handle('face-recognition:get-persons', async () => {
         // For now, return empty array since we're focusing on detection
         // TODO: Implement person list when recognition service is added
         return []
-    } catch (error) {
-        console.error('Get persons error:', error)
+    } catch {
         return []
     }
 })
 
-ipcMain.handle('face-recognition:remove-person', async (_evt, personId) => {
+ipcMain.handle('face-recognition:remove-person', async () => {
     try {
         // For now, just return success since we're focusing on detection
         // TODO: Implement person removal when recognition service is added
-        console.log(`Remove request for person: ${personId} (detection only for now)`)
         return true
-    } catch (error) {
-        console.error('Remove person error:', error)
+    } catch {
         return false
     }
 })
@@ -131,7 +123,10 @@ function createWindow(): void {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, '../../src/electron/preload.js')
+            preload: path.join(__dirname, '../../src/electron/preload.js'),
+            // Disable autofill features to prevent DevTools autofill errors
+            enableBlinkFeatures: '',
+            disableBlinkFeatures: 'Autofill'
         },
         titleBarStyle: 'hidden',
         frame: false,
@@ -144,7 +139,19 @@ function createWindow(): void {
     // Load the app
     if (isDev()) {
         mainWindow.loadURL('http://localhost:5123')
-        mainWindow.webContents.openDevTools()
+        // Open DevTools with autofill disabled to prevent autofill errors
+        mainWindow.webContents.once('did-finish-load', () => {
+            mainWindow.webContents.openDevTools({ mode: 'detach' })
+            // Disable autofill to prevent DevTools autofill errors
+            mainWindow.webContents.executeJavaScript(`
+                if (window.chrome && window.chrome.runtime) {
+                    // Disable autofill in DevTools context
+                    Object.defineProperty(window.chrome, 'autofill', { value: undefined });
+                }
+            `).catch(() => {
+                // Ignore errors - this is just for DevTools cleanup
+            })
+        })
     } else {
         mainWindow.loadFile(path.join(__dirname, '../index.html'))
     }
@@ -196,6 +203,5 @@ app.on('before-quit', () => {
     // Clean up resources
     if (scrfdService) {
         // SimpleScrfdService doesn't need explicit disposal
-        console.log('Cleaning up SCRFD service')
     }
 })
