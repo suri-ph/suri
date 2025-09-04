@@ -102,12 +102,12 @@ export default function LiveCameraRecognition() {
       setIsStreaming(true)
       setCameraStatus('starting')
 
-      // Get user media with ultra-low-latency settings for real-time recognition
+      // Get user media with high frame rate for smooth display
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280, min: 640 },
           height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 60, min: 30 }, // Maximum FPS for real-time
+          frameRate: { ideal: 60, min: 30 }, // High FPS for smooth display
           facingMode: 'user',
           // Disable ALL video processing that can cause delays
           echoCancellation: false,
@@ -250,14 +250,27 @@ export default function LiveCameraRecognition() {
     return tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
   }, [])
 
+  // Frame processing optimization - skip stale frames
+  const isProcessing = useRef(false)
+  
+  // Optimized frame processing - single capture for detection only
   const processFrameRealTime = useCallback(async () => {
     if (!isStreaming || cameraStatus !== 'recognition' || !scrfdServiceRef.current || !edgeFaceServiceRef.current) {
       return
     }
 
+    // Skip frame if we're still processing the previous one
+    if (isProcessing.current) {
+      return
+    }
+    
+    isProcessing.current = true
+
     try {
+      // Capture frame for detection (video element handles display)
       const imageData = captureFrame()
       if (!imageData) {
+        isProcessing.current = false
         return
       }
 
@@ -394,6 +407,9 @@ export default function LiveCameraRecognition() {
       
     } catch (error) {
       console.error('Client-side frame processing error:', error)
+    } finally {
+      // Always reset processing flag to allow next frame
+      isProcessing.current = false
     }
   }, [isStreaming, cameraStatus, captureFrame, attendanceMode, stableDetectionCount, currentDetectedPerson])
 
@@ -411,10 +427,10 @@ export default function LiveCameraRecognition() {
     fpsCounterRef.current = { frames: 0, lastTime: performance.now() }
     lastCaptureRef.current = 0
     
-    // Use high-performance frame processing - no artificial throttling
+    // Optimized processing loop - video displays live, detection runs at controlled rate
     const processNextFrame = async () => {
       if (isStreaming && cameraStatus === 'recognition') {
-        // Count FPS attempts (regardless of success)
+        // Count FPS attempts
         fpsCounterRef.current.frames++
         const now = performance.now()
         if (now - fpsCounterRef.current.lastTime >= 1000) {
@@ -423,21 +439,27 @@ export default function LiveCameraRecognition() {
           fpsCounterRef.current.lastTime = now
         }
         
+        // Process frame for detection (video element shows live feed)
         await processFrameRealTime()
         
-        // No artificial delays - run as fast as possible
-        // Only use requestAnimationFrame to sync with display refresh
-        animationFrameRef.current = requestAnimationFrame(processNextFrame)
+        // Run detection as fast as possible (uncapped)
+        setTimeout(() => {
+          if (isStreaming && cameraStatus === 'recognition') {
+            processNextFrame()
+          }
+        }, 0) // 0ms = uncapped detection rate
       } else {
-        // If not streaming or not in recognition mode, check again soon
-        animationFrameRef.current = requestAnimationFrame(processNextFrame)
+        // Not in recognition mode, just check periodically
+        setTimeout(() => {
+          processNextFrame()
+        }, 100)
       }
     }
     
-    // Start the high-performance processing loop
-    animationFrameRef.current = requestAnimationFrame(processNextFrame)
+    // Start optimized processing
+    processNextFrame()
     
-    console.log('Real-time CLIENT-SIDE processing started with MAXIMUM frame rate')
+    console.log('Optimized processing started - live video display + controlled detection rate')
   }, [processFrameRealTime, isStreaming, cameraStatus])
 
   // Set the ref after the function is defined
@@ -736,6 +758,7 @@ export default function LiveCameraRecognition() {
         {/* Video Stream */}
         <div className="flex-1 relative flex items-center justify-center">
           <div className="relative w-full max-w-4xl aspect-video overflow-hidden rounded-lg">
+            {/* Video element - primary display */}
             <video
               ref={videoRef}
               className="w-full h-full object-cover block"
@@ -749,14 +772,13 @@ export default function LiveCameraRecognition() {
               muted
             />
             
-            {/* Canvas Overlay for Detections */}
+            {/* Canvas overlay for detections only */}
             <canvas
               ref={canvasRef}
               className="absolute top-0 left-0 w-full h-full pointer-events-none"
               style={{ 
-                zIndex: 1000,
-                mixBlendMode: 'normal',
-                position: 'absolute'
+                zIndex: 10,
+                mixBlendMode: 'normal'
               }}
             />
             
