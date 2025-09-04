@@ -43,6 +43,9 @@ export default function LiveCameraRecognition() {
   // Client-side EdgeFace service for face recognition
   const edgeFaceServiceRef = useRef<ClientSideEdgeFaceService | null>(null)
 
+  // Processing state management
+  const processingActiveRef = useRef(false)
+  
   // Define startProcessing first (will be defined later with useCallback)
   const startProcessingRef = useRef<(() => void) | null>(null)
 
@@ -194,6 +197,13 @@ export default function LiveCameraRecognition() {
     setIsStreaming(false)
     setCameraStatus('stopped')
     
+    // Stop any active processing immediately
+    processingActiveRef.current = false
+    
+    // Reset FPS counter when camera stops
+    setFps(0)
+    fpsCounterRef.current = { frames: 0, lastTime: 0 }
+    
     // Clean up any remaining intervals and frames
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
@@ -212,6 +222,17 @@ export default function LiveCameraRecognition() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+    
+    // Clear the canvas completely when stopping camera
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      }
+    }
+    
+    // Clear detection results
+    setDetectionResults([])
     
     // Reset canvas initialization flag for next session
     canvasInitializedRef.current = false
@@ -424,12 +445,20 @@ export default function LiveCameraRecognition() {
       captureIntervalRef.current = undefined
     }
     
+    // Mark processing as active
+    processingActiveRef.current = true
+    
     fpsCounterRef.current = { frames: 0, lastTime: performance.now() }
     lastCaptureRef.current = 0
     
     // Optimized processing loop - video displays live, detection runs at controlled rate
     const processNextFrame = async () => {
-      if (isStreaming && cameraStatus === 'recognition') {
+      // Check if processing should continue
+      if (!processingActiveRef.current || !isStreaming) {
+        return // Stop the loop completely
+      }
+      
+      if (cameraStatus === 'recognition') {
         // Count FPS attempts
         fpsCounterRef.current.frames++
         const now = performance.now()
@@ -444,20 +473,25 @@ export default function LiveCameraRecognition() {
         
         // Run detection as fast as possible (uncapped)
         setTimeout(() => {
-          if (isStreaming && cameraStatus === 'recognition') {
+          if (processingActiveRef.current && isStreaming && cameraStatus === 'recognition') {
             processNextFrame()
           }
         }, 0) // 0ms = uncapped detection rate
-      } else {
-        // Not in recognition mode, just check periodically
+      } else if (isStreaming) {
+        // Camera is streaming but not in recognition mode (e.g., preview mode)
         setTimeout(() => {
-          processNextFrame()
+          if (processingActiveRef.current && isStreaming) { // Only continue if still active and streaming
+            processNextFrame()
+          }
         }, 100)
       }
+      // If not streaming at all, stop the loop completely (no setTimeout)
     }
     
-    // Start optimized processing
-    processNextFrame()
+    // Start optimized processing only if streaming
+    if (isStreaming) {
+      processNextFrame()
+    }
     
     console.log('Optimized processing started - live video display + controlled detection rate')
   }, [processFrameRealTime, isStreaming, cameraStatus])
@@ -546,6 +580,14 @@ export default function LiveCameraRecognition() {
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
     
+    // Clear canvas first
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    
+    // Only draw HUD and detections when camera is actively streaming
+    if (!isStreaming || cameraStatus !== 'recognition') {
+      return // Exit early if camera is not active
+    }
+    
     // Check if video dimensions changed, recalculate only if needed
     if (video.videoWidth !== drawCacheRef.current.lastVideoWidth || 
         video.videoHeight !== drawCacheRef.current.lastVideoHeight) {
@@ -572,15 +614,22 @@ export default function LiveCameraRecognition() {
       drawCacheRef.current.scaleY = canvas.height / video.videoHeight
     }
     
-    // Clear previous drawings
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    
     // Get cached scale factors
     const { scaleX, scaleY } = drawCacheRef.current
     
-    // Draw detections with optimized rendering
+    // Validate scale factors
+    if (!isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
+      return // Skip drawing if scale factors are invalid
+    }
+    
+    // Draw detections with futuristic sci-fi styling
     for (const detection of detectionResults) {
       const [x1, y1, x2, y2] = detection.bbox
+      
+      // Validate bbox coordinates first
+      if (!x1 || !y1 || !x2 || !y2 || !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+        continue // Skip invalid detections
+      }
       
       // Scale coordinates from video natural size to display size
       const scaledX1 = x1 * scaleX
@@ -588,30 +637,124 @@ export default function LiveCameraRecognition() {
       const scaledX2 = x2 * scaleX
       const scaledY2 = y2 * scaleY
       
-      // Draw bounding box with better styling
-      ctx.strokeStyle = detection.recognition?.personId ? '#00ff00' : '#ff0000'
-      ctx.lineWidth = 2
-      ctx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1)
+      // Additional validation for scaled coordinates
+      if (!isFinite(scaledX1) || !isFinite(scaledY1) || !isFinite(scaledX2) || !isFinite(scaledY2)) {
+        continue // Skip if scaling produced invalid values
+      }
       
-      // Draw label with better background
-      const label = detection.recognition?.personId 
-        ? `${detection.recognition.personId} (${(detection.recognition.similarity * 100).toFixed(1)}%)`
-        : `Unknown (${(detection.confidence * 100).toFixed(1)}%)`
+      const width = scaledX2 - scaledX1
+      const height = scaledY2 - scaledY1
       
-      ctx.font = '14px Arial'
-      const textMetrics = ctx.measureText(label)
+      // Determine colors based on recognition status
+      const isRecognized = detection.recognition?.personId
+      const primaryColor = isRecognized ? '#00ffff' : '#ff6b6b' // Cyan or red
+      const secondaryColor = isRecognized ? '#0088ff' : '#ff8888'
       
-      // Draw text background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(scaledX1, scaledY1 - 20, textMetrics.width + 8, 18)
+      // Draw futuristic corner brackets instead of full box
+      const cornerSize = Math.min(20, width * 0.2, height * 0.2)
+      ctx.strokeStyle = primaryColor
+      ctx.lineWidth = 3
+      ctx.shadowColor = primaryColor
+      ctx.shadowBlur = 10
       
-      // Draw text
-      ctx.fillStyle = detection.recognition?.personId ? '#00ff00' : '#ff0000'
-      ctx.fillText(label, scaledX1 + 4, scaledY1 - 6)
+      // Top-left corner
+      ctx.beginPath()
+      ctx.moveTo(scaledX1, scaledY1 + cornerSize)
+      ctx.lineTo(scaledX1, scaledY1)
+      ctx.lineTo(scaledX1 + cornerSize, scaledY1)
+      ctx.stroke()
       
-      // Draw only first 5 landmarks for performance
+      // Top-right corner
+      ctx.beginPath()
+      ctx.moveTo(scaledX2 - cornerSize, scaledY1)
+      ctx.lineTo(scaledX2, scaledY1)
+      ctx.lineTo(scaledX2, scaledY1 + cornerSize)
+      ctx.stroke()
+      
+      // Bottom-left corner
+      ctx.beginPath()
+      ctx.moveTo(scaledX1, scaledY2 - cornerSize)
+      ctx.lineTo(scaledX1, scaledY2)
+      ctx.lineTo(scaledX1 + cornerSize, scaledY2)
+      ctx.stroke()
+      
+      // Bottom-right corner
+      ctx.beginPath()
+      ctx.moveTo(scaledX2 - cornerSize, scaledY2)
+      ctx.lineTo(scaledX2, scaledY2)
+      ctx.lineTo(scaledX2, scaledY2 - cornerSize)
+      ctx.stroke()
+      
+      // Add scanning line effect for recognized faces
+      if (isRecognized) {
+        const scanOffset = (Date.now() / 5) % height
+        ctx.strokeStyle = '#00ffff80'
+        ctx.lineWidth = 2
+        ctx.shadowBlur = 5
+        ctx.beginPath()
+        ctx.moveTo(scaledX1, scaledY1 + scanOffset)
+        ctx.lineTo(scaledX2, scaledY1 + scanOffset)
+        ctx.stroke()
+      }
+      
+      // Reset shadow for text
+      ctx.shadowBlur = 0
+      
+      // Draw modern HUD-style label
+      const personId = detection.recognition?.personId || 'UNKNOWN'
+      const confidence = detection.recognition?.similarity || detection.confidence
+      const label = personId.toUpperCase()
+      const confidenceText = `${(confidence * 100).toFixed(1)}%`
+      
+      // Main label styling
+      ctx.font = 'bold 16px "Courier New", monospace'
+      const labelMetrics = ctx.measureText(label)
+      
+      // Confidence styling
+      ctx.font = 'normal 12px "Courier New", monospace'
+      const confMetrics = ctx.measureText(confidenceText)
+      
+      const maxTextWidth = Math.max(labelMetrics.width, confMetrics.width)
+      const bgWidth = maxTextWidth + 20
+      const bgHeight = 45
+      
+      // Validate coordinates before creating gradient (fix for createLinearGradient error)
+      const isValidCoord = (val: number) => typeof val === 'number' && isFinite(val)
+      if (!isValidCoord(scaledX1) || !isValidCoord(scaledY1) || !isValidCoord(bgWidth) || !isValidCoord(bgHeight)) {
+        continue // Skip this detection if coordinates are invalid
+      }
+      
+      // Draw HUD background with gradient
+      const gradient = ctx.createLinearGradient(scaledX1, scaledY1 - bgHeight - 10, scaledX1 + bgWidth, scaledY1 - 10)
+      gradient.addColorStop(0, isRecognized ? '#00ffff20' : '#ff6b6b20')
+      gradient.addColorStop(1, isRecognized ? '#0088ff40' : '#ff888840')
+      
+      ctx.fillStyle = gradient
+      ctx.fillRect(scaledX1, scaledY1 - bgHeight - 10, bgWidth, bgHeight)
+      
+      // Draw HUD border
+      ctx.strokeStyle = primaryColor
+      ctx.lineWidth = 1
+      ctx.shadowColor = primaryColor
+      ctx.shadowBlur = 3
+      ctx.strokeRect(scaledX1, scaledY1 - bgHeight - 10, bgWidth, bgHeight)
+      ctx.shadowBlur = 0
+      
+      // Draw main label
+      ctx.font = 'bold 16px "Courier New", monospace'
+      ctx.fillStyle = primaryColor
+      ctx.shadowColor = primaryColor
+      ctx.shadowBlur = 10
+      ctx.fillText(label, scaledX1 + 10, scaledY1 - 25)
+      ctx.shadowBlur = 0
+      
+      // Draw confidence
+      ctx.font = 'normal 12px "Courier New", monospace'
+      ctx.fillStyle = secondaryColor
+      ctx.fillText(`CONF: ${confidenceText}`, scaledX1 + 10, scaledY1 - 10)
+      
+      // Draw futuristic facial landmarks (neural nodes)
       if (detection.landmarks && detection.landmarks.length > 0) {
-        ctx.fillStyle = '#ffff00'
         const maxLandmarks = Math.min(detection.landmarks.length, 5)
         for (let i = 0; i < maxLandmarks; i++) {
           if (!detection.landmarks[i] || detection.landmarks[i].length < 2) continue
@@ -621,13 +764,54 @@ export default function LiveCameraRecognition() {
           
           const scaledLandmarkX = x * scaleX
           const scaledLandmarkY = y * scaleY
+          
+          // Draw neural node with glow effect
+          ctx.fillStyle = primaryColor
+          ctx.shadowColor = primaryColor
+          ctx.shadowBlur = 8
+          ctx.beginPath()
+          ctx.arc(scaledLandmarkX, scaledLandmarkY, 4, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          // Inner core
+          ctx.fillStyle = '#ffffff'
+          ctx.shadowBlur = 2
           ctx.beginPath()
           ctx.arc(scaledLandmarkX, scaledLandmarkY, 2, 0, 2 * Math.PI)
           ctx.fill()
+          
+          // Pulse effect for recognized faces
+          if (isRecognized) {
+            const pulseRadius = 6 + Math.sin(Date.now() / 200 + i) * 2
+            ctx.strokeStyle = `${primaryColor}60`
+            ctx.lineWidth = 1
+            ctx.shadowBlur = 5
+            ctx.beginPath()
+            ctx.arc(scaledLandmarkX, scaledLandmarkY, pulseRadius, 0, 2 * Math.PI)
+            ctx.stroke()
+          }
         }
+        ctx.shadowBlur = 0
+      }
+      
+      // Add status indicator
+      const statusText = isRecognized ? 'Face Recognized' : 'SCANNING...'
+      ctx.font = 'bold 10px "Courier New", monospace'
+      ctx.fillStyle = isRecognized ? '#00ff00' : '#ffaa00'
+      ctx.fillText(statusText, scaledX1 + 10, scaledY2 + 15)
+      
+      // Add animated border glow for recognized faces
+      if (isRecognized) {
+        const glowIntensity = 0.5 + Math.sin(Date.now() / 300) * 0.3
+        ctx.strokeStyle = `${primaryColor}${Math.floor(glowIntensity * 255).toString(16).padStart(2, '0')}`
+        ctx.lineWidth = 1
+        ctx.shadowColor = primaryColor
+        ctx.shadowBlur = 15
+        ctx.strokeRect(scaledX1 - 2, scaledY1 - 2, width + 4, height + 4)
+        ctx.shadowBlur = 0
       }
     }
-  }, [detectionResults])
+  }, [detectionResults, isStreaming, cameraStatus])
 
   // Draw detections overlay
   useEffect(() => {
@@ -675,6 +859,14 @@ export default function LiveCameraRecognition() {
       clearTimeout(resizeTimeout)
     }
   }, [drawDetections])
+
+  // Reset FPS when camera status changes to non-recognition mode
+  useEffect(() => {
+    if (cameraStatus !== 'recognition') {
+      setFps(0)
+      fpsCounterRef.current = { frames: 0, lastTime: 0 }
+    }
+  }, [cameraStatus])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -800,7 +992,7 @@ export default function LiveCameraRecognition() {
             
             {cameraStatus === 'recognition' && (
               <div className="absolute top-4 left-4 bg-green-500/50 px-3 py-1 rounded text-sm">
-                ⚡ EdgeFace Recognition Active (Research-Grade)
+                    Recognition Active
               </div>
             )}
             
