@@ -31,14 +31,11 @@ export class ClientSideScrfdService {
   
   // Performance monitoring
   private frameCount = 0;
-  private lastPerformanceCheck = 0;
 
   async initialize(): Promise<void> {
     const modelUrl = '/weights/scrfd_2.5g_kps_640x640.onnx';
     
     try {
-      console.log('🔄 Attempting to load SCRFD model from:', modelUrl);
-      
       this.session = await ort.InferenceSession.create(modelUrl, {
         executionProviders: [
           'webgpu',    // Try WebGPU first (fastest if available)
@@ -53,8 +50,7 @@ export class ClientSideScrfdService {
         graphOptimizationLevel: 'all',
         enableProfiling: false
       });
-    } catch (error) {
-      console.warn('⚠️ GPU providers failed, falling back to CPU-only:', error);
+    } catch {
       // If GPU providers fail completely, use CPU-only configuration
       this.session = await ort.InferenceSession.create(modelUrl, {
         executionProviders: ['wasm'],
@@ -68,28 +64,12 @@ export class ClientSideScrfdService {
       });
     }
     
-    console.log('🔥 SCRFD Model initialized successfully');
-    console.log('📊 Input Names:', this.session.inputNames);
-    console.log('📊 Output Names:', this.session.outputNames);
-    console.log('📊 Expected inputs:', this.session.inputNames.length, 'Expected outputs:', this.session.outputNames.length);
-    
     // Try to detect which provider is actually being used by testing performance
-    const testStart = performance.now();
     const dummyTensor = new ort.Tensor('float32', new Float32Array(3 * 640 * 640), [1, 3, 640, 640]);
     try {
       await this.session.run({ [this.session.inputNames[0]]: dummyTensor });
-      const testTime = performance.now() - testStart;
-      if (testTime < 50) {
-        console.log('🚀 SCRFD likely running on GPU - Very fast inference detected!');
-      } else if (testTime < 200) {
-        console.log('⚡ SCRFD likely running on GPU/WebGL - Good inference speed');
-      } else {
-        console.log('🔧 SCRFD running on CPU - Acceptable inference speed');
-      }
-      console.log(`📊 SCRFD Test inference time: ${testTime.toFixed(1)}ms`);
-    } catch (testError) {
-      console.log('💡 SCRFD ready - Check Task Manager → GPU during actual detection');
-      console.warn('Test inference failed:', testError);
+    } catch {
+      // Test inference failed, continue silently
     }
     
     if (this.session.inputNames.length !== 1) {
@@ -108,18 +88,10 @@ export class ClientSideScrfdService {
 
     try {
       this.frameCount++;
-      const now = performance.now();
-      if (now - this.lastPerformanceCheck > 5000) {
-        const fps = this.frameCount / ((now - this.lastPerformanceCheck) / 1000);
-        console.log(`SCRFD Detection FPS: ${fps.toFixed(1)}`);
-        this.frameCount = 0;
-        this.lastPerformanceCheck = now;
-      }
       
       const { width, height } = imageData;
       
       if (!width || !height || width <= 0 || height <= 0) {
-        console.warn(`Invalid image dimensions: ${width}x${height}`);
         return [];
       }
 
@@ -140,14 +112,8 @@ export class ClientSideScrfdService {
       
       const detections = this.postprocessOutputs(outputs, scaleParams);
       
-      // Debug logging for detection issues
-      if (detections.length === 0 && this.frameCount % 30 === 0) {
-        console.log(`🔍 SCRFD Debug: No detections found. Image: ${width}x${height}, Scale: ${scale.toFixed(3)}`);
-      }
-      
       return detections;
-    } catch (error) {
-      console.error('SCRFD detection failed:', error);
+    } catch {
       return [];
     }
   }
@@ -291,24 +257,13 @@ export class ClientSideScrfdService {
       
       const numAnchors = height * width * this.numAnchors;
       
-      let candidatesCount = 0;
-      let maxRawScore = -Infinity;
-      let minRawScore = Infinity;
-      let maxSigmoidScore = 0;
       
       for (let i = 0; i < numAnchors && i < scoresData.length; i++) {
         const rawScore = scoresData[i];
         // Model already outputs sigmoid-activated probabilities (0-1 range)
         const confidenceScore = rawScore;
         
-        // Track score ranges for debugging
-        maxRawScore = Math.max(maxRawScore, rawScore);
-        minRawScore = Math.min(minRawScore, rawScore);
-        maxSigmoidScore = Math.max(maxSigmoidScore, confidenceScore);
-        
         if (confidenceScore >= this.confThreshold) {
-          candidatesCount++;
-          
           // CRITICAL FIX: Create individual arrays for each detection (like server-side)
           scoresList.push(new Float32Array([confidenceScore]));
           
@@ -322,12 +277,6 @@ export class ClientSideScrfdService {
             kpssList.push(kps);
           }
         }
-      }
-      
-      // Debug logging every 60 frames (2 seconds at 30fps)
-      if (this.frameCount % 60 === 0) {
-        console.log(`🔍 SCRFD Feature Map ${idx}: ${candidatesCount} valid detections from ${numAnchors} anchors, threshold: ${this.confThreshold}`);
-        console.log(`📊 Confidence range: ${minRawScore.toFixed(3)} to ${maxSigmoidScore.toFixed(3)}`);
       }
     }
     
@@ -462,11 +411,6 @@ export class ClientSideScrfdService {
           landmarks
         });
       }
-    }
-    
-    // Debug final results  
-    if (results.length > 0 && this.frameCount % 30 === 0) {
-      console.log(`✅ SCRFD Final: ${results.length} faces detected with confidences:`, results.map(r => r.confidence.toFixed(3)));
     }
     
     return results;
