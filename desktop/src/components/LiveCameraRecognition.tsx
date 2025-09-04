@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ClientSideScrfdService } from '../services/ClientSideScrfdService'
-import { ClientSideEdgeFaceService } from '../services/ClientSideEdgeFaceService'
+import { FaceRecognitionWorkerManager } from '../services/FaceRecognitionWorkerManager'
 
 interface DetectionResult {
   bbox: [number, number, number, number];
@@ -35,71 +34,65 @@ export default function LiveCameraRecognition() {
   const lastCaptureRef = useRef(0)
   const captureIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined)
   
-  // Client-side SCRFD service for real-time processing
-  const scrfdServiceRef = useRef<ClientSideScrfdService | null>(null)
-  
-  // Client-side EdgeFace service for face recognition
-  const edgeFaceServiceRef = useRef<ClientSideEdgeFaceService | null>(null)
+  // Worker manager for face detection and recognition (non-blocking)
+  const workerManagerRef = useRef<FaceRecognitionWorkerManager | null>(null)
 
   // Processing state management
   const processingActiveRef = useRef(false)
+  const acceptDetectionUpdatesRef = useRef(true)
   
   // Define startProcessing first (will be defined later with useCallback)
   const startProcessingRef = useRef<(() => void) | null>(null)
 
-  // Initialize client-side face detection and recognition
+  // Initialize worker-based face detection and recognition pipeline
   const initializePipeline = useCallback(async () => {
     try {
-      console.log('Initializing client-side face detection and recognition...')
+      console.log('Initializing worker-based face detection and recognition...')
       
-      // Create and initialize client-side SCRFD service
-      if (!scrfdServiceRef.current) {
-        scrfdServiceRef.current = new ClientSideScrfdService()
+      // Create and initialize worker manager
+      if (!workerManagerRef.current) {
+        workerManagerRef.current = new FaceRecognitionWorkerManager()
       }
       
-      // Create and initialize client-side EdgeFace service
-      if (!edgeFaceServiceRef.current) {
-        edgeFaceServiceRef.current = new ClientSideEdgeFaceService(0.6) // 60% similarity threshold
-      }
+      // Initialize the worker (this handles both SCRFD and EdgeFace initialization)
+      console.log('🔄 Initializing worker pipeline...')
+      await workerManagerRef.current.initialize()
       
-      // Initialize SCRFD first
-      console.log('🔄 Initializing SCRFD detection...')
-      await scrfdServiceRef.current.initialize()
-      console.log('✅ SCRFD detection ready')
+      // Load existing database and get stats
+      const stats = await workerManagerRef.current.getStats()
+      setSystemStats(prev => ({ 
+        ...prev, 
+        total_people: stats.totalPersons 
+      }))
       
-      // Initialize EdgeFace second
-      console.log('🔄 Initializing EdgeFace recognition...')
-      await edgeFaceServiceRef.current.initialize()
-      console.log('✅ EdgeFace recognition ready')
-      
-      // Load existing face database
-      console.log('📂 Loading face database...')
-      edgeFaceServiceRef.current.loadDatabase()
+      console.log('✅ Worker pipeline ready - RESEARCH-GRADE ACCURACY!')
+      console.log(`📊 Database loaded: ${stats.totalPersons} persons`)
       
       setCameraStatus('recognition')
-      console.log('🚀 Client-side face detection + EdgeFace recognition ready - RESEARCH-GRADE ACCURACY!')
       
       // Start processing immediately
       setTimeout(() => {
-        console.log('Starting real-time processing with EdgeFace recognition')
+        console.log('Starting real-time processing with worker-based face recognition')
         if (startProcessingRef.current) {
           startProcessingRef.current()
         }
       }, 100)
       
     } catch (error) {
-      console.error('❌ Failed to initialize client-side pipeline:', error)
+      console.error('❌ Failed to initialize worker pipeline:', error)
       console.error('📋 Detailed error:', error)
       setCameraStatus('stopped')
       
       // Show user-friendly error
-      alert(`Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`Worker initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }, [])
 
   const startCamera = useCallback(async () => {
     try {
-      console.log('Starting camera...')
+      // Re-enable detection updates
+      acceptDetectionUpdatesRef.current = true
+      
       setIsStreaming(true)
       setCameraStatus('starting')
 
@@ -172,13 +165,15 @@ export default function LiveCameraRecognition() {
               
               canvas.width = stableWidth
               canvas.height = stableHeight
+              canvas.style.width = `${stableWidth}px`
+              canvas.style.height = `${stableHeight}px`
               canvasInitializedRef.current = true
               
               console.log('Canvas initialized with stable size:', canvas.width, 'x', canvas.height)
               console.log('Video natural size:', video.videoWidth, 'x', video.videoHeight)
               console.log('Video display size:', stableWidth, 'x', stableHeight)
             }
-          }, 150) // Slightly longer delay to ensure video is fully rendered
+          }, 200) // Slightly longer delay to ensure video is fully rendered
           
           // Initialize pipeline (it will start processing automatically)
           initializePipeline()
@@ -192,11 +187,17 @@ export default function LiveCameraRecognition() {
   }, [initializePipeline])
 
   const stopCamera = useCallback(() => {
+    // Immediately disable detection updates
+    acceptDetectionUpdatesRef.current = false
+    
     setIsStreaming(false)
     setCameraStatus('stopped')
     
     // Stop any active processing immediately
     processingActiveRef.current = false
+    
+    // Clear detection results immediately and prevent any further updates
+    setDetectionResults([])
     
     // Clean up any remaining intervals and frames
     if (animationFrameRef.current) {
@@ -225,11 +226,21 @@ export default function LiveCameraRecognition() {
       }
     }
     
-    // Clear detection results
-    setDetectionResults([])
+    // Reset attendance tracking states
+    setCurrentDetectedPerson(null)
+    setStableDetectionCount(0)
+    setAttendanceStatus('waiting')
     
     // Reset canvas initialization flag for next session
     canvasInitializedRef.current = false
+    
+    // Reset processing flag to prevent any lingering worker responses
+    isProcessing.current = false
+    
+    // Force a final clear after a short delay to ensure everything is cleaned up
+    setTimeout(() => {
+      setDetectionResults([])
+    }, 100)
   }, [])
 
   // Reuse canvases for better performance
@@ -241,12 +252,12 @@ export default function LiveCameraRecognition() {
     
     const video = videoRef.current
     
-    // Create a reusable canvas only once - use smaller resolution for processing
+    // Create a reusable canvas only once - use optimized resolution for processing
     if (!captureCanvasRef.current) {
       captureCanvasRef.current = document.createElement('canvas')
-      // Use smaller resolution for much faster processing (640x480 max)
-      const maxWidth = 640
-      const maxHeight = 480
+      // Use even smaller resolution for faster processing (480x360 max for real-time)
+      const maxWidth = 480  // Reduced from 640
+      const maxHeight = 360 // Reduced from 480
       const aspectRatio = video.videoWidth / video.videoHeight
       
       if (aspectRatio > 1) {
@@ -273,8 +284,8 @@ export default function LiveCameraRecognition() {
     const canvasAspectRatio = tempCanvas.width / tempCanvas.height
     
     if (Math.abs(currentAspectRatio - canvasAspectRatio) > 0.1) {
-      const maxWidth = 640
-      const maxHeight = 480
+      const maxWidth = 480  // Reduced from 640
+      const maxHeight = 360 // Reduced from 480
       
       if (currentAspectRatio > 1) {
         tempCanvas.width = Math.min(maxWidth, video.videoWidth)
@@ -305,17 +316,17 @@ export default function LiveCameraRecognition() {
   const isProcessing = useRef(false)
   const frameSkipCount = useRef(0)
   
-  // Ultra-optimized frame processing - intelligent skipping for maximum performance
+  // Ultra-optimized frame processing using Web Worker - intelligent skipping for maximum performance
   const processFrameRealTime = useCallback(async () => {
-    if (!isStreaming || cameraStatus !== 'recognition' || !scrfdServiceRef.current || !edgeFaceServiceRef.current) {
+    if (!isStreaming || cameraStatus !== 'recognition' || !workerManagerRef.current) {
       return
     }
 
     // Skip frame if we're still processing the previous one (critical for performance)
     if (isProcessing.current) {
       frameSkipCount.current++
-      // Log frame skips every 10 skips to monitor performance
-      if (frameSkipCount.current % 10 === 0) {
+      // Log frame skips every 20 skips to monitor performance
+      if (frameSkipCount.current % 20 === 0) {
         console.log(`⚡ Skipped ${frameSkipCount.current} frames for optimal performance`)
       }
       return
@@ -324,6 +335,12 @@ export default function LiveCameraRecognition() {
     isProcessing.current = true
 
     try {
+      // Double-check streaming status before proceeding (prevent race conditions)
+      if (!isStreaming || cameraStatus !== 'recognition') {
+        isProcessing.current = false
+        return
+      }
+      
       // Capture frame for detection (video element handles display)
       const captureResult = captureFrame()
       if (!captureResult) {
@@ -331,151 +348,96 @@ export default function LiveCameraRecognition() {
         return
       }
       
-      const { imageData, scaleX, scaleY } = captureResult
+      const { imageData } = captureResult
 
       const startTime = performance.now()
       
-      // Process frame through client-side SCRFD service - ZERO IPC LATENCY!
-      const allScrfdDetections = await scrfdServiceRef.current.detect(imageData)
+      // Process frame through worker (ZERO main thread blocking!)
+      const detections = await workerManagerRef.current.detectAndRecognizeFaces(imageData)
       
-      // Filter out low confidence detections to reduce false positives (lowered for better detection)
-      const minDisplayConfidence = 0.5; // Lowered from 0.8 to 0.5 for better detection
-      const scrfdDetections = allScrfdDetections.filter(det => det.confidence >= minDisplayConfidence)
-      
-      // Early exit if no faces detected - save computation!
-      if (scrfdDetections.length === 0) {
-        setDetectionResults([])
-        const processingTime = performance.now() - startTime
-        setProcessingTime(processingTime)
+      // Final check before updating state - prevent race conditions after camera stop
+      if (!isStreaming || cameraStatus !== 'recognition' || !acceptDetectionUpdatesRef.current) {
+        isProcessing.current = false
         return
       }
       
-      // For real-time performance, prioritize processing the largest face only
-      // Find the largest face (which is likely the closest/most important)
-      let largestDetection = scrfdDetections[0]
-      let largestArea = 0
-      
-      for (const det of scrfdDetections) {
-        const [x1, y1, x2, y2] = det.bbox
-        const area = (x2 - x1) * (y2 - y1)
-        if (area > largestArea) {
-          largestArea = area
-          largestDetection = det
-        }
-      }
-      
-      // Scale detection coordinates back to original video size
-      const detections: DetectionResult[] = scrfdDetections.map(det => ({
-        bbox: [
-          det.bbox[0] * scaleX,  // Scale x1 back to original size
-          det.bbox[1] * scaleY,  // Scale y1 back to original size  
-          det.bbox[2] * scaleX,  // Scale x2 back to original size
-          det.bbox[3] * scaleY   // Scale y2 back to original size
-        ] as [number, number, number, number],
-        confidence: det.confidence,
-        landmarks: det.landmarks.map(landmark => [
-          landmark[0] * scaleX,  // Scale landmark x back to original size
-          landmark[1] * scaleY   // Scale landmark y back to original size
-        ]),
-        recognition: {
-          personId: null,
-          similarity: 0
-        }
-      }))
-      
-      // Only run recognition on the largest face for real-time performance
-      if (largestDetection.landmarks && largestDetection.landmarks.length >= 5) {
-        try {
-          // Process only the largest face for recognition (use original unscaled landmarks)
-          const recognitionResult = await edgeFaceServiceRef.current.recognizeFace(imageData, largestDetection.landmarks)
-          
-          // Find the index of the largest detection
-          const largestIndex = scrfdDetections.indexOf(largestDetection)
-          
-          // Update only that detection with recognition results
-          if (largestIndex >= 0) {
-            detections[largestIndex].recognition = {
-              personId: recognitionResult.personId,
-              similarity: recognitionResult.similarity
-            }
-          }
-        } catch {
-          // Silent fail - already have default recognition values
-        }
-      }
+      // Filter out low confidence detections to reduce false positives
+      const minDisplayConfidence = 0.5;
+      const validDetections = detections.filter(det => det.confidence >= minDisplayConfidence)
       
       const processingTime = performance.now() - startTime
       
-      setDetectionResults(detections)
-      setProcessingTime(processingTime)
-      
-      // Attendance tracking logic - enhanced with real recognition
-      if (attendanceMode && detections.length > 0) {
-        // Use null as initial value and handle the null case
-        const largestDetection = detections.reduce((largest, current) => {
-          if (!current) return largest
-          
-          const currentArea = (current.bbox[2] - current.bbox[0]) * (current.bbox[3] - current.bbox[1])
-          const largestArea = largest ? (largest.bbox[2] - largest.bbox[0]) * (largest.bbox[3] - largest.bbox[1]) : 0
-          return currentArea > largestArea ? current : largest
-        }, detections[0]) // Initialize with first detection to avoid null
+      // Only update state if still streaming, in recognition mode, and accepting updates
+      if (isStreaming && cameraStatus === 'recognition' && acceptDetectionUpdatesRef.current) {
+        setDetectionResults(validDetections)
+        setProcessingTime(processingTime)
         
-        // Check if face is centered and stable
-        if (imageData && largestDetection) {
-          const [x1, y1, x2, y2] = largestDetection.bbox
-          const centerX = (x1 + x2) / 2
-          const centerY = (y1 + y2) / 2
-          const imgCenterX = (videoRef.current?.videoWidth || 640) / 2  // Use video width
-          const imgCenterY = (videoRef.current?.videoHeight || 480) / 2 // Use video height
+        // Attendance tracking logic - enhanced with real recognition
+        if (attendanceMode && validDetections.length > 0) {
+          // Find the largest detection for attendance tracking
+          const largestDetection = validDetections.reduce((largest, current) => {
+            const currentArea = (current.bbox[2] - current.bbox[0]) * (current.bbox[3] - current.bbox[1])
+            const largestArea = largest ? (largest.bbox[2] - largest.bbox[0]) * (largest.bbox[3] - largest.bbox[1]) : 0
+            return currentArea > largestArea ? current : largest
+          }, validDetections[0])
           
-          // Check if face is reasonably centered (within 20% of center)
-          const isCentered = Math.abs(centerX - imgCenterX) < (videoRef.current?.videoWidth || 640) * 0.2 && 
-                           Math.abs(centerY - imgCenterY) < (videoRef.current?.videoHeight || 480) * 0.2
-          
-          if (isCentered && largestDetection.confidence > 0.5) { // Lowered threshold
-            const recognizedId = largestDetection.recognition?.personId || 'unknown'
+          // Check if face is centered and stable
+          if (imageData && largestDetection) {
+            const [x1, y1, x2, y2] = largestDetection.bbox
+            const centerX = (x1 + x2) / 2
+            const centerY = (y1 + y2) / 2
+            const imgCenterX = (videoRef.current?.videoWidth || 640) / 2
+            const imgCenterY = (videoRef.current?.videoHeight || 480) / 2
             
-            if (currentDetectedPerson === recognizedId || currentDetectedPerson === null) {
-              setCurrentDetectedPerson(recognizedId)
-              setStableDetectionCount(prev => prev + 1)
+            // Check if face is reasonably centered (within 20% of center)
+            const isCentered = Math.abs(centerX - imgCenterX) < (videoRef.current?.videoWidth || 640) * 0.2 && 
+                             Math.abs(centerY - imgCenterY) < (videoRef.current?.videoHeight || 480) * 0.2
+            
+            if (isCentered && largestDetection.confidence > 0.5) {
+              const recognizedId = largestDetection.recognition?.personId || 'unknown'
               
-              if (stableDetectionCount < 10) {
-                setAttendanceStatus('detecting')
-              } else if (stableDetectionCount >= 10 && stableDetectionCount < 30) {
-                setAttendanceStatus('confirmed')
-              } else if (stableDetectionCount >= 30) {
-                setAttendanceStatus('recorded')
-                // Auto-record attendance after 2 seconds of stable detection
-                setTimeout(() => {
-                  console.log(`📝 Attendance recorded for ${recognizedId}`)
-                  setSystemStats(prev => ({ ...prev, today_records: prev.today_records + 1 }))
-                  setAttendanceStatus('waiting')
-                  setStableDetectionCount(0)
-                  setCurrentDetectedPerson(null)
-                }, 1000)
+              if (currentDetectedPerson === recognizedId || currentDetectedPerson === null) {
+                setCurrentDetectedPerson(recognizedId)
+                setStableDetectionCount(prev => prev + 1)
+                
+                if (stableDetectionCount < 10) {
+                  setAttendanceStatus('detecting')
+                } else if (stableDetectionCount >= 10 && stableDetectionCount < 30) {
+                  setAttendanceStatus('confirmed')
+                } else if (stableDetectionCount >= 30) {
+                  setAttendanceStatus('recorded')
+                  // Auto-record attendance after 2 seconds of stable detection
+                  setTimeout(() => {
+                    console.log(`📝 Attendance recorded for ${recognizedId}`)
+                    setSystemStats(prev => ({ ...prev, today_records: prev.today_records + 1 }))
+                    setAttendanceStatus('waiting')
+                    setStableDetectionCount(0)
+                    setCurrentDetectedPerson(null)
+                  }, 1000)
+                }
+              } else {
+                // Different person detected, reset counter
+                setStableDetectionCount(0)
+                setAttendanceStatus('waiting')
+                setCurrentDetectedPerson(recognizedId)
               }
             } else {
-              // Different person detected, reset counter
+              // Reset if face moves or confidence drops
               setStableDetectionCount(0)
               setAttendanceStatus('waiting')
-              setCurrentDetectedPerson(recognizedId)
+              setCurrentDetectedPerson(null)
             }
-          } else {
-            // Reset if face moves or confidence drops
-            setStableDetectionCount(0)
-            setAttendanceStatus('waiting')
-            setCurrentDetectedPerson(null)
           }
+        } else if (attendanceMode) {
+          // No detections - reset
+          setStableDetectionCount(0)
+          setAttendanceStatus('waiting')
+          setCurrentDetectedPerson(null)
         }
-      } else if (attendanceMode) {
-        // No detections - reset
-        setStableDetectionCount(0)
-        setAttendanceStatus('waiting')
-        setCurrentDetectedPerson(null)
       }
       
     } catch (error) {
-      console.error('Client-side frame processing error:', error)
+      console.error('Worker-based frame processing error:', error)
     } finally {
       // Always reset processing flag to allow next frame
       isProcessing.current = false
@@ -498,7 +460,7 @@ export default function LiveCameraRecognition() {
     
     lastCaptureRef.current = 0
     
-    // Ultra-optimized processing loop with intelligent frame skipping
+    // Ultra-optimized processing loop with adaptive frame rate
     const processNextFrame = async () => {
       // Check if processing should continue
       if (!processingActiveRef.current || !isStreaming) {
@@ -509,12 +471,13 @@ export default function LiveCameraRecognition() {
         // Process frame for detection (video element shows live feed)
         await processFrameRealTime()
         
-        // Ultra-aggressive frame rate - prioritize smoothness over processing time
-        // Always try to maintain 30+ FPS for smooth UI experience
-        const nextFrameDelay = processingTime > 1000 ? 50 :   // If very slow, 20 FPS
-                              processingTime > 500 ? 33 :     // If slow, 30 FPS  
-                              processingTime > 200 ? 25 :     // If medium, 40 FPS
-                              16;  // If fast, 60 FPS - prioritize smoothness
+        // Adaptive frame rate based on processing time for optimal performance
+        // Aim for 20-30 FPS maximum to reduce CPU load while maintaining responsiveness
+        const nextFrameDelay = processingTime > 1000 ? 100 :   // If very slow, 10 FPS
+                              processingTime > 500 ? 66 :      // If slow, 15 FPS  
+                              processingTime > 200 ? 50 :      // If medium, 20 FPS
+                              processingTime > 100 ? 40 :      // If fast, 25 FPS
+                              33;  // If very fast, 30 FPS max (optimal for face recognition)
         
         setTimeout(() => {
           if (processingActiveRef.current && isStreaming && cameraStatus === 'recognition') {
@@ -524,12 +487,11 @@ export default function LiveCameraRecognition() {
       } else if (isStreaming) {
         // Camera is streaming but not in recognition mode (e.g., preview mode)
         setTimeout(() => {
-          if (processingActiveRef.current && isStreaming) { // Only continue if still active and streaming
+          if (processingActiveRef.current && isStreaming) {
             processNextFrame()
           }
         }, 100)
       }
-      // If not streaming at all, stop the loop completely (no setTimeout)
     }
     
     // Start optimized processing only if streaming
@@ -537,7 +499,7 @@ export default function LiveCameraRecognition() {
       processNextFrame()
     }
     
-    console.log('Ultra-optimized processing started - adaptive frame rate + controlled detection rate')
+    console.log('Ultra-optimized processing started - adaptive frame rate (20-30 FPS max) for optimal CPU usage')
   }, [processFrameRealTime, isStreaming, cameraStatus, processingTime])
 
   // Set the ref after the function is defined
@@ -551,8 +513,8 @@ export default function LiveCameraRecognition() {
       return
     }
     
-    if (!edgeFaceServiceRef.current) {
-      alert('EdgeFace service not initialized')
+    if (!workerManagerRef.current) {
+      alert('Worker manager not initialized')
       return
     }
     
@@ -583,23 +545,20 @@ export default function LiveCameraRecognition() {
         return
       }
       
-      // Register face using EdgeFace
-      const success = await edgeFaceServiceRef.current.registerPerson(
+      // Register face using worker manager
+      const success = await workerManagerRef.current.registerPerson(
         newPersonId.trim(), 
         imageData, 
         largestDetection.landmarks
       )
       
       if (success) {
-        // Save database to localStorage
-        edgeFaceServiceRef.current.saveDatabase()
-        
         alert(`✅ Successfully registered ${newPersonId} with EdgeFace (Research-Grade Accuracy)`)
         setNewPersonId('')
         setRegistrationMode(false)
         setSystemStats(prev => ({ ...prev, total_people: prev.total_people + 1 }))
         
-        console.log(`🎉 ${newPersonId} registered in EdgeFace database`)
+        console.log(`🎉 ${newPersonId} registered in EdgeFace database and persisted to localStorage`)
       } else {
         alert('❌ Registration failed - Please try again with better face positioning')
       }
@@ -610,14 +569,6 @@ export default function LiveCameraRecognition() {
     }
   }, [newPersonId, detectionResults, captureFrame])
 
-  // Cache for storing pre-calculated values
-  const drawCacheRef = useRef({
-    lastVideoWidth: 0,
-    lastVideoHeight: 0,
-    scaleX: 1,
-    scaleY: 1
-  })
-  
   const drawDetections = useCallback(() => {
     if (!canvasRef.current || !videoRef.current) return
     
@@ -629,39 +580,38 @@ export default function LiveCameraRecognition() {
     // Clear canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // Only draw HUD and detections when camera is actively streaming
+    // Only draw HUD and detections when camera is actively streaming AND in recognition mode
     if (!isStreaming || cameraStatus !== 'recognition') {
-      return // Exit early if camera is not active
+      return // Exit early if camera is not active or not in recognition mode
     }
     
-    // Check if video dimensions changed, recalculate only if needed
-    if (video.videoWidth !== drawCacheRef.current.lastVideoWidth || 
-        video.videoHeight !== drawCacheRef.current.lastVideoHeight) {
-      drawCacheRef.current.lastVideoWidth = video.videoWidth
-      drawCacheRef.current.lastVideoHeight = video.videoHeight
-      
-      // Get current video display size
-      const rect = video.getBoundingClientRect()
-      const displayWidth = Math.round(rect.width)
-      const displayHeight = Math.round(rect.height)
-      
-      // Only resize canvas if there's a significant size change (prevent micro-adjustments)
-      const sizeDiffThreshold = 5 // increased threshold
-      const widthDiff = Math.abs(canvas.width - displayWidth)
-      const heightDiff = Math.abs(canvas.height - displayHeight)
-      
-      if (widthDiff > sizeDiffThreshold || heightDiff > sizeDiffThreshold) {
-        canvas.width = displayWidth
-        canvas.height = displayHeight
-      }
-      
-      // Pre-calculate scale factors only when dimensions change
-      drawCacheRef.current.scaleX = canvas.width / video.videoWidth
-      drawCacheRef.current.scaleY = canvas.height / video.videoHeight
+    // Additional check to ensure detection results are valid and current
+    if (detectionResults.length === 0) {
+      return // No detections to draw
     }
     
-    // Get cached scale factors
-    const { scaleX, scaleY } = drawCacheRef.current
+    // Always get fresh dimensions and recalculate for accuracy
+    const rect = video.getBoundingClientRect()
+    const displayWidth = Math.round(rect.width)
+    const displayHeight = Math.round(rect.height)
+    
+    // Update canvas size to exactly match video display size
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth
+      canvas.height = displayHeight
+    }
+    
+    // Calculate scale factors for coordinate transformation
+    // Detection coordinates are in capture canvas resolution (480x360 or smaller)
+    // We need to scale them to display canvas resolution
+    
+    // Get the capture canvas dimensions used for detection
+    const captureWidth = captureCanvasRef.current?.width || 480
+    const captureHeight = captureCanvasRef.current?.height || 360
+    
+    // Scale from capture canvas coordinates to display canvas coordinates
+    const scaleX = displayWidth / captureWidth
+    const scaleY = displayHeight / captureHeight
     
     // Validate scale factors
     if (!isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
@@ -673,11 +623,11 @@ export default function LiveCameraRecognition() {
       const [x1, y1, x2, y2] = detection.bbox
       
       // Validate bbox coordinates first
-      if (!x1 || !y1 || !x2 || !y2 || !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
         continue // Skip invalid detections
       }
       
-      // Scale coordinates from video natural size to display size
+      // Scale coordinates from capture canvas size to display canvas size
       const scaledX1 = x1 * scaleX
       const scaledY1 = y1 * scaleY
       const scaledX2 = x2 * scaleX
@@ -796,8 +746,12 @@ export default function LiveCameraRecognition() {
           const [x, y] = detection.landmarks[i]
           if (isNaN(x) || isNaN(y)) continue
           
+          // Scale landmarks from video natural size to display size
           const scaledLandmarkX = x * scaleX
           const scaledLandmarkY = y * scaleY
+          
+          // Validate scaled landmark coordinates
+          if (!isFinite(scaledLandmarkX) || !isFinite(scaledLandmarkY)) continue
           
           // Draw neural node with glow effect
           ctx.fillStyle = primaryColor
@@ -849,18 +803,37 @@ export default function LiveCameraRecognition() {
 
   // Draw detections overlay - optimized approach
   useEffect(() => {
-    if (isStreaming && detectionResults.length > 0) {
+    if (isStreaming && cameraStatus === 'recognition' && detectionResults.length > 0) {
       // Use requestAnimationFrame for smooth 60fps drawing
       const frameId = requestAnimationFrame(() => {
         drawDetections()
       })
       
       return () => cancelAnimationFrame(frameId)
-    } else if (isStreaming) {
-      // Clear canvas if no detections
-      drawDetections()
+    } else {
+      // Always clear canvas when not streaming or not in recognition mode
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+        }
+      }
     }
-  }, [detectionResults, isStreaming, drawDetections])
+  }, [detectionResults, isStreaming, cameraStatus, drawDetections])
+
+  // Force clear detection results when camera stops
+  useEffect(() => {
+    if (cameraStatus === 'stopped') {
+      setDetectionResults([])
+    }
+  }, [cameraStatus])
+
+  // Additional cleanup effect to monitor detection results changes
+  useEffect(() => {
+    if (cameraStatus === 'stopped' && detectionResults.length > 0) {
+      setDetectionResults([])
+    }
+  }, [detectionResults, cameraStatus])
 
   // Handle window resize to keep canvas aligned
   useEffect(() => {
@@ -878,7 +851,7 @@ export default function LiveCameraRecognition() {
           // Update canvas size to match current video display size (with stability threshold)
           const newWidth = Math.round(rect.width)
           const newHeight = Math.round(rect.height)
-          const sizeDiffThreshold = 5 // Larger threshold for resize events
+          const sizeDiffThreshold = 10 // Increased threshold to prevent micro-adjustments
           
           const widthDiff = Math.abs(canvas.width - newWidth)
           const heightDiff = Math.abs(canvas.height - newHeight)
@@ -887,12 +860,14 @@ export default function LiveCameraRecognition() {
             console.log(`Resize: Canvas ${canvas.width}x${canvas.height} → ${newWidth}x${newHeight}`)
             canvas.width = newWidth
             canvas.height = newHeight
+            canvas.style.width = `${newWidth}px`
+            canvas.style.height = `${newHeight}px`
             
             // Redraw detections with new size
             drawDetections()
           }
         }
-      }, 100) // 100ms debounce
+      }, 200) // Increased debounce time
     }
 
     window.addEventListener('resize', handleResize)
@@ -912,14 +887,10 @@ export default function LiveCameraRecognition() {
         captureCanvasRef.current = null
       }
       
-      // Release services to help with garbage collection
-      if (scrfdServiceRef.current) {
-        // Ideally these services would have a dispose method
-        scrfdServiceRef.current = null
-      }
-      
-      if (edgeFaceServiceRef.current) {
-        edgeFaceServiceRef.current = null
+      // Release worker manager
+      if (workerManagerRef.current) {
+        workerManagerRef.current.dispose()
+        workerManagerRef.current = null
       }
     }
   }, [stopCamera])

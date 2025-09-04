@@ -9,8 +9,7 @@ import type { SerializableImageData } from "../services/SimpleScrfdService.js";
 // Enable modern GPU features for capable hardware, graceful fallback for old GPUs
 
 // Always try modern GPU features first (for new laptops)
-app.commandLine.appendSwitch('enable-features', 'Vulkan,UseSkiaRenderer,WebGPU')
-app.commandLine.appendSwitch('enable-unsafe-webgpu')
+app.commandLine.appendSwitch('enable-features', 'Vulkan,UseSkiaRenderer')
 app.commandLine.appendSwitch('enable-webgl')
 app.commandLine.appendSwitch('enable-webgl2-compute-context')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
@@ -150,11 +149,11 @@ function createWindow(): void {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, '../../src/electron/preload.js'),
-            // Progressive GPU feature enablement
+            // Basic WebGL support only - avoid experimental features
             webgl: true,
-            experimentalFeatures: true,
-            // Enable modern features for capable hardware, ignore failures on old hardware
-            enableBlinkFeatures: 'WebGPU',
+            // Remove experimental features to eliminate security warnings
+            // experimentalFeatures: false,  // Explicitly disable
+            // enableBlinkFeatures: undefined,  // Don't enable additional features
             disableBlinkFeatures: 'Autofill' // Disable autofill to prevent console errors
         },
         titleBarStyle: 'hidden',

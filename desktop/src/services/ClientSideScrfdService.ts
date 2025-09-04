@@ -38,9 +38,8 @@ export class ClientSideScrfdService {
     try {
       this.session = await ort.InferenceSession.create(modelUrl, {
         executionProviders: [
-          'webgpu',    // Try WebGPU first (fastest if available)
-          'webgl',     // Fallback to WebGL GPU acceleration
-          'wasm'       // Final fallback to optimized CPU
+          'webgl',     // Use WebGL for better compatibility
+          'wasm'       // Fallback to optimized CPU
         ],
         logSeverityLevel: 4,  // Minimal logging for speed
         logVerbosityLevel: 0,
@@ -51,7 +50,7 @@ export class ClientSideScrfdService {
         enableProfiling: false
       });
     } catch {
-      // If GPU providers fail completely, use CPU-only configuration
+      // If WebGL fails completely, use CPU-only configuration
       this.session = await ort.InferenceSession.create(modelUrl, {
         executionProviders: ['wasm'],
         logSeverityLevel: 4,

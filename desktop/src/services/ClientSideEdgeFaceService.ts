@@ -42,9 +42,8 @@ export class ClientSideEdgeFaceService {
       try {
         this.session = await ort.InferenceSession.create('/weights/edgeface-recognition.onnx', {
           executionProviders: [
-            'webgpu',    // Try WebGPU first (fastest if available)
-            'webgl',     // Fallback to WebGL GPU acceleration
-            'wasm'       // Final fallback to optimized CPU
+            'webgl',     // Use WebGL instead of WebGPU for better compatibility
+            'wasm'       // Fallback to optimized CPU
           ],
           logSeverityLevel: 4,  // Minimal logging
           logVerbosityLevel: 0,
@@ -55,8 +54,8 @@ export class ClientSideEdgeFaceService {
           enableProfiling: false
         });
       } catch (error) {
-        console.warn('⚠️ GPU providers failed for EdgeFace, falling back to CPU-only:', error);
-        // If GPU providers fail completely, use CPU-only configuration
+        console.warn('⚠️ WebGL provider failed for EdgeFace, falling back to CPU-only:', error);
+        // If WebGL fails, use CPU-only configuration with relaxed settings
         this.session = await ort.InferenceSession.create('/weights/edgeface-recognition.onnx', {
           executionProviders: ['wasm'],
           logSeverityLevel: 4,
@@ -64,8 +63,15 @@ export class ClientSideEdgeFaceService {
           enableCpuMemArena: true,
           enableMemPattern: true,
           executionMode: 'sequential',
-          graphOptimizationLevel: 'all',
-          enableProfiling: false
+          graphOptimizationLevel: 'basic', // Use basic optimization for compatibility
+          enableProfiling: false,
+          // Add extra options for int64 compatibility
+          extra: {
+            session: {
+              'disable_prepacking': '1',
+              'use_device_allocator_for_initializers': '0'
+            }
+          }
         });
       }
       
@@ -211,8 +217,8 @@ export class ClientSideEdgeFaceService {
   // ================== PRIVATE METHODS ==================
 
   // Global static resources for maximum memory efficiency across all instances
-  private static globalAlignCanvas: HTMLCanvasElement | null = null;
-  private static globalSourceCanvas: HTMLCanvasElement | null = null;
+  private static globalAlignCanvas: OffscreenCanvas | null = null;
+  private static globalSourceCanvas: OffscreenCanvas | null = null;
   private static globalChwData: Float32Array | null = null;
   
   /**
@@ -220,13 +226,11 @@ export class ClientSideEdgeFaceService {
    */
   private alignFace(imageData: ImageData, landmarks: Float32Array): ImageData {
     if (!ClientSideEdgeFaceService.globalAlignCanvas) {
-      ClientSideEdgeFaceService.globalAlignCanvas = document.createElement('canvas');
-      ClientSideEdgeFaceService.globalAlignCanvas.width = this.INPUT_SIZE;
-      ClientSideEdgeFaceService.globalAlignCanvas.height = this.INPUT_SIZE;
+      ClientSideEdgeFaceService.globalAlignCanvas = new OffscreenCanvas(this.INPUT_SIZE, this.INPUT_SIZE);
     }
     
     if (!ClientSideEdgeFaceService.globalSourceCanvas) {
-      ClientSideEdgeFaceService.globalSourceCanvas = document.createElement('canvas');
+      ClientSideEdgeFaceService.globalSourceCanvas = new OffscreenCanvas(imageData.width, imageData.height);
     }
     
     const canvas = ClientSideEdgeFaceService.globalAlignCanvas;
@@ -393,9 +397,19 @@ export class ClientSideEdgeFaceService {
 
   /**
    * Load face database from localStorage (for persistence)
+   * Note: In Web Worker context, we'll use a different storage mechanism
    */
   loadDatabase(): boolean {
     try {
+      // Check if we're in a Web Worker context
+      if (typeof self !== 'undefined' && typeof window === 'undefined') {
+        // We're in a Web Worker - localStorage is not available
+        // For now, just return false and let the main thread handle database loading
+        console.log('📂 Database loading skipped in Web Worker context');
+        return false;
+      }
+      
+      // We're in main thread context
       const stored = localStorage.getItem('edgeface_database');
       if (stored) {
         const data = JSON.parse(stored);
@@ -415,10 +429,50 @@ export class ClientSideEdgeFaceService {
   }
 
   /**
+   * Load database from external data (for Web Worker synchronization)
+   */
+  loadDatabaseFromData(databaseData: Record<string, number[]>): boolean {
+    try {
+      this.database.clear();
+      
+      for (const [personId, embeddingArray] of Object.entries(databaseData)) {
+        this.database.set(personId, new Float32Array(embeddingArray));
+      }
+      
+      console.log(`📂 Loaded ${this.database.size} persons from external data`);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to load database from external data:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Export database to external format (for Web Worker synchronization)
+   */
+  exportDatabase(): Record<string, number[]> {
+    const data: Record<string, number[]> = {};
+    for (const [personId, embedding] of this.database.entries()) {
+      data[personId] = Array.from(embedding);
+    }
+    return data;
+  }
+
+  /**
    * Save face database to localStorage
+   * Note: In Web Worker context, we'll send data to main thread
    */
   saveDatabase(): boolean {
     try {
+      // Check if we're in a Web Worker context
+      if (typeof self !== 'undefined' && typeof window === 'undefined') {
+        // We're in a Web Worker - localStorage is not available
+        // For now, just return false and let the main thread handle database saving
+        console.log('💾 Database saving skipped in Web Worker context');
+        return false;
+      }
+      
+      // We're in main thread context
       const data: Record<string, number[]> = {};
       for (const [personId, embedding] of this.database.entries()) {
         data[personId] = Array.from(embedding);

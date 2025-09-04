@@ -1,17 +1,60 @@
-// WebWorker for face detection to avoid main thread blocking
+// WebWorker for face detection and recognition to avoid main thread blocking
 import { ClientSideScrfdService } from "./ClientSideScrfdService.js";
+import { ClientSideEdgeFaceService } from "./ClientSideEdgeFaceService.js";
 
 let scrfdService: ClientSideScrfdService | null = null;
+let edgeFaceService: ClientSideEdgeFaceService | null = null;
 
 self.onmessage = async (event) => {
-  const { type, data } = event.data;
+  const { type, data, id } = event.data;
   
   try {
     switch (type) {
       case 'init': {
+        // Initialize both services
         scrfdService = new ClientSideScrfdService();
+        edgeFaceService = new ClientSideEdgeFaceService(0.6);
+        
         await scrfdService.initialize();
-        self.postMessage({ type: 'init-complete' });
+        await edgeFaceService.initialize();
+        
+        // Don't load database here - we'll get it from main thread
+        
+        self.postMessage({ type: 'init-complete', id });
+        break;
+      }
+
+      case 'load-database-from-main': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const { databaseData } = data;
+        
+        // Load database using the public method
+        const success = edgeFaceService.loadDatabaseFromData(databaseData || {});
+        
+        self.postMessage({ 
+          type: 'database-loaded', 
+          data: { success, count: edgeFaceService.getStats().totalPersons },
+          id
+        });
+        break;
+      }
+
+      case 'get-database-for-main': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        // Export database using the public method
+        const databaseData = edgeFaceService.exportDatabase();
+        
+        self.postMessage({ 
+          type: 'database-export', 
+          data: { databaseData },
+          id
+        });
         break;
       }
         
@@ -25,7 +68,212 @@ self.onmessage = async (event) => {
         
         self.postMessage({ 
           type: 'detection-result', 
-          data: { detections }
+          data: { detections },
+          id
+        });
+        break;
+      }
+
+      case 'detect-and-recognize': {
+        if (!scrfdService || !edgeFaceService) {
+          throw new Error('Services not initialized');
+        }
+        
+        const { imageData } = data;
+        
+        // First detect faces
+        const detections = await scrfdService.detect(imageData);
+        
+        // Filter out low confidence detections early (major performance boost)
+        const minConfidence = 0.5;
+        const validDetections = detections.filter(det => det.confidence >= minConfidence);
+        
+        // Early exit if no valid faces (saves compute time)
+        if (validDetections.length === 0) {
+          self.postMessage({ 
+            type: 'detection-and-recognition-result', 
+            data: { detections: [] },
+            id
+          });
+          break;
+        }
+        
+        // For real-time performance, only process the largest face for recognition
+        let largestDetection = validDetections[0];
+        let largestArea = 0;
+        
+        for (const det of validDetections) {
+          const [x1, y1, x2, y2] = det.bbox;
+          const area = (x2 - x1) * (y2 - y1);
+          if (area > largestArea) {
+            largestArea = area;
+            largestDetection = det;
+          }
+        }
+        
+        // Process all detections but only run recognition on the largest
+        const detectionsWithRecognition = [];
+        
+        for (const detection of validDetections) {
+          let recognitionResult: {
+            personId: string | null;
+            similarity: number;
+          } = {
+            personId: null,
+            similarity: 0
+          };
+          
+          // Only run recognition on the largest face for performance
+          if (detection === largestDetection && detection.landmarks && detection.landmarks.length >= 5) {
+            try {
+              const result = await edgeFaceService.recognizeFace(imageData, detection.landmarks);
+              recognitionResult = {
+                personId: result.personId,
+                similarity: result.similarity
+              };
+            } catch {
+              // Silent fail - keep default values
+            }
+          }
+          
+          detectionsWithRecognition.push({
+            bbox: detection.bbox,
+            confidence: detection.confidence,
+            landmarks: detection.landmarks,
+            recognition: recognitionResult
+          });
+        }
+        
+        self.postMessage({ 
+          type: 'detection-and-recognition-result', 
+          data: { detections: detectionsWithRecognition },
+          id
+        });
+        break;
+      }
+
+      case 'register-person': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const { personId, imageData, landmarks } = data;
+        const success = await edgeFaceService.registerPerson(personId, imageData, landmarks);
+        
+        if (success) {
+          // Don't save here - notify main thread to save database
+          self.postMessage({ 
+            type: 'database-changed', 
+            data: { action: 'register', personId }
+          });
+        }
+        
+        self.postMessage({ 
+          type: 'register-result', 
+          data: { success },
+          id
+        });
+        break;
+      }
+
+      case 'recognize-face': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const { imageData, landmarks } = data;
+        const result = await edgeFaceService.recognizeFace(imageData, landmarks);
+        
+        self.postMessage({ 
+          type: 'recognition-result', 
+          data: { 
+            personId: result.personId, 
+            similarity: result.similarity 
+          },
+          id
+        });
+        break;
+      }
+
+      case 'get-all-persons': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const persons = edgeFaceService.getAllPersons();
+        
+        self.postMessage({ 
+          type: 'persons-list', 
+          data: { persons },
+          id
+        });
+        break;
+      }
+
+      case 'remove-person': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const { personId } = data;
+        const success = edgeFaceService.removePerson(personId);
+        
+        if (success) {
+          // Don't save here - notify main thread to save database
+          self.postMessage({ 
+            type: 'database-changed', 
+            data: { action: 'remove', personId }
+          });
+        }
+        
+        self.postMessage({ 
+          type: 'removal-result', 
+          data: { success },
+          id
+        });
+        break;
+      }
+
+      case 'save-database': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const success = edgeFaceService.saveDatabase();
+        
+        self.postMessage({ 
+          type: 'save-result', 
+          data: { success },
+          id
+        });
+        break;
+      }
+
+      case 'load-database': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const success = edgeFaceService.loadDatabase();
+        
+        self.postMessage({ 
+          type: 'load-result', 
+          data: { success },
+          id
+        });
+        break;
+      }
+
+      case 'get-stats': {
+        if (!edgeFaceService) {
+          throw new Error('EdgeFace service not initialized');
+        }
+        
+        const stats = edgeFaceService.getStats();
+        self.postMessage({ 
+          type: 'stats-result', 
+          data: { stats },
+          id
         });
         break;
       }
@@ -38,7 +286,8 @@ self.onmessage = async (event) => {
       type: 'error', 
       data: { 
         message: error instanceof Error ? error.message : 'Unknown error' 
-      }
+      },
+      id
     });
   }
 };
