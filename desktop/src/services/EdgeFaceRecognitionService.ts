@@ -15,13 +15,6 @@ export interface RecognitionResult {
 }
 
 // Reference facial landmarks for alignment (same as Python implementation)
-const REFERENCE_ALIGNMENT = [
-  [38.2946, 51.6963],
-  [73.5318, 51.5014],
-  [56.0252, 71.7366],
-  [41.5493, 92.3655],
-  [70.7299, 92.2041]
-];
 
 export class EdgeFaceRecognitionService {
   private session: ort.InferenceSession | null = null;
@@ -133,9 +126,6 @@ export class EdgeFaceRecognitionService {
     if (landmarks.length !== 5) {
       throw new Error('Expected 5 facial landmarks for alignment');
     }
-    
-    // Convert landmarks to the format expected by alignment
-    const landmarkArray = landmarks.flat();
     
     // Estimate transformation matrix
     const { matrix } = this.estimateNorm(landmarks);
@@ -285,16 +275,11 @@ export class EdgeFaceRecognitionService {
     }
     
     let dotProduct = 0;
-    let norm1 = 0;
-    let norm2 = 0;
-    
     for (let i = 0; i < embedding1.length; i++) {
       dotProduct += embedding1[i] * embedding2[i];
-      norm1 += embedding1[i] * embedding1[i];
-      norm2 += embedding2[i] * embedding2[i];
     }
-    
-    // Since embeddings are already normalized, we can just return the dot product
+
+    // Since embeddings are already normalized, the dot product is the cosine similarity
     return dotProduct;
   }
 

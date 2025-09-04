@@ -71,7 +71,7 @@ export class FaceRecognitionPipeline {
             if (detection.landmarks && detection.landmarks.length === 5) {
               recognition = await this.recognitionService.recognizeFace(imageData, detection.landmarks);
             }
-          } catch (error) {
+          } catch {
             // Skip logging for better performance
           }
           
@@ -93,7 +93,7 @@ export class FaceRecognitionPipeline {
         detections: results,
         processingTime
       };
-    } catch (error) {
+    } catch {
       // Return empty result for better performance 
       return {
         detections: [],
