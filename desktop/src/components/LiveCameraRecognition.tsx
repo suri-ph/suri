@@ -669,18 +669,6 @@ export default function LiveCameraRecognition() {
       ctx.lineTo(scaledX2, scaledY2 - cornerSize)
       ctx.stroke()
       
-      // Add scanning line effect for recognized faces
-      if (isRecognized) {
-        const scanOffset = (Date.now() / 5) % height
-        ctx.strokeStyle = '#00ffff80'
-        ctx.lineWidth = 2
-        ctx.shadowBlur = 5
-        ctx.beginPath()
-        ctx.moveTo(scaledX1, scaledY1 + scanOffset)
-        ctx.lineTo(scaledX2, scaledY1 + scanOffset)
-        ctx.stroke()
-      }
-      
       // Reset shadow for text
       ctx.shadowBlur = 0
       
