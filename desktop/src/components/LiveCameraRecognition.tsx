@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { FaceRecognitionWorkerManager } from "../services/FaceRecognitionWorkerManager";
+import { WorkerManager } from "../services/WorkerManager";
 
 interface DetectionResult {
   bbox: [number, number, number, number];
@@ -46,7 +46,7 @@ export default function LiveCameraRecognition() {
   const captureIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Worker manager for face detection and recognition (non-blocking)
-  const workerManagerRef = useRef<FaceRecognitionWorkerManager | null>(null);
+  const workerManagerRef = useRef<WorkerManager | null>(null);
 
   // Processing state management
   const processingActiveRef = useRef(false);
@@ -64,7 +64,7 @@ export default function LiveCameraRecognition() {
 
       // Create and initialize worker manager
       if (!workerManagerRef.current) {
-        workerManagerRef.current = new FaceRecognitionWorkerManager();
+        workerManagerRef.current = new WorkerManager();
       }
 
       // Initialize the worker (this handles both SCRFD and EdgeFace initialization)

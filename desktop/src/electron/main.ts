@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain } from "electron"
 import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
-import { SimpleScrfdService } from "../services/SimpleScrfdService.js";
-import type { SerializableImageData } from "../services/SimpleScrfdService.js";
+import { ScrfdService } from "../services/ScrfdService.js";
+import type { SerializableImageData } from "../services/ScrfdService.js";
 
 // Dynamic GPU configuration - works on both old and new hardware
 // Enable modern GPU features for capable hardware, graceful fallback for old GPUs
@@ -31,7 +31,7 @@ app.commandLine.appendSwitch('disable-logging')
 app.commandLine.appendSwitch('log-level', '3') // Only show fatal errors
 
 let mainWindowRef: BrowserWindow | null = null
-let scrfdService: SimpleScrfdService | null = null
+let scrfdService: ScrfdService | null = null
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -39,14 +39,14 @@ const __dirname = path.dirname(__filename)
 ipcMain.handle('face-recognition:initialize', async () => {
     try {
         if (!scrfdService) {
-            scrfdService = new SimpleScrfdService()
+            scrfdService = new ScrfdService()
         }
 
-        // Initialize the simple SCRFD service
+        // Initialize the SCRFD service
         const weightsDir = path.join(__dirname, '../../../weights')
         await scrfdService.initialize(path.join(weightsDir, 'scrfd_2.5g_kps_640x640.onnx'))
         
-        return { success: true, message: 'Simple SCRFD service initialized successfully' }
+        return { success: true, message: 'SCRFD service initialized successfully' }
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
@@ -60,7 +60,7 @@ ipcMain.handle('face-recognition:process-frame', async (_evt, imageData: Seriali
         
         const startTime = performance.now()
         
-        // Process frame through simple SCRFD service
+        // Process frame through SCRFD service
         const detections = await scrfdService.detect(imageData)
         const processingTime = Math.round(performance.now() - startTime)
         
@@ -217,6 +217,6 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     // Clean up resources
     if (scrfdService) {
-        // SimpleScrfdService doesn't need explicit disposal
+        // ScrfdService doesn't need explicit disposal
     }
 })

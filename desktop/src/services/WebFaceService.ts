@@ -14,7 +14,7 @@ const REFERENCE_ALIGNMENT = new Float32Array([
   70.7299, 92.2041    // right mouth corner
 ]);
 
-export class ClientSideEdgeFaceService {
+export class WebFaceService {
   private session: ort.InferenceSession | null = null;
   private database: Map<string, Float32Array> = new Map();
   private similarityThreshold: number = 0.6; // 60% similarity threshold
@@ -189,18 +189,18 @@ export class ClientSideEdgeFaceService {
    * Align face using 5-point similarity transform for optimal accuracy
    */
   private alignFace(imageData: ImageData, landmarks: Float32Array): ImageData {
-    if (!ClientSideEdgeFaceService.globalAlignCanvas) {
-      ClientSideEdgeFaceService.globalAlignCanvas = new OffscreenCanvas(this.INPUT_SIZE, this.INPUT_SIZE);
+    if (!WebFaceService.globalAlignCanvas) {
+      WebFaceService.globalAlignCanvas = new OffscreenCanvas(this.INPUT_SIZE, this.INPUT_SIZE);
     }
     
-    if (!ClientSideEdgeFaceService.globalSourceCanvas) {
-      ClientSideEdgeFaceService.globalSourceCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+    if (!WebFaceService.globalSourceCanvas) {
+      WebFaceService.globalSourceCanvas = new OffscreenCanvas(imageData.width, imageData.height);
     }
     
-    const canvas = ClientSideEdgeFaceService.globalAlignCanvas;
+    const canvas = WebFaceService.globalAlignCanvas;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     
-    const sourceCanvas = ClientSideEdgeFaceService.globalSourceCanvas;
+    const sourceCanvas = WebFaceService.globalSourceCanvas;
     if (sourceCanvas.width !== imageData.width || sourceCanvas.height !== imageData.height) {
       sourceCanvas.width = imageData.width;
       sourceCanvas.height = imageData.height;
@@ -290,12 +290,12 @@ export class ClientSideEdgeFaceService {
     const channels = 3;
     
     // Create or reuse global CHW data array (massive memory savings)
-    if (!ClientSideEdgeFaceService.globalChwData || ClientSideEdgeFaceService.globalChwData.length !== channels * imageSize) {
-      ClientSideEdgeFaceService.globalChwData = new Float32Array(channels * imageSize);
+    if (!WebFaceService.globalChwData || WebFaceService.globalChwData.length !== channels * imageSize) {
+      WebFaceService.globalChwData = new Float32Array(channels * imageSize);
     }
     
     // Get reference to reused array
-    const chwData = ClientSideEdgeFaceService.globalChwData;
+    const chwData = WebFaceService.globalChwData;
     const channelSize = imageSize;
     
     // Pre-compute constants for ultimate performance

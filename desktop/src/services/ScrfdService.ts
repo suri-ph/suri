@@ -14,7 +14,7 @@ export interface SerializableImageData {
   colorSpace?: PredefinedColorSpace;
 }
 
-export class SimpleScrfdService {
+export class ScrfdService {
   private session: ort.InferenceSession | null = null;
   private inputSize = 640;
   private confThreshold = 0.65; // Increased from 0.5 to reduce false positives

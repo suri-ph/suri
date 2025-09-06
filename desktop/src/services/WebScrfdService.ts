@@ -14,7 +14,7 @@ interface ScaleParams {
   originalHeight: number;
 }
 
-export class ClientSideScrfdService {
+export class WebScrfdService {
   private session: ort.InferenceSession | null = null;
   private confThreshold = 0.5;  // Optimal threshold for pre-sigmoid activated model outputs
   private iouThreshold = 0.4;   // Standard IoU for NMS
@@ -124,16 +124,16 @@ export class ClientSideScrfdService {
   private static instanceCount = 0;
   
   constructor() {
-    ClientSideScrfdService.instanceCount++;
+    WebScrfdService.instanceCount++;
   }
   
   dispose(): void {
-    ClientSideScrfdService.instanceCount--;
-    if (ClientSideScrfdService.instanceCount <= 0) {
-      ClientSideScrfdService.globalBlobCanvas = null;
-      ClientSideScrfdService.globalSourceCanvas = null;
-      ClientSideScrfdService.globalTensorData = null;
-      ClientSideScrfdService.instanceCount = 0;
+    WebScrfdService.instanceCount--;
+    if (WebScrfdService.instanceCount <= 0) {
+      WebScrfdService.globalBlobCanvas = null;
+      WebScrfdService.globalSourceCanvas = null;
+      WebScrfdService.globalTensorData = null;
+      WebScrfdService.instanceCount = 0;
     }
     this.centerCache.clear();
   }
@@ -143,10 +143,10 @@ export class ClientSideScrfdService {
     const FIXED_INPUT_SIZE = 640;
     
     // Create or reuse global canvas for processing (shared across instances for memory efficiency)
-    if (!ClientSideScrfdService.globalBlobCanvas) {
-      ClientSideScrfdService.globalBlobCanvas = new OffscreenCanvas(FIXED_INPUT_SIZE, FIXED_INPUT_SIZE);
+    if (!WebScrfdService.globalBlobCanvas) {
+      WebScrfdService.globalBlobCanvas = new OffscreenCanvas(FIXED_INPUT_SIZE, FIXED_INPUT_SIZE);
     }
-    const canvas = ClientSideScrfdService.globalBlobCanvas;
+    const canvas = WebScrfdService.globalBlobCanvas;
     const ctx = canvas.getContext('2d', { 
       willReadFrequently: true,
       alpha: false,  // Disable alpha for better performance
@@ -169,12 +169,12 @@ export class ClientSideScrfdService {
     ctx.clearRect(0, 0, FIXED_INPUT_SIZE, FIXED_INPUT_SIZE);
     
     // Create temp canvas only when size changes (major optimization)
-    if (!ClientSideScrfdService.globalSourceCanvas || 
-        ClientSideScrfdService.globalSourceCanvas.width !== width || 
-        ClientSideScrfdService.globalSourceCanvas.height !== height) {
-      ClientSideScrfdService.globalSourceCanvas = new OffscreenCanvas(width, height);
+    if (!WebScrfdService.globalSourceCanvas || 
+        WebScrfdService.globalSourceCanvas.width !== width || 
+        WebScrfdService.globalSourceCanvas.height !== height) {
+      WebScrfdService.globalSourceCanvas = new OffscreenCanvas(width, height);
     }
-    const sourceCanvas = ClientSideScrfdService.globalSourceCanvas;
+    const sourceCanvas = WebScrfdService.globalSourceCanvas;
     const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true }) as OffscreenCanvasRenderingContext2D;
     
     // Fastest possible image transfer
@@ -186,10 +186,10 @@ export class ClientSideScrfdService {
     const processedData = processedImageData.data;
     
     // Reuse global tensor data array (massive memory allocation savings)
-    if (!ClientSideScrfdService.globalTensorData) {
-      ClientSideScrfdService.globalTensorData = new Float32Array(3 * FIXED_INPUT_SIZE * FIXED_INPUT_SIZE);
+    if (!WebScrfdService.globalTensorData) {
+      WebScrfdService.globalTensorData = new Float32Array(3 * FIXED_INPUT_SIZE * FIXED_INPUT_SIZE);
     }
-    const tensorData = ClientSideScrfdService.globalTensorData;
+    const tensorData = WebScrfdService.globalTensorData;
     const channelSize = FIXED_INPUT_SIZE * FIXED_INPUT_SIZE;
     
     // Ultimate optimization: direct vectorized processing with minimal divisions

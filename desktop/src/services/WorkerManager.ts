@@ -24,7 +24,7 @@ interface PendingMessage {
   reject: (error: Error) => void;
 }
 
-export class FaceRecognitionWorkerManager {
+export class WorkerManager {
   private worker: Worker | null = null;
   private isInitialized = false;
   private messageId = 0;
@@ -34,7 +34,7 @@ export class FaceRecognitionWorkerManager {
     if (this.isInitialized) return;
 
     // Create the worker
-    this.worker = new Worker(new URL('./ScrfdWorker.ts', import.meta.url), {
+    this.worker = new Worker(new URL('./FaceWorker.ts', import.meta.url), {
       type: 'module'
     });
 
