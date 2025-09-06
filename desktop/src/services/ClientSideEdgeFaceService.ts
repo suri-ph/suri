@@ -30,15 +30,6 @@ export class ClientSideEdgeFaceService {
   }
 
   async initialize(): Promise<void> {
-    try {
-      console.log('🚀 Initializing EdgeFace Recognition Service...');
-      
-      // Let ONNX.js automatically find WASM files from node_modules
-      // No need to manually configure paths - it will find them automatically
-      
-      console.log('📁 Loading EdgeFace model from /weights/edgeface-recognition.onnx...');
-      
-      // Load EdgeFace ONNX model with comprehensive GPU acceleration and fallback
       try {
         this.session = await ort.InferenceSession.create('/weights/edgeface-recognition.onnx', {
           executionProviders: [
@@ -53,9 +44,8 @@ export class ClientSideEdgeFaceService {
           graphOptimizationLevel: 'all',
           enableProfiling: false
         });
-      } catch (error) {
-        console.warn('⚠️ WebGL provider failed for EdgeFace, falling back to CPU-only:', error);
-        // If WebGL fails, use CPU-only configuration with relaxed settings
+      } catch {
+        // If WebGL fails, use CPU-only
         this.session = await ort.InferenceSession.create('/weights/edgeface-recognition.onnx', {
           executionProviders: ['wasm'],
           logSeverityLevel: 4,
@@ -63,33 +53,10 @@ export class ClientSideEdgeFaceService {
           enableCpuMemArena: true,
           enableMemPattern: true,
           executionMode: 'sequential',
-          graphOptimizationLevel: 'basic', // Use basic optimization for compatibility
-          enableProfiling: false,
-          // Add extra options for int64 compatibility
-          extra: {
-            session: {
-              'disable_prepacking': '1',
-              'use_device_allocator_for_initializers': '0'
-            }
-          }
+          graphOptimizationLevel: 'basic',
+          enableProfiling: false
         });
       }
-      
-      console.log('✅ EdgeFace model loaded successfully');
-      console.log('📊 EdgeFace Input Names:', this.session.inputNames);
-      console.log('📊 EdgeFace Output Names:', this.session.outputNames);
-      
-      // Verify input/output shapes
-      const inputInfo = this.session.inputNames[0];
-      const outputInfo = this.session.outputNames[0];
-      console.log('🔍 EdgeFace Input Info:', inputInfo);
-      console.log('🔍 EdgeFace Output Info:', outputInfo);
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize EdgeFace service:', error);
-      console.error('📋 Error details:', error);
-      throw new Error(`EdgeFace initialization failed: ${error}`);
-    }
   }
 
   /**
@@ -100,44 +67,41 @@ export class ClientSideEdgeFaceService {
       throw new Error('EdgeFace service not initialized');
     }
 
-    try {
-      // Convert landmarks to required format (5 points x 2 coordinates)
-      if (landmarks.length < 5) {
-        throw new Error('Insufficient landmarks for face alignment (need 5 points)');
-      }
-      
-      const landmarkPoints = new Float32Array(10);
-      for (let i = 0; i < 5; i++) {
-        landmarkPoints[i * 2] = landmarks[i][0];     // x coordinate
-        landmarkPoints[i * 2 + 1] = landmarks[i][1]; // y coordinate
-      }
-
-      // 1. Align and crop face using landmarks
-      const alignedFace = this.alignFace(imageData, landmarkPoints);
-      
-      // 2. Preprocess for EdgeFace model
-      const inputTensor = this.preprocessImage(alignedFace);
-      
-      // 3. Run inference
-      const feeds = { [this.session.inputNames[0]]: inputTensor };
-      const results = await this.session.run(feeds);
-      
-      // 4. Extract and normalize embedding
-      const outputTensor = results[this.session.outputNames[0]];
-      const embedding = new Float32Array(outputTensor.data as Float32Array);
-      
-      // L2 normalization (critical for cosine similarity)
-      const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-      for (let i = 0; i < embedding.length; i++) {
-        embedding[i] /= norm;
-      }
-      
-      return embedding;
-      
-    } catch (error) {
-      console.error('❌ Embedding extraction failed:', error);
-      throw error;
+    
+    // Convert landmarks to required format (5 points x 2 coordinates)
+    if (landmarks.length < 5) {
+      throw new Error('Insufficient landmarks for face alignment (need 5 points)');
     }
+    
+    const landmarkPoints = new Float32Array(10);
+    for (let i = 0; i < 5; i++) {
+      landmarkPoints[i * 2] = landmarks[i][0];     // x coordinate
+      landmarkPoints[i * 2 + 1] = landmarks[i][1]; // y coordinate
+    }
+
+    // 1. Align and crop face using landmarks
+    const alignedFace = this.alignFace(imageData, landmarkPoints);
+    
+    // 2. Preprocess for EdgeFace model
+    const inputTensor = this.preprocessImage(alignedFace);
+    
+    // 3. Run inference
+    const feeds = { [this.session.inputNames[0]]: inputTensor };
+    const results = await this.session.run(feeds);
+    
+    // 4. Extract and normalize embedding
+    const outputTensor = results[this.session.outputNames[0]];
+    const embedding = new Float32Array(outputTensor.data as Float32Array);
+    
+    // L2 normalization (critical for cosine similarity)
+    const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+    for (let i = 0; i < embedding.length; i++) {
+      embedding[i] /= norm;
+    }
+    
+    return embedding;
+    
+    
   }
 
   /**
@@ -157,8 +121,8 @@ export class ClientSideEdgeFaceService {
         embedding
       };
       
-    } catch (error) {
-      console.error('❌ Face recognition failed:', error);
+    } catch {
+      
       return {
         personId: null,
         similarity: 0,
@@ -172,7 +136,7 @@ export class ClientSideEdgeFaceService {
    */
   async registerPerson(personId: string, imageData: ImageData, landmarks: number[][]): Promise<boolean> {
     try {
-      console.log(`📝 Registering person: ${personId}`);
+      
       
       // Extract high-quality embedding
       const embedding = await this.extractEmbedding(imageData, landmarks);
@@ -180,11 +144,11 @@ export class ClientSideEdgeFaceService {
       // Store in database
       this.database.set(personId, embedding);
       
-      console.log(`✅ Successfully registered ${personId} with ${embedding.length}D embedding`);
+      
       return true;
       
-    } catch (error) {
-      console.error(`❌ Failed to register ${personId}:`, error);
+    } catch {
+      
       return false;
     }
   }
@@ -400,12 +364,12 @@ export class ClientSideEdgeFaceService {
    * Note: In Web Worker context, we'll use a different storage mechanism
    */
   loadDatabase(): boolean {
-    try {
+    
       // Check if we're in a Web Worker context
       if (typeof self !== 'undefined' && typeof window === 'undefined') {
         // We're in a Web Worker - localStorage is not available
         // For now, just return false and let the main thread handle database loading
-        console.log('📂 Database loading skipped in Web Worker context');
+        
         return false;
       }
       
@@ -419,12 +383,10 @@ export class ClientSideEdgeFaceService {
           this.database.set(personId, new Float32Array(embeddingArray as number[]));
         }
         
-        console.log(`📂 Loaded ${this.database.size} persons from database`);
+        
         return true;
       }
-    } catch (error) {
-      console.error('❌ Failed to load database:', error);
-    }
+    
     return false;
   }
 
@@ -439,10 +401,10 @@ export class ClientSideEdgeFaceService {
         this.database.set(personId, new Float32Array(embeddingArray));
       }
       
-      console.log(`📂 Loaded ${this.database.size} persons from external data`);
+      
       return true;
-    } catch (error) {
-      console.error('❌ Failed to load database from external data:', error);
+    } catch {
+      
       return false;
     }
   }
@@ -468,7 +430,7 @@ export class ClientSideEdgeFaceService {
       if (typeof self !== 'undefined' && typeof window === 'undefined') {
         // We're in a Web Worker - localStorage is not available
         // For now, just return false and let the main thread handle database saving
-        console.log('💾 Database saving skipped in Web Worker context');
+        
         return false;
       }
       
@@ -479,10 +441,10 @@ export class ClientSideEdgeFaceService {
       }
       
       localStorage.setItem('edgeface_database', JSON.stringify(data));
-      console.log(`💾 Saved ${this.database.size} persons to database`);
+      
       return true;
-    } catch (error) {
-      console.error('❌ Failed to save database:', error);
+    } catch {
+      
       return false;
     }
   }
