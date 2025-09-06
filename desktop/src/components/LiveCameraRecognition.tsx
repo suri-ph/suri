@@ -1122,23 +1122,63 @@ export default function LiveCameraRecognition() {
   }, [stopCamera]);
 
   return (
-    <div className="bg-black text-white mt-10 pb-2">
+    <div className="h-screen bg-black text-white flex flex-col">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between px-6 py-4 bg-white/[0.02] backdrop-blur-xl border-b border-white/[0.08]">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-light tracking-wide">Face Detection</h1>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${cameraStatus === 'recognition' ? 'bg-green-500' : 'bg-white/40'}`}></div>
+            <span className="text-sm text-white/60">
+              {cameraStatus === 'recognition' ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          {/* Mode Toggle */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-white/60">Mode:</span>
+            <button
+              onClick={() => setLoggingMode(loggingMode === 'auto' ? 'manual' : 'auto')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                loggingMode === 'auto' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white/[0.05] text-white/70 hover:bg-white/[0.08] border border-white/[0.1]'
+              }`}
+            >
+              {loggingMode === 'auto' ? 'Auto' : 'Manual'}
+            </button>
+          </div>
+          
+          {/* Registration Mode */}
+          <button
+            onClick={() => setRegistrationMode(!registrationMode)}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              registrationMode 
+                ? 'bg-orange-600 text-white' 
+                : 'bg-white/[0.05] text-white/70 hover:bg-white/[0.08] border border-white/[0.1]'
+            }`}
+          >
+            Register Face
+          </button>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="flex justify-between px-10">
-        <div className="flex flex-col justify-between w-full">
-          {/* Video Stream */}
-          <div className="flex-1 relative flex items-center justify-center">
-            <div className="relative w-full max-w-3xl aspect-video overflow-hidden rounded-lg">
-              {/* Video element - primary display */}
+      <div className="flex-1 flex">
+        {/* Video Section */}
+        <div className="flex-1 flex flex-col">
+          {/* Video Container */}
+          <div className="relative flex items-center justify-center px-4 pt-4">
+            <div className="relative w-full max-w-4xl aspect-video overflow-hidden rounded-lg bg-white/[0.02] backdrop-blur-xl border border-white/[0.08]">
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover block"
                 autoPlay
-                playsInline
                 muted
+                playsInline
               />
-
-              {/* Canvas overlay for detections only */}
               <canvas
                 ref={canvasRef}
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
@@ -1147,233 +1187,129 @@ export default function LiveCameraRecognition() {
                   mixBlendMode: "normal",
                 }}
               />
-
-              {/* Status Overlay */}
-              {cameraStatus === "starting" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                    <div className="text-white text-lg">Starting Camera...</div>
+              
+              {/* Detection Overlay */}
+              {detectionResults.length > 0 && (
+                <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm rounded px-3 py-2">
+                  <div className="text-sm text-green-400">
+                    {detectionResults.length} face{detectionResults.length > 1 ? 's' : ''} detected
                   </div>
                 </div>
               )}
 
-              {cameraStatus === "preview" && (
-                <div className="absolute top-4 left-4 bg-black/50 px-3 py-1 rounded text-sm">
-                  Preview Mode - Loading Recognition...
+              {/* Manual Log Button */}
+              {loggingMode === 'manual' && bestDetection && isReadyToLog && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                  <button
+                    onClick={() => handleManualLog(bestDetection)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Log Detection
+                  </button>
                 </div>
               )}
 
-              {cameraStatus === "recognition" && (
-                <div className="absolute top-4 left-4 bg-green-500/50 px-3 py-1 rounded text-sm">
-                  Recognition Active
-                </div>
-              )}
-
-              {/* Intelligent Face Logging Interface */}
-              {isStreaming && (
-                <div className="absolute inset-0 pointer-events-none">
-
-                  {/* Smart Logging Controls */}
-                  <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm rounded-xl p-4 pointer-events-auto">
-                    {/* Mode Toggle */}
-                    <div className="flex items-center space-x-2 mb-3">
-                      <span className="text-white text-sm">Mode:</span>
-                      <button
-                        onClick={() => setLoggingMode(loggingMode === "auto" ? "manual" : "auto")}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                          loggingMode === "auto"
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-600 text-gray-300"
-                        }`}
-                      >
-                        {loggingMode === "auto" ? "🤖 Auto" : "👤 Manual"}
-                      </button>
-                    </div>
-
-                    {/* Manual Log Button */}
-                    {loggingMode === "manual" && bestDetection && isReadyToLog && (
-                      <button
-                        onClick={() => handleManualLog(bestDetection)}
-                        className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all"
-                      >
-                        📝 Log {bestDetection.recognition?.personId || 'Unknown'}
-                      </button>
-                    )}
-
-                    {/* Auto-Log Status */}
-                    {loggingMode === "auto" && (
-                      <div className="text-xs text-gray-300">
-                        {isReadyToLog ? "🤖 Auto-logging enabled" : "🔍 Waiting for face..."}
-                      </div>
-                    )}
+              {/* Registration Input */}
+              {registrationMode && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="text"
+                      value={newPersonId}
+                      onChange={(e) => setNewPersonId(e.target.value)}
+                      placeholder="Enter person name"
+                      className="bg-white/[0.05] text-white px-3 py-2 rounded border border-white/[0.1] focus:border-blue-500 focus:outline-none placeholder-white/50"
+                    />
+                    <button
+                      onClick={registerFace}
+                      disabled={!newPersonId.trim() || detectionResults.length === 0}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-white/[0.05] disabled:text-white/40 text-white px-4 py-2 rounded font-medium transition-colors"
+                    >
+                      Register
+                    </button>
                   </div>
-
-                  {/* Recent Logs Sidebar */}
-                  {recentLogs.length > 0 && (
-                    <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-sm rounded-xl p-3 max-w-64 pointer-events-auto">
-                      <div className="text-white text-sm font-medium mb-2">Recent Logs</div>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {recentLogs.slice(0, 5).map((log) => (
-                          <div key={log.id} className="text-xs text-gray-300 bg-gray-700/50 rounded px-2 py-1">
-                            <div className="flex justify-between items-center">
-                              <span>{log.personId}</span>
-                              <span className="text-gray-400">
-                                {log.mode === "auto" ? "🤖" : "👤"}
-                              </span>
-                            </div>
-                            <div className="text-gray-400">
-                              {new Date(log.timestamp).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
           </div>
-          <div className="flex items-center justify-center space-x-4 mt-2 flex-row-reverse">
-            <button
-              onClick={isStreaming ? stopCamera : startCamera}
-              className={`px-8 py-3 rounded-xl text-sm font-light backdrop-blur-xl border transition-all duration-500 ${
-                isStreaming
-                  ? "bg-white/[0.08] border-white/[0.15] text-white hover:bg-white/[0.12]"
-                  : "bg-white/[0.05] border-white/[0.10] text-white/80 hover:bg-white/[0.08]"
-              }`}
-            >
-              {isStreaming ? "Stop Camera" : "Open Camera"}
-            </button>
 
-            <button
-              onClick={() => setRegistrationMode(!registrationMode)}
-              className={`px-6 py-3 rounded-xl text-sm font-light backdrop-blur-xl border transition-all duration-500 ${
-                registrationMode
-                  ? "bg-blue-500/20 border-blue-400/30 text-blue-300"
-                  : "bg-white/[0.05] border-white/[0.10] text-white/80 hover:bg-white/[0.08]"
-              }`}
-            >
-              {registrationMode ? "✕ Cancel" : "Register Face"}
-            </button>
-
-            <button
-              onClick={() => setLoggingMode(loggingMode === "auto" ? "manual" : "auto")}
-              className={`px-6 py-3 rounded-xl text-sm font-light backdrop-blur-xl border transition-all duration-500 ${
-                loggingMode === "auto"
-                  ? "bg-green-500/20 border-green-400/30 text-green-300"
-                  : "bg-blue-500/20 border-blue-400/30 text-blue-300"
-              }`}
-            >
-              {loggingMode === "auto" ? "🤖 Auto Logging" : "� Manual Logging"}
-            </button>
-
-            <div className="flex items-center space-x-4 mr-5 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-green-400"></div>
-                <span>Camera: {cameraStatus}</span>
+          {/* Controls Bar */}
+          <div className="px-4 pt-2 pb-4">
+            <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-sm text-white/60">
+                    Camera: {isStreaming ? 'Active' : 'Stopped'}
+                  </span>
+                </div>
+                <div className="text-sm text-white/60">
+                  Processing: {processingTime.toFixed(1)}ms
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                <span>Processing: <span className="font-mono w-16 inline-block text-right">{processingTime.toFixed(2)}ms</span></span>
+              
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={isStreaming ? stopCamera : startCamera}
+                  className={`px-4 py-2 rounded font-medium transition-colors ${
+                    isStreaming
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
+                >
+                  {isStreaming ? 'Stop Camera' : 'Start Camera'}
+                </button>
               </div>
             </div>
           </div>
         </div>
+
         {/* Sidebar */}
-        <div className="w-80 bg-white/[0.02] border-l border-white/[0.1] p-6">
-          {/* Registration Form */}
-          {registrationMode && (
-            <div className="mb-6 p-4 bg-white/[0.05] rounded-lg border border-white/[0.1]">
-              <h3 className="text-lg font-medium mb-4">Register New Person</h3>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={newPersonId}
-                  onChange={(e) => setNewPersonId(e.target.value)}
-                  placeholder="Enter Person ID"
-                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/[0.1] rounded text-white placeholder-white/50"
-                />
-                <div className="flex space-x-2">
-                  <button
-                    onClick={registerFace}
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                  >
-                    Register
-                  </button>
-                  <button
-                    onClick={() => setRegistrationMode(false)}
-                    className="px-4 py-2 bg-white/[0.1] text-white rounded hover:bg-white/[0.2] transition-colors"
-                  >
-                    Cancel
-                  </button>
+        <div className="w-80 bg-white/[0.02] backdrop-blur-xl border-l border-white/[0.08] flex flex-col">
+          {/* Stats Panel */}
+          <div className="px-4 pt-2 pb-4 border-b border-white/[0.08]">
+            <h3 className="text-lg font-light mb-3">System Status</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-white/60">Database</span>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-sm">{dbConnected ? 'Connected' : 'Error'}</span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Intelligent Logging Status */}
-          {isStreaming && (
-            <div className="mb-6 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
-              <h3 className="text-lg font-medium mb-4 text-blue-300 flex items-center justify-between">
-                Smart Face Logging
-                <span className={`px-2 py-1 rounded text-xs ${
-                  loggingMode === "auto" ? "bg-green-500/20 text-green-300" : "bg-blue-500/20 text-blue-300"
-                }`}>
-                  {loggingMode === "auto" ? "🤖 Auto Mode" : "👤 Manual Mode"}
-                </span>
-              </h3>
-              <div className="space-y-3">
-                {bestDetection && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-white/70">Best Detection:</span>
-                      <span className="text-white">
-                        {bestDetection.recognition?.personId || "Unknown"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-white/70">Confidence:</span>
-                      <span className="text-white">
-                        {Math.round(bestDetection.confidence * 100)}%
-                      </span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-white/70">Ready to Log:</span>
-                  <span className={`font-medium ${isReadyToLog ? "text-green-400" : "text-gray-400"}`}>
-                    {isReadyToLog ? "✅ Ready" : "⏳ Waiting"}
-                  </span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/60">People in DB</span>
+                <span className="font-mono">{systemStats.total_people}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/60">Today's Records</span>
+                <span className="font-mono">{systemStats.today_records}</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Detection Results */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-4">Live Detections</h3>
-            <div className="max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-white/5 space-y-2">
+          {/* Live Detections */}
+          <div className="p-4 border-b border-white/[0.08]">
+            <h3 className="text-lg font-light mb-4">Live Detections</h3>
+            <div className="space-y-2">
               {detectionResults.length === 0 ? (
-                <div className="text-white/50 text-sm">No faces detected</div>
+                <div className="text-white/50 text-sm text-center py-4">
+                  No faces detected
+                </div>
               ) : (
                 detectionResults.map((detection, index) => (
-                  <div
-                    key={index}
-                    className="p-3 bg-white/[0.05] rounded border border-white/[0.1]"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">
-                        {detection.recognition?.personId || "Unknown"}
+                  <div key={index} className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.08] rounded p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">
+                        {detection.recognition?.personId || 'Unknown'}
                       </span>
-                      <span className="text-xs text-white/60">
-                        {detection.confidence.toFixed(2)}
+                      <span className="text-sm text-white/60">
+                        {(detection.confidence * 100).toFixed(1)}%
                       </span>
                     </div>
-                    {detection.recognition?.personId && (
-                      <div className="text-xs text-green-400">
-                        Similarity:{" "}
-                        {(detection.recognition.similarity * 100).toFixed(1)}%
+                    {detection.recognition?.similarity && (
+                      <div className="text-xs text-white/50 mt-1">
+                        Similarity: {(detection.recognition.similarity * 100).toFixed(1)}%
                       </div>
                     )}
                   </div>
@@ -1382,35 +1318,38 @@ export default function LiveCameraRecognition() {
             </div>
           </div>
 
-          {/* System Stats */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-4 flex items-center justify-between">
-              System Status
-              <span className={`px-2 py-1 rounded text-xs ${
-                dbConnected ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"
-              }`}>
-                {dbConnected ? "🟢 DB Connected" : "🔴 DB Error"}
-              </span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-white/70">People in DB:</span>
-                <span className="text-white">{systemStats.total_people}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Today's Records:</span>
-                <span className="text-white">{systemStats.today_records}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Recent Logs:</span>
-                <span className="text-white">{recentLogs.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Processing Time:</span>
-                <span className="text-purple-400">
-                  {processingTime.toFixed(2)}ms
-                </span>
-              </div>
+          {/* Recent Logs */}
+          <div className="flex-1 p-4">
+            <h3 className="text-lg font-light mb-4">Recent Logs</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {recentLogs.length === 0 ? (
+                <div className="text-white/50 text-sm text-center py-4">
+                  No logs yet
+                </div>
+              ) : (
+                recentLogs.map((log, index) => (
+                  <div key={index} className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.08] rounded p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">{log.personId}</div>
+                        <div className="text-xs text-white/60">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-xs px-2 py-1 rounded ${
+                          log.mode === 'auto' ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'
+                        }`}>
+                          {log.mode}
+                        </div>
+                        <div className="text-xs text-white/60 mt-1">
+                          {(log.confidence * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
