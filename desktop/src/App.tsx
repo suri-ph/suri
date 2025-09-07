@@ -60,7 +60,6 @@ function App() {
         const isAvailable = await sqliteFaceLogService.isAvailable()
         if (isAvailable) {
           setIsConnected(true)
-          console.log('SQL.js database connection established')
           await fetchSystemStats()
         } else {
           setIsConnected(false)
