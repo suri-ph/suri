@@ -1,8 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
-// Add console log to verify preload script is running
-console.log('Preload script loading...')
-
 // Face Recognition API
 contextBridge.exposeInMainWorld('electronAPI', {
     initializeFaceRecognition: (options) => {
@@ -54,8 +51,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
 })
 
-console.log('electronAPI exposed to main world')
-
 // Window control functions
 contextBridge.exposeInMainWorld('suriElectron', {
     minimize: () => ipcRenderer.invoke('window:minimize'),
@@ -72,6 +67,3 @@ contextBridge.exposeInMainWorld('suriElectron', {
         return () => ipcRenderer.removeListener('window:unmaximized', listener)
     }
 })
-
-console.log('Preload script completed successfully')
-
