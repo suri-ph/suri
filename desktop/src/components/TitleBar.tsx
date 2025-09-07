@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 
-interface TitleBarProps {
-  title?: string
-}
-
-export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
+export default function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
