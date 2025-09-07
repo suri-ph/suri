@@ -31,7 +31,7 @@ class SimpleSqliteFaceDatabase {
 
   async initialize(): Promise<void> {
     try {
-      console.log(`📊 Initializing SQL.js database at: ${this.dbPath}`);
+      console.log(`[INFO] Initializing SQL.js database at: ${this.dbPath}`);
       
       // Initialize SQL.js
       const SQL = await initSqlJs();
@@ -41,7 +41,7 @@ class SimpleSqliteFaceDatabase {
       try {
         if (fs.existsSync(this.dbPath)) {
           data = fs.readFileSync(this.dbPath);
-          console.log(`📂 Loaded existing database from ${this.dbPath}`);
+          console.log(`[INFO] Loaded existing database from ${this.dbPath}`);
         }
       } catch {
         console.log('📂 No existing database file found, creating new one');
@@ -53,7 +53,7 @@ class SimpleSqliteFaceDatabase {
       // Create tables if they don't exist
       this.createTables();
 
-      console.log('✅ SQL.js Face Database initialized successfully');
+      console.log('[SUCCESS] SQL.js Face Database initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize SQL.js database:', error);
       throw error;

@@ -202,9 +202,9 @@ app.whenReady().then(async () => {
     // Initialize SQLite database first
     try {
         await sqliteFaceDB.initialize();
-        console.log('✅ SQLite Face Database initialized successfully');
+        console.log('[SUCCESS] SQLite Face Database initialized successfully');
     } catch (error) {
-        console.error('❌ Failed to initialize SQLite database:', error);
+        console.error('[ERROR] Failed to initialize SQLite database:', error);
     }
     
     // Setup database IPC handlers

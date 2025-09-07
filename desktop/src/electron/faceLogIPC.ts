@@ -2,6 +2,30 @@ import { ipcMain } from 'electron';
 import { sqliteFaceDB } from '../services/SimpleSqliteFaceDatabase.js';
 
 export function setupFaceLogIPC() {
+  // Remove any existing handlers to prevent duplicate registration
+  const handlers = [
+    'face-db:initialize',
+    'face-db:log-detection', 
+    'face-db:get-recent-logs',
+    'face-db:get-today-stats',
+    'face-db:get-system-stats',
+    'face-db:get-daily-stats',
+    'face-db:get-all-person-stats',
+    'face-db:export-data',
+    'face-db:vacuum',
+    'face-db:health-check',
+    'face-db:get-all-people',
+    'face-db:get-person-logs',
+    'face-db:update-person-id',
+    'face-db:delete-person',
+    'face-db:get-person-stats',
+    'face-db:clear-old-data'
+  ];
+  
+  handlers.forEach(handler => {
+    ipcMain.removeHandler(handler);
+  });
+
   // Initialize the database
   ipcMain.handle('face-db:initialize', async () => {
     try {
@@ -87,12 +111,12 @@ export function setupFaceLogIPC() {
     }
   });
 
-  // Get person stats (not implemented yet)
-  ipcMain.handle('face-db:get-person-stats', async () => {
+  // Get all person stats (not implemented yet)
+  ipcMain.handle('face-db:get-all-person-stats', async () => {
     try {
       return { success: true, data: [] };
     } catch (error) {
-      console.error('Failed to get person stats:', error);
+      console.error('Failed to get all person stats:', error);
       return { success: false, error: String(error) };
     }
   });
@@ -196,5 +220,5 @@ export function setupFaceLogIPC() {
     }
   });
 
-  console.log('✅ Face Log IPC handlers registered');
+  console.log('[SUCCESS] Face Log IPC handlers registered');
 }
