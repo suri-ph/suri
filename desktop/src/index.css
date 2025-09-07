@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@import '@fortawesome/fontawesome-free/css/all.css';
 
 /* Vercel-inspired ultra-sleek black theme */
 :root {
@@ -112,6 +113,7 @@ button {
 .titlebar-btn:hover {
   transform: none !important;
   border: none !important;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 16px rgba(255, 255, 255, 0.1) !important;
 }
 
 .titlebar-btn:active {

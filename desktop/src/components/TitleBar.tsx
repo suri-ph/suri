@@ -66,9 +66,7 @@ export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
           onClick={handleMinimize}
           className="titlebar-btn w-7 h-7 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] rounded transition-all duration-200"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 16 16" strokeWidth={1.2}>
-            <path d="M4 8h8" strokeLinecap="round" />
-          </svg>
+          <i className="fas fa-window-minimize text-xs"></i>
         </button>
 
         <button
@@ -76,13 +74,9 @@ export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
           className="titlebar-btn w-7 h-7 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] rounded transition-all duration-200"
         >
           {isMaximized ? (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 16 16" strokeWidth={1.2}>
-              <path d="M5 3h8v8M3 5h8v8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <i className="fas fa-window-restore text-xs"></i>
           ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 16 16" strokeWidth={1.2}>
-              <rect x="3" y="3" width="10" height="10" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <i className="fas fa-window-maximize text-xs"></i>
           )}
         </button>
 
@@ -90,9 +84,7 @@ export default function TitleBar({ title = 'SURI' }: TitleBarProps) {
           onClick={handleClose}
           className="titlebar-btn w-7 h-7 flex items-center justify-center text-white/50 hover:text-white hover:bg-red-500/15 rounded transition-all duration-200"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 16 16" strokeWidth={1.2}>
-            <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <i className="fas fa-times text-xs"></i>
         </button>
       </div>
     </div>
