@@ -113,7 +113,6 @@ button {
 .titlebar-btn:hover {
   transform: none !important;
   border: none !important;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 16px rgba(255, 255, 255, 0.1) !important;
 }
 
 .titlebar-btn:active {
