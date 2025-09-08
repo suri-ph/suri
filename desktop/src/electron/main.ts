@@ -6,6 +6,9 @@ import isDev from "./util.js";
 import { setupFaceLogIPC } from "./faceLogIPC.js";
 import { sqliteFaceDB } from "../services/SimpleSqliteFaceDatabase.js";
 
+// Set consistent app name across all platforms for userData directory
+app.setName('Suri');
+
 // Dynamic GPU configuration - works on both old and new hardware
 // Enable modern GPU features for capable hardware, graceful fallback for old GPUs
 
