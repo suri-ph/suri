@@ -72,7 +72,7 @@ function createWindow(): void {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, '../../src/electron/preload.js'),
+            preload: path.join(__dirname, 'preload.js'),
             // Basic WebGL support only - avoid experimental features
             webgl: true,
             // Remove experimental features to eliminate security warnings
@@ -92,7 +92,7 @@ function createWindow(): void {
     if (isDev()) {
         mainWindow.loadURL('http://localhost:5123')
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../index.html'))
+        mainWindow.loadFile(path.join(__dirname, '../../dist-react/index.html'))
     }
 
     // Show window when ready

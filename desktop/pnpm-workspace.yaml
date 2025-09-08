@@ -1,7 +1,0 @@
-ignoredBuiltDependencies:
-  - better-sqlite3
-  - electron
-  - esbuild
-  - onnxruntime-node
-  - opencv-build
-  - opencv4nodejs

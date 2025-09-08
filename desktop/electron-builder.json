@@ -1,5 +1,14 @@
 {     
-    "files": ["dist-electron", "dist-react"],
+    "files": [
+        "dist-electron/**/*",
+        "dist-react/**/*"
+    ],
+    "extraFiles": [
+        {
+            "from": "src/electron/preload.js",
+            "to": "dist-electron/electron/preload.js"
+        }
+    ],
     "appId": "com.suri.app",
     "productName": "Suri",
     "icon": "./picture.png",
