@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
 // Legacy SCRFD service (node-onnx) is unused now; using WebWorker-based pipeline in renderer
 import { setupFaceLogIPC } from "./faceLogIPC.js";
-import { sqliteFaceDB } from "../services/SimpleSqliteFaceDatabase.js";
+import { sqlite3FaceDB } from "../services/Sqlite3FaceDatabase.js";
 
 // Set consistent app name across all platforms for userData directory
 app.setName('Suri');
@@ -132,10 +132,10 @@ app.whenReady().then(async () => {
     
     // Initialize SQLite database first
     try {
-        await sqliteFaceDB.initialize();
-        console.log('[SUCCESS] SQLite Face Database initialized successfully');
+        await sqlite3FaceDB.initialize();
+        console.log('[SUCCESS] SQLite3 Face Database initialized successfully');
     } catch (error) {
-        console.error('[ERROR] Failed to initialize SQLite database:', error);
+        console.error('[ERROR] Failed to initialize SQLite3 database:', error);
     }
     
     // Setup database IPC handlers

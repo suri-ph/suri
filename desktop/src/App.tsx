@@ -11,7 +11,7 @@ export type MenuOption =
 
 function App() {
   const [currentMenu, setCurrentMenu] = useState<MenuOption>('live-camera')
-  const [isConnected, setIsConnected] = useState(true) // Always connected since using SQL.js directly
+  const [isConnected, setIsConnected] = useState(true) // Always connected since using SQLite3 directly
 
   const fetchSystemStats = useCallback(async () => {
     try {
@@ -28,17 +28,17 @@ function App() {
   }, [])
 
   useEffect(() => {
-    // Initialize with SQL.js database
+    // Initialize with SQLite3 database
     const initializeApp = async () => {
       try {
-        // Check if SQL.js database is available
+        // Check if SQLite3 database is available
         const isAvailable = await sqliteFaceLogService.isAvailable()
         if (isAvailable) {
           setIsConnected(true)
           await fetchSystemStats()
         } else {
           setIsConnected(false)
-          console.error('SQL.js database not available')
+          console.error('SQLite3 database not available')
         }
       } catch (error) {
         console.error('Failed to initialize app:', error)

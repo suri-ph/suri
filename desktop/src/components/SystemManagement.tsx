@@ -147,7 +147,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
       const systemData = {
         overview: {
           total_people: uniquePeople.size,
-          legacy_faces: 0, // Not applicable with SQL.js
+          legacy_faces: 0, // Not applicable with SQLite3
           enhanced_templates: uniquePeople.size,
           today_attendance: todayStats.totalDetections,
           total_attendance: recentLogs.length,
@@ -156,7 +156,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
         today_attendance: todayRecords,
         people: Array.from(peopleStats.entries()).map(([name, stats]) => ({
           name,
-          num_templates: 1, // Simplified for SQL.js implementation
+          num_templates: 1, // Simplified for SQLite3 implementation
           in_legacy: false,
           total_attempts: stats.count,
           total_successes: stats.count,

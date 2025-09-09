@@ -1,5 +1,5 @@
 import { ipcMain, app } from 'electron';
-import { sqliteFaceDB } from '../services/SimpleSqliteFaceDatabase.js';
+import { sqlite3FaceDB } from '../services/Sqlite3FaceDatabase.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -36,7 +36,7 @@ export function setupFaceLogIPC() {
   // Initialize the database
   ipcMain.handle('face-db:initialize', async () => {
     try {
-      await sqliteFaceDB.initialize();
+      await sqlite3FaceDB.initialize();
       return { success: true };
     } catch (error) {
       console.error('Failed to initialize face database:', error);
@@ -47,7 +47,7 @@ export function setupFaceLogIPC() {
   // Log a face detection
   ipcMain.handle('face-db:log-detection', async (_, detection: { personId: string | null; confidence: number; mode: 'auto' | 'manual'; timestamp: string; bbox: [number, number, number, number]; similarity?: number }) => {
     try {
-      const id = await sqliteFaceDB.logDetection(
+      const id = await sqlite3FaceDB.logDetection(
         detection.personId || 'unknown', 
         detection.confidence, 
         detection.mode
@@ -62,7 +62,7 @@ export function setupFaceLogIPC() {
   // Get recent logs
   ipcMain.handle('face-db:get-recent-logs', async (_, limit: number = 10) => {
     try {
-      const logs = await sqliteFaceDB.getRecentLogs(limit);
+      const logs = await sqlite3FaceDB.getRecentLogs(limit);
       return logs;
     } catch (error) {
       console.error('Failed to get recent logs:', error);
@@ -73,7 +73,7 @@ export function setupFaceLogIPC() {
   // Get today's stats
   ipcMain.handle('face-db:get-today-stats', async () => {
     try {
-      const stats = await sqliteFaceDB.getTodayStats();
+      const stats = await sqlite3FaceDB.getTodayStats();
       return stats;
     } catch (error) {
       console.error('Failed to get today stats:', error);
@@ -84,7 +84,7 @@ export function setupFaceLogIPC() {
   // Get system stats (using today stats as fallback)
   ipcMain.handle('face-db:get-system-stats', async () => {
     try {
-      const stats = await sqliteFaceDB.getTodayStats();
+      const stats = await sqlite3FaceDB.getTodayStats();
       return { 
         success: true, 
         data: {
@@ -103,7 +103,7 @@ export function setupFaceLogIPC() {
   // Get daily stats (simplified to today only)
   ipcMain.handle('face-db:get-daily-stats', async () => {
     try {
-      const stats = await sqliteFaceDB.getTodayStats();
+      const stats = await sqlite3FaceDB.getTodayStats();
       return { 
         success: true, 
         data: [{
@@ -131,7 +131,7 @@ export function setupFaceLogIPC() {
   // Export database
   ipcMain.handle('face-db:export-data', async (_, filePath: string) => {
     try {
-      await sqliteFaceDB.exportData(filePath);
+      await sqlite3FaceDB.exportData(filePath);
       return { success: true };
     } catch (error) {
       console.error('Failed to export database:', error);
@@ -139,11 +139,11 @@ export function setupFaceLogIPC() {
     }
   });
 
-  // Vacuum database (not available in sql.js)
+  // Vacuum database (SQLite3 has VACUUM)
   ipcMain.handle('face-db:vacuum', async () => {
     try {
-      // sql.js doesn't have vacuum, but we can export/reimport to optimize
-      return { success: true, message: 'Vacuum not needed for sql.js' };
+      await sqlite3FaceDB.vacuum();
+      return { success: true, message: 'VACUUM completed successfully' };
     } catch (error) {
       console.error('Failed to vacuum database:', error);
       return { success: false, error: String(error) };
@@ -153,7 +153,7 @@ export function setupFaceLogIPC() {
   // Health check
   ipcMain.handle('face-db:health-check', async () => {
     try {
-      const isHealthy = await sqliteFaceDB.healthCheck();
+      const isHealthy = await sqlite3FaceDB.healthCheck();
       return { success: true, data: { healthy: isHealthy } };
     } catch (error) {
       console.error('Failed to check database health:', error);
@@ -164,7 +164,7 @@ export function setupFaceLogIPC() {
   // Get all people
   ipcMain.handle('face-db:get-all-people', async () => {
     try {
-      const people = await sqliteFaceDB.getAllPeople();
+      const people = await sqlite3FaceDB.getAllPeople();
       return people;
     } catch (error) {
       console.error('Failed to get all people:', error);
@@ -175,7 +175,7 @@ export function setupFaceLogIPC() {
   // Get person logs
   ipcMain.handle('face-db:get-person-logs', async (_, personId: string, limit: number = 50) => {
     try {
-      const logs = await sqliteFaceDB.getPersonLogs(personId, limit);
+      const logs = await sqlite3FaceDB.getPersonLogs(personId, limit);
       return logs;
     } catch (error) {
       console.error('Failed to get person logs:', error);
@@ -186,7 +186,7 @@ export function setupFaceLogIPC() {
   // Update person ID (rename)
   ipcMain.handle('face-db:update-person-id', async (_, oldPersonId: string, newPersonId: string) => {
     try {
-      const updateCount = await sqliteFaceDB.updatePersonId(oldPersonId, newPersonId);
+      const updateCount = await sqlite3FaceDB.updatePersonId(oldPersonId, newPersonId);
       return updateCount;
     } catch (error) {
       console.error('Failed to update person ID:', error);
@@ -197,7 +197,7 @@ export function setupFaceLogIPC() {
   // Delete person records
   ipcMain.handle('face-db:delete-person', async (_, personId: string) => {
     try {
-      const deleteCount = await sqliteFaceDB.deletePersonRecords(personId);
+      const deleteCount = await sqlite3FaceDB.deletePersonRecords(personId);
       return deleteCount;
     } catch (error) {
       console.error('Failed to delete person records:', error);
@@ -208,7 +208,7 @@ export function setupFaceLogIPC() {
   // Get person stats
   ipcMain.handle('face-db:get-person-stats', async (_, personId: string) => {
     try {
-      const stats = await sqliteFaceDB.getPersonStats(personId);
+      const stats = await sqlite3FaceDB.getPersonStats(personId);
       return stats;
     } catch (error) {
       console.error('Failed to get person stats:', error);
@@ -219,7 +219,7 @@ export function setupFaceLogIPC() {
   // Clear old data
   ipcMain.handle('face-db:clear-old-data', async (_, daysToKeep: number) => {
     try {
-      const deletedCount = await sqliteFaceDB.clearOldData(daysToKeep);
+      const deletedCount = await sqlite3FaceDB.clearOldData(daysToKeep);
       return deletedCount;
     } catch (error) {
       console.error('Failed to clear old data:', error);
