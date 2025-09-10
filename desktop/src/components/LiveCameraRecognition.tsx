@@ -1263,12 +1263,6 @@ export default function LiveCameraRecognition() {
                     {cameraStatus === 'recognition' ? 'Detection: Active' : 'Detection: Inactive'}
                   </span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className="text-sm text-white/60">
-                    Camera: {isStreaming ? 'Active' : 'Stopped'}
-                  </span>
-                </div>
                 <div className="text-sm text-white/60">
                   Processing: {processingTime.toFixed(1)}ms
                 </div>
@@ -1276,7 +1270,9 @@ export default function LiveCameraRecognition() {
                 {/* Camera Selection */}
                 {camerasLoaded && availableCameras.length > 0 && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-white/60">Camera:</span>
+                    <div className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className="text-sm text-white/60">Camera: {isStreaming ? 'Active' : 'Stopped'}</span>
+                    
                     <select
                       value={selectedCameraId}
                       onChange={(e) => setSelectedCameraId(e.target.value)}
