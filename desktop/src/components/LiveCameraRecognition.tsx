@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { WorkerManager } from "../services/WorkerManager";
 import { sqliteFaceLogService, type FaceLogEntry } from "../services/SqliteFaceLogService";
 import { FaceDeduplicationService } from "../services/FaceDeduplicationService";
+import { WebAntiSpoofingService, type AntiSpoofingResult } from "../services/WebAntiSpoofingService";
+import { preprocessFaceForAntiSpoofing } from "../utils/faceUtils";
 
 interface DetectionResult {
   bbox: [number, number, number, number];
@@ -11,6 +13,7 @@ interface DetectionResult {
     personId: string | null;
     similarity: number;
   };
+  antiSpoofing?: AntiSpoofingResult;
 }
 
 export default function LiveCameraRecognition() {
@@ -68,6 +71,9 @@ export default function LiveCameraRecognition() {
 
   // Worker manager for face detection and recognition (non-blocking)
   const workerManagerRef = useRef<WorkerManager | null>(null);
+  
+  // Anti-spoofing service for liveness detection
+  const antiSpoofingServiceRef = useRef<WebAntiSpoofingService | null>(null);
 
   // Helper function to refresh data from database
   const refreshDatabaseData = useCallback(async () => {
@@ -129,6 +135,13 @@ export default function LiveCameraRecognition() {
 
       // Initialize the worker (this handles both SCRFD and EdgeFace initialization)
       await workerManagerRef.current.initialize();
+      
+      // Initialize anti-spoofing service
+      if (!antiSpoofingServiceRef.current) {
+        antiSpoofingServiceRef.current = new WebAntiSpoofingService(0.5); // 0.5 threshold
+        await antiSpoofingServiceRef.current.initialize();
+        console.log('✅ Anti-spoofing service initialized');
+      }
 
       // Load existing database and get stats
       const stats = await workerManagerRef.current.getStats();
@@ -157,7 +170,7 @@ export default function LiveCameraRecognition() {
         }`
       );
     }
-  }, []);
+    }, []);
 
   const startCamera = useCallback(async () => {
     try {
@@ -532,9 +545,46 @@ export default function LiveCameraRecognition() {
 
       // Filter out low confidence detections to reduce false positives
       const minDisplayConfidence = 0.5;
-      const validDetections = detections.filter(
+      let validDetections = detections.filter(
         (det) => det.confidence >= minDisplayConfidence
       );
+      
+      // Add anti-spoofing detection for each valid face
+      if (antiSpoofingServiceRef.current && validDetections.length > 0) {
+        const detectionsWithAntiSpoofing = await Promise.all(
+          validDetections.map(async (detection) => {
+            try {
+              // Preprocess face for anti-spoofing
+              const faceImageData = preprocessFaceForAntiSpoofing(
+                imageData,
+                detection.bbox,
+                detection.landmarks?.[0] // Use first landmark set if available
+              );
+              
+              // Run anti-spoofing detection
+              const antiSpoofingResult = await antiSpoofingServiceRef.current!.detectLiveness(faceImageData);
+              
+              return {
+                ...detection,
+                antiSpoofing: antiSpoofingResult
+              };
+            } catch (error) {
+              console.warn('Anti-spoofing failed for detection:', error);
+              // Return detection without anti-spoofing data on error
+              return {
+                ...detection,
+                antiSpoofing: {
+                  isLive: false,
+                  confidence: 0,
+                  score: 0
+                }
+              };
+            }
+          })
+        );
+        
+        validDetections = detectionsWithAntiSpoofing;
+      }
 
       const processingTime = performance.now() - startTime;
 
@@ -1154,6 +1204,12 @@ export default function LiveCameraRecognition() {
         workerManagerRef.current.dispose();
         workerManagerRef.current = null;
       }
+      
+      // Cleanup anti-spoofing service
+      if (antiSpoofingServiceRef.current) {
+        antiSpoofingServiceRef.current.dispose();
+        antiSpoofingServiceRef.current = null;
+      }
 
       // Cleanup deduplication service
       if (deduplicationService) {
@@ -1352,6 +1408,20 @@ export default function LiveCameraRecognition() {
                     {detection.recognition?.similarity && (
                       <div className="text-xs text-white/50 mt-1">
                         Similarity: {(detection.recognition.similarity * 100).toFixed(1)}%
+                      </div>
+                    )}
+                    {detection.antiSpoofing && (
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.08]">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          detection.antiSpoofing.isLive 
+                            ? 'bg-green-900 text-green-300' 
+                            : 'bg-red-900 text-red-300'
+                        }`}>
+                          {detection.antiSpoofing.isLive ? '✓ Live' : '⚠ Spoof'}
+                        </span>
+                        <span className="text-xs text-white/50">
+                          Score: {detection.antiSpoofing.score.toFixed(3)}
+                        </span>
                       </div>
                     )}
                   </div>
