@@ -8,7 +8,7 @@ export interface AntiSpoofingResult {
 
 export class WebAntiSpoofingService {
   private session: ort.InferenceSession | null = null;
-  private threshold: number = 0.5; // Real face probability threshold (standard anti-spoofing threshold)
+  private threshold: number = 0.497; // Real face probability threshold (standard anti-spoofing threshold)
   
   // Model specifications based on Silent-Face-Anti-Spoofing research
   private readonly INPUT_SIZE = 128; // 128x128 input size
@@ -17,10 +17,6 @@ export class WebAntiSpoofingService {
   
   // Performance monitoring
   private frameCount = 0;
-  
-  constructor(threshold: number = 0.497) {
-    this.threshold = threshold;
-  }
 
   async initialize(isDev?: boolean): Promise<void> {
     // Use different paths for development vs production
