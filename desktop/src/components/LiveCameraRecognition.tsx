@@ -312,7 +312,7 @@ export default function LiveCameraRecognition() {
   // Reuse canvases for better performance
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Enhanced capture with proper coordinate scaling
+  // Enhanced capture with proper coordinate scaling for object-contain video
   const captureFrame = useCallback((): {
     imageData: ImageData;
     scaleX: number;
@@ -325,47 +325,31 @@ export default function LiveCameraRecognition() {
     // Create a reusable canvas only once - use optimized resolution for processing
     if (!captureCanvasRef.current) {
       captureCanvasRef.current = document.createElement("canvas");
-      // Dynamically set capture resolution based on actual video resolution
-      // Keep aspect ratio but scale down for performance
-      const maxWidth = 640; // Increased for better accuracy with dynamic resolutions
-      const maxHeight = 480; // Increased for better accuracy
-      const aspectRatio = video.videoWidth / video.videoHeight;
-
-      if (aspectRatio > 1) {
-        // Landscape - fit to width
-        captureCanvasRef.current.width = Math.min(maxWidth, video.videoWidth);
-        captureCanvasRef.current.height = Math.round(captureCanvasRef.current.width / aspectRatio);
-      } else {
-        // Portrait - fit to height
-        captureCanvasRef.current.height = Math.min(maxHeight, video.videoHeight);
-        captureCanvasRef.current.width = Math.round(captureCanvasRef.current.height * aspectRatio);
-      }
     }
 
     const tempCanvas = captureCanvasRef.current;
+    
+    // Set canvas size to match video resolution, scaled down for performance
+    const maxWidth = 640;
+    const maxHeight = 480;
+    const videoAspectRatio = video.videoWidth / video.videoHeight;
+    
+    if (videoAspectRatio > 1) {
+      // Landscape video
+      tempCanvas.width = Math.min(maxWidth, video.videoWidth);
+      tempCanvas.height = Math.round(tempCanvas.width / videoAspectRatio);
+    } else {
+      // Portrait video
+      tempCanvas.height = Math.min(maxHeight, video.videoHeight);
+      tempCanvas.width = Math.round(tempCanvas.height * videoAspectRatio);
+    }
+
     const tempCtx = tempCanvas.getContext("2d", {
       willReadFrequently: true,
       alpha: false, // Disable alpha for performance
       desynchronized: true, // Allow async rendering
     });
     if (!tempCtx) return null;
-
-    // Update canvas size only if video dimensions changed significantly
-    const currentAspectRatio = video.videoWidth / video.videoHeight;
-    const canvasAspectRatio = tempCanvas.width / tempCanvas.height;
-
-    if (Math.abs(currentAspectRatio - canvasAspectRatio) > 0.1) {
-      const maxWidth = 640; // Updated to match initialization
-      const maxHeight = 480; // Updated to match initialization
-
-      if (currentAspectRatio > 1) {
-        tempCanvas.width = Math.min(maxWidth, video.videoWidth);
-        tempCanvas.height = Math.round(tempCanvas.width / currentAspectRatio);
-      } else {
-        tempCanvas.height = Math.min(maxHeight, video.videoHeight);
-        tempCanvas.width = Math.round(tempCanvas.height * currentAspectRatio);
-      }
-    }
 
     // Calculate scale factors for coordinate mapping back to original video
     const scaleX = video.videoWidth / tempCanvas.width;
@@ -374,7 +358,7 @@ export default function LiveCameraRecognition() {
     // Optimize rendering for speed
     tempCtx.imageSmoothingEnabled = false; // Disable smoothing for speed
 
-    // Draw video frame to temp canvas at reduced resolution (major speed boost)
+    // Draw the entire video frame to canvas
     tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
     // Get image data from temp canvas
@@ -785,35 +769,36 @@ export default function LiveCameraRecognition() {
       canvas.height = displayHeight;
     }
 
-    // Calculate scale factors for coordinate transformation
-    // Detection coordinates are in capture canvas resolution (640x480 or smaller)
-    // We need to scale them to display canvas resolution
+    // Calculate scale factors for coordinate transformation with object-contain
+    // Detection coordinates are in capture canvas resolution
+    // We need to scale them to the actual video display area within the container
 
     // Get the capture canvas dimensions used for detection
     const captureWidth = captureCanvasRef.current?.width || 640;
     const captureHeight = captureCanvasRef.current?.height || 480;
 
-    // Map capture coordinates to the displayed video area considering object-cover
+    // Calculate the actual video display size within the container (object-contain behavior)
     const videoAspectRatio = video.videoWidth / video.videoHeight;
     const containerAspectRatio = displayWidth / displayHeight;
-
+    
     let actualVideoWidth: number;
     let actualVideoHeight: number;
     let offsetX = 0;
     let offsetY = 0;
-
+    
     if (videoAspectRatio > containerAspectRatio) {
-      // Video is wider - fit height, crop left/right
-      actualVideoHeight = displayHeight;
-      actualVideoWidth = Math.round(displayHeight * videoAspectRatio);
-      offsetX = Math.round((actualVideoWidth - displayWidth) / 2);
-    } else {
-      // Video is taller - fit width, crop top/bottom
+      // Video is wider - fit to container width, add vertical padding
       actualVideoWidth = displayWidth;
       actualVideoHeight = Math.round(displayWidth / videoAspectRatio);
-      offsetY = Math.round((actualVideoHeight - displayHeight) / 2);
+      offsetY = Math.round((displayHeight - actualVideoHeight) / 2);
+    } else {
+      // Video is taller - fit to container height, add horizontal padding
+      actualVideoHeight = displayHeight;
+      actualVideoWidth = Math.round(displayHeight * videoAspectRatio);
+      offsetX = Math.round((displayWidth - actualVideoWidth) / 2);
     }
-
+    
+    // Scale from capture canvas to actual video display size
     const scaleX = actualVideoWidth / captureWidth;
     const scaleY = actualVideoHeight / captureHeight;
 
@@ -831,11 +816,12 @@ export default function LiveCameraRecognition() {
         continue; // Skip invalid detections
       }
 
-      // Scale coordinates from capture canvas size to displayed video area (with cropping offsets)
-      const scaledX1 = (x1 * scaleX) - offsetX;
-      const scaledY1 = (y1 * scaleY) - offsetY;
-      const scaledX2 = (x2 * scaleX) - offsetX;
-      const scaledY2 = (y2 * scaleY) - offsetY;
+      // Scale coordinates from capture canvas size to displayed video area
+      // Add offset for object-contain positioning within container
+      const scaledX1 = x1 * scaleX + offsetX;
+      const scaledY1 = y1 * scaleY + offsetY;
+      const scaledX2 = x2 * scaleX + offsetX;
+      const scaledY2 = y2 * scaleY + offsetY;
 
       // Additional validation for scaled coordinates
       if (
@@ -937,9 +923,10 @@ export default function LiveCameraRecognition() {
           const [x, y] = detection.landmarks[i];
           if (isNaN(x) || isNaN(y)) continue;
 
-          // Landmarks are in capture coordinate space; map using same scaling and offsets
-          const scaledLandmarkX = (x * scaleX) - offsetX;
-          const scaledLandmarkY = (y * scaleY) - offsetY;
+          // Landmarks are in capture coordinate space; map using same scaling
+          // Add offset for object-contain positioning within container
+          const scaledLandmarkX = x * scaleX + offsetX;
+          const scaledLandmarkY = y * scaleY + offsetY;
 
           // Validate scaled landmark coordinates
           if (!isFinite(scaledLandmarkX) || !isFinite(scaledLandmarkY))
@@ -1187,7 +1174,7 @@ export default function LiveCameraRecognition() {
             <div className="relative w-full h-full min-h-[260px] overflow-hidden rounded-lg bg-white/[0.02] border border-white/[0.08]">
               <video
                 ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
                 autoPlay
                 muted
                 playsInline
