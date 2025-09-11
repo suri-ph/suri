@@ -49,9 +49,13 @@ export class WorkerManager {
       console.error('Worker error:', error);
     };
 
-    // Initialize the worker
-    const isDev = typeof window !== 'undefined' && window.location.protocol === 'http:';
-    await this.sendMessage({ type: 'init', data: { isDev } });
+    // Initialize the worker with model paths
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    const scrfdModelUrl = `${baseUrl}/weights/scrfd_2.5g_kps_640x640.onnx`;
+    const faceModelUrl = `${baseUrl}/weights/edgeface-recognition.onnx`;
+    const antiSpoofingModelUrl = `${baseUrl}/weights/AntiSpoofing_bin_1.5_128.onnx`;
+    
+    await this.sendMessage({ type: 'init', data: { scrfdModelUrl, faceModelUrl, antiSpoofingModelUrl } });
     
     // Load database from localStorage and send to worker
     await this.syncDatabaseToWorker();
@@ -286,6 +290,19 @@ export class WorkerManager {
     });
 
     return (response.success as boolean) || false;
+  }
+
+  async detectAntiSpoofing(imageData: ImageData): Promise<{ isReal: boolean; confidence: number }> {
+    if (!this.isInitialized) {
+      throw new Error('Worker manager not initialized');
+    }
+
+    const response = await this.sendMessage({
+      type: 'anti-spoofing-detect',
+      data: { imageData }
+    });
+
+    return response as { isReal: boolean; confidence: number };
   }
 
   async getStats(): Promise<{ totalPersons: number; threshold: number; embeddingDim: number }> {

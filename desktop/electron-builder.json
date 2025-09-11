@@ -6,6 +6,13 @@
     "asarUnpack": [
         "dist-react/weights/**/*"
     ],
+    "extraResources": [
+    {
+      "from": "public/weights",
+      "to": "weights",
+      "filter": ["**/*"]
+    }
+  ],
     "extraFiles": [
         {
             "from": "src/electron/preload.js",

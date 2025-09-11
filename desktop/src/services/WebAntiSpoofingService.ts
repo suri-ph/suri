@@ -25,20 +25,13 @@ export class WebAntiSpoofingService {
   /**
    * Initialize the ONNX model
    */
-  async initialize(isDev?: boolean): Promise<void> {
-    const isDevMode =
-      isDev !== undefined
-        ? isDev
-        : typeof window !== 'undefined' && window.location.protocol === 'http:';
-    const modelUrl = isDevMode
-      ? '/weights/AntiSpoofing_bin_1.5_128.onnx'
-      : './app.asar.unpacked/dist-react/weights/AntiSpoofing_bin_1.5_128.onnx';
+  async initialize(modelUrl: string): Promise<void> {
 
     try {
       this.session = await ort.InferenceSession.create(modelUrl, {
         executionProviders: ['wasm'],
-        logSeverityLevel: 0,
-        logVerbosityLevel: 1,
+        logSeverityLevel: 4,  // Minimal logging (4 = ERROR only)
+        logVerbosityLevel: 0, // No verbose logs
         enableCpuMemArena: true,
         enableMemPattern: true,
         executionMode: 'sequential',

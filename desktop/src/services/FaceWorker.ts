@@ -1,9 +1,11 @@
 // WebWorker for face detection and recognition to avoid main thread blocking
 import { WebScrfdService } from "./WebScrfdService.js";
 import { WebFaceService } from "./WebFaceService.js";
+import { WebAntiSpoofingService } from "./WebAntiSpoofingService.js";
 
 let scrfdService: WebScrfdService | null = null;
 let edgeFaceService: WebFaceService | null = null;
+let antiSpoofingService: WebAntiSpoofingService | null = null;
 
 self.onmessage = async (event) => {
   const { type, data, id } = event.data;
@@ -11,13 +13,15 @@ self.onmessage = async (event) => {
   try {
     switch (type) {
       case 'init': {
-        // Initialize both services
-        const { isDev } = data || {};
+        // Initialize all services
+        const { scrfdModelUrl, faceModelUrl, antiSpoofingModelUrl } = data || {};
         scrfdService = new WebScrfdService();
         edgeFaceService = new WebFaceService(0.6);
+        antiSpoofingService = new WebAntiSpoofingService();
         
-        await scrfdService.initialize(isDev);
-        await edgeFaceService.initialize(isDev);
+        await scrfdService.initialize(scrfdModelUrl);
+        await edgeFaceService.initialize(faceModelUrl);
+        await antiSpoofingService.initialize(antiSpoofingModelUrl);
         
         // Don't load database here - we'll get it from main thread
         
@@ -275,6 +279,22 @@ self.onmessage = async (event) => {
         self.postMessage({ 
           type: 'cache-cleared', 
           data: { success: true },
+          id
+        });
+        break;
+      }
+
+      case 'anti-spoofing-detect': {
+        if (!antiSpoofingService) {
+          throw new Error('Anti-spoofing service not initialized');
+        }
+        
+        const { imageData } = data;
+        const result = await antiSpoofingService.detectLiveness(imageData);
+        
+        self.postMessage({ 
+          type: 'anti-spoofing-result', 
+          data: result,
           id
         });
         break;

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { WorkerManager } from "../services/WorkerManager";
 import { sqliteFaceLogService, type FaceLogEntry } from "../services/SqliteFaceLogService";
 import { FaceDeduplicationService } from "../services/FaceDeduplicationService";
-import { WebAntiSpoofingService, type AntiSpoofingResult } from "../services/WebAntiSpoofingService";
+import { type AntiSpoofingResult } from "../services/WebAntiSpoofingService";
 import { preprocessFaceForAntiSpoofing } from "../utils/faceUtils";
 
 interface DetectionResult {
@@ -71,9 +71,6 @@ export default function LiveCameraRecognition() {
 
   // Worker manager for face detection and recognition (non-blocking)
   const workerManagerRef = useRef<WorkerManager | null>(null);
-  
-  // Anti-spoofing service for liveness detection
-  const antiSpoofingServiceRef = useRef<WebAntiSpoofingService | null>(null);
 
   // Helper function to refresh data from database
   const refreshDatabaseData = useCallback(async () => {
@@ -136,12 +133,8 @@ export default function LiveCameraRecognition() {
       // Initialize the worker (this handles both SCRFD and EdgeFace initialization)
       await workerManagerRef.current.initialize();
       
-      // Initialize anti-spoofing service
-      if (!antiSpoofingServiceRef.current) {
-        antiSpoofingServiceRef.current = new WebAntiSpoofingService(); // Threshold between real and spoof scores
-        await antiSpoofingServiceRef.current.initialize();
-        console.log('✅ Anti-spoofing service initialized');
-      }
+      // Anti-spoofing service is now initialized in WorkerManager
+      console.log('✅ Anti-spoofing service initialized');
 
       // Load existing database and get stats
       const stats = await workerManagerRef.current.getStats();
@@ -550,7 +543,7 @@ export default function LiveCameraRecognition() {
       );
       
       // Smart anti-spoofing: Only run on recognized faces with high similarity
-      if (antiSpoofingServiceRef.current && validDetections.length > 0) {
+      if (workerManagerRef.current && validDetections.length > 0) {
         const detectionsWithAntiSpoofing = [];
         for (const detection of validDetections) {
           const isRecognized = detection.recognition?.personId; // Any recognized face
@@ -564,13 +557,16 @@ export default function LiveCameraRecognition() {
                 detection.landmarks?.[0] // Use first landmark set if available
               );
 
-              // Run anti-spoofing detection only on recognized faces
-              const antiSpoofingResult =
-                await antiSpoofingServiceRef.current!.detectLiveness(faceImageData);
+              // Run anti-spoofing detection through WorkerManager
+              const antiSpoofingResult = await workerManagerRef.current.detectAntiSpoofing(faceImageData);
 
               detectionsWithAntiSpoofing.push({
                 ...detection,
-                antiSpoofing: antiSpoofingResult,
+                antiSpoofing: {
+                  isLive: antiSpoofingResult.isReal,
+                  confidence: antiSpoofingResult.confidence,
+                  score: antiSpoofingResult.confidence,
+                },
               });
             } catch (error) {
               console.warn('Anti-spoofing failed for recognized face:', error);
@@ -1214,11 +1210,7 @@ export default function LiveCameraRecognition() {
         workerManagerRef.current = null;
       }
       
-      // Cleanup anti-spoofing service
-      if (antiSpoofingServiceRef.current) {
-        antiSpoofingServiceRef.current.dispose();
-        antiSpoofingServiceRef.current = null;
-      }
+      // Anti-spoofing service cleanup is handled by WorkerManager
 
       // Cleanup deduplication service
       if (deduplicationService) {
