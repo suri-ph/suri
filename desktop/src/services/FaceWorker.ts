@@ -19,8 +19,11 @@ self.onmessage = async (event) => {
         edgeFaceService = new WebFaceService(0.6);
         // antiSpoofingService will be initialized lazily when needed
         
-        await scrfdService.initialize(isDev);
-        await edgeFaceService.initialize(isDev);
+        // Parallel initialization for faster startup
+        await Promise.all([
+          scrfdService.initialize(isDev),
+          edgeFaceService.initialize(isDev)
+        ]);
         
         // Don't load database here - we'll get it from main thread
         
