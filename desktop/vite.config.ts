@@ -12,7 +12,18 @@ export default defineConfig({
   build: {
     outDir: "dist-react",
     target: 'esnext',  // Enable modern features
-    minify: 'terser'   // Better minification
+    minify: 'terser',   // Better minification
+    sourcemap: false,   // Disable sourcemaps for smaller bundles
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large dependencies into separate chunks for better caching
+          onnxruntime: ['onnxruntime-web'],
+          vendor: ['react', 'react-dom'],
+          ui: ['@fortawesome/fontawesome-free']
+        }
+      }
+    }
   },
   server: {
     port: 5123,
