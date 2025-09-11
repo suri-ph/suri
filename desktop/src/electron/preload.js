@@ -45,6 +45,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     getAllFacePersons: () => {
         return ipcRenderer.invoke('face-recognition:get-all-persons')
+    },
+    // Generic IPC invoke method
+    invoke: (channel, ...args) => {
+        return ipcRenderer.invoke(channel, ...args)
     }
 })
 

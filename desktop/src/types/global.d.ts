@@ -74,6 +74,9 @@ declare global {
     loadFaceDatabase: () => Promise<{ success: boolean; data: Record<string, number[]>; error?: string }>
     removeFacePerson: (personId: string) => Promise<{ success: boolean; existed?: boolean; error?: string }>
     getAllFacePersons: () => Promise<{ success: boolean; persons: string[]; error?: string }>
+    
+    // Generic IPC invoke method
+    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
   }
 
   interface FaceLogEntry {

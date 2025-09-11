@@ -1,5 +1,7 @@
 import '../types/global.d.ts';
 
+
+
 interface DetectionResult {
   bbox: [number, number, number, number];
   confidence: number;
@@ -50,10 +52,36 @@ export class WorkerManager {
     };
 
     // Initialize the worker with model paths
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
-    const scrfdModelUrl = `${baseUrl}/weights/scrfd_2.5g_kps_640x640.onnx`;
-    const faceModelUrl = `${baseUrl}/weights/edgeface-recognition.onnx`;
-    const antiSpoofingModelUrl = `${baseUrl}/weights/AntiSpoofing_bin_1.5_128.onnx`;
+    // In production, load models via IPC and create blob URLs for WebWorker access
+    // In dev, use direct HTTP URLs
+    const isProduction = !window.location.protocol.startsWith('http');
+    
+    let scrfdModelUrl: string;
+    let faceModelUrl: string;
+    let antiSpoofingModelUrl: string;
+    
+    if (isProduction) {
+      // Production: Load models via IPC and create blob URLs
+      if (!window.electronAPI) {
+        throw new Error('Electron API not available');
+      }
+      
+      const [scrfdBuffer, faceBuffer, antiSpoofingBuffer] = await Promise.all([
+        window.electronAPI.invoke('model:load', 'scrfd_2.5g_kps_640x640.onnx') as Promise<ArrayBuffer>,
+        window.electronAPI.invoke('model:load', 'edgeface-recognition.onnx') as Promise<ArrayBuffer>,
+        window.electronAPI.invoke('model:load', 'AntiSpoofing_bin_1.5_128.onnx') as Promise<ArrayBuffer>
+      ]);
+      
+      scrfdModelUrl = URL.createObjectURL(new Blob([scrfdBuffer]));
+      faceModelUrl = URL.createObjectURL(new Blob([faceBuffer]));
+      antiSpoofingModelUrl = URL.createObjectURL(new Blob([antiSpoofingBuffer]));
+    } else {
+      // Development: Use HTTP URLs
+      const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+      scrfdModelUrl = `${baseUrl}/weights/scrfd_2.5g_kps_640x640.onnx`;
+      faceModelUrl = `${baseUrl}/weights/edgeface-recognition.onnx`;
+      antiSpoofingModelUrl = `${baseUrl}/weights/AntiSpoofing_bin_1.5_128.onnx`;
+    }
     
     await this.sendMessage({ type: 'init', data: { scrfdModelUrl, faceModelUrl, antiSpoofingModelUrl } });
     

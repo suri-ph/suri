@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, session } from "electron"
+import { app, BrowserWindow, ipcMain } from "electron"
 import path from "path"
 import { fileURLToPath } from 'node:url'
+import { readFile } from 'fs/promises'
 import isDev from "./util.js";
 // Legacy SCRFD service (node-onnx) is unused now; using WebWorker-based pipeline in renderer
 import { setupFaceLogIPC } from "./faceLogIPC.js";
@@ -64,6 +65,21 @@ ipcMain.handle('window:close', () => {
     return true
 })
 
+// Model file IPC handler for WebWorkers
+ipcMain.handle('model:load', async (_, modelName: string) => {
+    try {
+        const modelPath = isDev() 
+            ? path.join(__dirname, '../../public/weights', modelName)
+            : path.join(process.resourcesPath, 'weights', modelName);
+        
+        const buffer = await readFile(modelPath);
+        return buffer;
+    } catch (error) {
+        console.error(`Failed to load model ${modelName}:`, error);
+        throw error;
+    }
+})
+
 function createWindow(): void {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
@@ -119,14 +135,7 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-    // Register protocol to serve static files in packaged app
-    if (!isDev()) {
-        session.defaultSession.protocol.registerFileProtocol('app', (request, callback) => {
-            const url = request.url.substr(6); // Remove 'app://' prefix
-            const filePath = path.join(__dirname, '../../dist-react', url);
-            callback({ path: filePath });
-        });
-    }
+    // No need for custom protocol - using IPC for model loading
     
     createWindow()
     

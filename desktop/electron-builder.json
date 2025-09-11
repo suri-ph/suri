@@ -3,9 +3,6 @@
         "dist-electron/**/*",
         "dist-react/**/*"
     ],
-    "asarUnpack": [
-        "dist-react/weights/**/*"
-    ],
     "extraResources": [
     {
       "from": "public/weights",
