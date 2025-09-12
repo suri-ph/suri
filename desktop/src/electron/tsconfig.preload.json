@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
+    "module": "CommonJS",
     "skipLibCheck": true,
     "strict": true,
-    "outDir": "../../dist-electron",
+    "outDir": "../../dist-electron/electron",
     "baseUrl": "..",
     "paths": {
       "../services/*": ["../services/*"]
     }
   },
-  "include": ["**/*.ts", "../services/**/*.ts"],
-  "exclude": ["../../dist-electron"]
+  "include": ["preload.ts"]
 }
