@@ -202,8 +202,7 @@ export function makeSquareFace(imageData: ImageData): ImageData {
  */
 export function preprocessFaceForAntiSpoofing(
   imageData: ImageData,
-  detection: number[] | [number, number, number, number],
-  landmarks?: number[]
+  detection: number[] | [number, number, number, number]
 ): ImageData {
   // Step 1: Convert detection to face box
   const faceBox = scrfdToFaceBox(detection);
@@ -211,11 +210,8 @@ export function preprocessFaceForAntiSpoofing(
   // Step 2: Crop face region with padding
   let faceImage = cropFaceRegion(imageData, faceBox, 0.3);
   
-  // Step 3: Align face if landmarks are available
-  const faceLandmarks = scrfdToFaceLandmarks(landmarks);
-  if (faceLandmarks) {
-    faceImage = alignFace(faceImage, faceLandmarks);
-  }
+  // Step 3: Skip custom alignment - let WebFaceService handle alignment consistently
+  // This ensures identical preprocessing between registration and recognition
   
   // Step 4: Make face region square for consistent input
   faceImage = makeSquareFace(faceImage);

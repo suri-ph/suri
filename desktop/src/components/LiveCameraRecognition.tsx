@@ -560,8 +560,7 @@ export default function LiveCameraRecognition() {
               // Preprocess face for anti-spoofing
               const faceImageData = preprocessFaceForAntiSpoofing(
                 imageData,
-                detection.bbox,
-                detection.landmarks?.[0] // Use first landmark set if available
+                detection.bbox
               );
 
               // Run anti-spoofing detection only on recognized faces
