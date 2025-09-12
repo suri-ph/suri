@@ -1426,11 +1426,16 @@ export default function LiveCameraRecognition() {
                             ? 'bg-green-900 text-green-300' 
                             : 'bg-red-900 text-red-300'
                         }`}>
-                          {detection.antiSpoofing.isLive ? '✓ Live' : '⚠ Spoof/Low Light'}
+                          {detection.antiSpoofing.isLive ? '✓ Live' : '⚠ Spoof'}
                         </span>
-                        <span className="text-xs text-white/50">
-                          Score: {detection.antiSpoofing.score.toFixed(3)}
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-white/50">
+                            Conf: {(detection.antiSpoofing.confidence * 100).toFixed(1)}%
+                          </span>
+                          <span className="text-xs text-white/40">
+                            Score: {detection.antiSpoofing.score.toFixed(3)}
+                          </span>
+                        </div>
                       </div>
                     )}
                     {detection.recognition?.personId && !detection.antiSpoofing && (

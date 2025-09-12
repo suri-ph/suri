@@ -98,32 +98,32 @@ export class WebAntiSpoofingService {
       const outputTensor = outputs[this.session.outputNames[0]];
       const outputData = outputTensor.data as Float32Array;
 
-      // Model outputs [1,2] logits: [live_logit, spoof_logit]
+      // Model outputs [1,2] logits: [live_logit, spoof_logit] - CORRECTED ORDER!
       const liveLogit = outputData[0];
       const spoofLogit = outputData[1];
       
       // Apply softmax to get probabilities
       const maxLogit = Math.max(spoofLogit, liveLogit);
-      const spoofExp = Math.exp(spoofLogit - maxLogit);
-      const liveExp = Math.exp(liveLogit - maxLogit);
-      const sumExp = spoofExp + liveExp;
+      const expSpoof = Math.exp(spoofLogit - maxLogit);
+      const expLive = Math.exp(liveLogit - maxLogit);
+      const sumExp = expSpoof + expLive;
       
-      const liveProb = liveExp / sumExp;
+      const liveProb = expLive / sumExp;
+      const spoofProb = expSpoof / sumExp;
       
-      // Determine if live based on probability threshold
-      const liveThreshold = 0.5; // 50% confidence threshold
-      const isLive = liveProb > liveThreshold;
+      // Determine if spoof (not live) - FIXED LOGIC!
+      const isSpoof = liveProb < spoofProb;
       
-      // Use live probability as confidence
-      const confidence = liveProb;
+      // Use higher probability as confidence - FIXED!
+      const confidence = Math.max(liveProb, spoofProb);
       
       // Raw score is the difference between live and spoof logits
       const rawScore = liveLogit - spoofLogit;
 
-      console.log(`Spoof: ${spoofLogit.toFixed(3)}, Live: ${liveLogit.toFixed(3)}, LiveProb: ${liveProb.toFixed(3)}, IsLive: ${isLive}`);
+      console.log(`Spoof: ${spoofLogit.toFixed(3)}, Live: ${liveLogit.toFixed(3)}, LiveProb: ${liveProb.toFixed(3)}, isSpoof: ${isSpoof}`);
 
       return {
-        isLive,
+        isLive: !isSpoof, // Convert isSpoof to isLive
         confidence,
         score: rawScore,
       };
