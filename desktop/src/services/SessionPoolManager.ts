@@ -102,8 +102,8 @@ export class SessionPoolManager {
   /**
    * Get optimized session options with shared WebGL context
    */
-  public getOptimizedSessionOptions(): ort.InferenceSession.SessionOptions {
-    return {
+  public getOptimizedSessionOptions(modelName?: string): ort.InferenceSession.SessionOptions {
+    const baseOptions: ort.InferenceSession.SessionOptions = {
       executionProviders: [
         {
           name: 'webgl'
@@ -117,9 +117,6 @@ export class SessionPoolManager {
       executionMode: 'parallel',
       graphOptimizationLevel: 'all',
       enableProfiling: false,
-      freeDimensionOverrides: {
-        'batch_size': 1
-      },
       extra: {
         session: {
           use_ort_model_bytes_directly: true,
@@ -129,6 +126,18 @@ export class SessionPoolManager {
         }
       }
     };
+
+    // Don't add freeDimensionOverrides for anti-spoofing model as it causes input shape conflicts
+    if (modelName && !modelName.includes('AntiSpoofing')) {
+      baseOptions.freeDimensionOverrides = {
+        'batch_size': 1
+      };
+      console.log(`🔧 Added freeDimensionOverrides for model: ${modelName}`);
+    } else {
+      console.log(`🔧 Skipped freeDimensionOverrides for anti-spoofing model: ${modelName}`);
+    }
+
+    return baseOptions;
   }
 
   /**

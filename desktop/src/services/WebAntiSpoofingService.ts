@@ -38,58 +38,63 @@ export class WebAntiSpoofingService {
     const modelName = 'AntiSpoofing_bin_1.5_128.onnx';
     console.log(`📥 Loading AntiSpoofing model: ${modelName} (${isDev ? 'development' : 'production'} mode)`);
     
-    let modelBuffer: ArrayBuffer;
-    
-    // Use pre-loaded buffer if available (worker context with optimization)
-    if (preloadedBuffer) {
-      console.log(`🚀 Using pre-loaded ${modelName} buffer (${(preloadedBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)`);
-      modelBuffer = preloadedBuffer;
-    } else {
-      // Fallback to loading methods for main context or dev mode
-      if (typeof window !== 'undefined' && (window as { electronAPI?: { invoke: (channel: string, ...args: unknown[]) => Promise<ArrayBuffer> } }).electronAPI) {
-        // Main context - use IPC for better performance
-        const electronAPI = (window as { electronAPI: { invoke: (channel: string, ...args: unknown[]) => Promise<ArrayBuffer> } }).electronAPI;
-        modelBuffer = await electronAPI.invoke('model:load', modelName);
-      } else if (isDev) {
-        // Dev mode - use fetch from public folder
-        const response = await fetch(`/weights/${modelName}`);
-        if (!response.ok) throw new Error(`Failed to fetch model: ${response.statusText}`);
-        modelBuffer = await response.arrayBuffer();
-      } else {
-        // Worker context in production - fallback to app:// protocol (should not happen with optimization)
-        console.warn(`⚠️ Falling back to app:// protocol for ${modelName} - optimization not working`);
-        const response = await fetch(`app://weights/${modelName}`);
-        if (!response.ok) throw new Error(`Failed to fetch model: ${response.statusText}`);
-        modelBuffer = await response.arrayBuffer();
-      }
-    }
-    
     try {
-      // Use session pool for optimized initialization and reuse
+      // Use SessionPoolManager with ArrayBuffer loading like other models
       this.pooledSession = await this.sessionPool.getSession(
         modelName,
         async () => {
-          const options = this.sessionPool.getOptimizedSessionOptions();
-          try {
-            return await ort.InferenceSession.create(modelBuffer, options);
-          } catch {
-            // Fallback to CPU-only if WebGL fails
-            const fallbackOptions = {
-              ...options,
-              executionProviders: ['wasm']
-            };
-            return await ort.InferenceSession.create(modelBuffer, fallbackOptions);
+          let modelBuffer: ArrayBuffer;
+          
+          if (preloadedBuffer) {
+            modelBuffer = preloadedBuffer;
+            console.log('📦 Using preloaded buffer for anti-spoofing model');
+          } else {
+            const modelUrl = isDev
+              ? '/weights/AntiSpoofing_bin_1.5_128.onnx'
+              : 'app://weights/AntiSpoofing_bin_1.5_128.onnx';
+            
+            console.log(`🌐 Fetching anti-spoofing model from: ${modelUrl}`);
+            const response = await fetch(modelUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+            }
+            modelBuffer = await response.arrayBuffer();
+            console.log(`📦 Model buffer loaded: ${(modelBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
           }
+          
+          // Use WASM-only execution for anti-spoofing model (WebGL not supported)
+          const options: ort.InferenceSession.SessionOptions = {
+            executionProviders: ['wasm'],  // Anti-spoofing model only supports WASM
+            logSeverityLevel: 4,  // Minimal logging (4 = ERROR only)
+            logVerbosityLevel: 0, // No verbose logs
+            enableCpuMemArena: true,
+            enableMemPattern: true,
+            executionMode: 'parallel',  // Use parallel execution
+            graphOptimizationLevel: 'extended',  // More aggressive optimization
+            enableProfiling: false,
+            extra: {
+              session: {
+                use_device_allocator_for_initializers: 1,
+                use_ort_model_bytes_directly: 1
+              }
+            }
+            // NO freeDimensionOverrides - this was causing the input shape conflict!
+          };
+          
+          console.log('🔧 Using direct session options for anti-spoofing model (no freeDimensionOverrides)');
+          
+          // Create session with WASM-only execution (no fallback needed)
+          return await ort.InferenceSession.create(modelBuffer, options);
         }
       );
       
       // Warm up the session with dummy input for faster first inference
       const dummyInput = {
-        [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * 128 * 128), [1, 3, 128, 128])
+        [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * this.INPUT_SIZE * this.INPUT_SIZE), [1, 3, this.INPUT_SIZE, this.INPUT_SIZE])
       };
       await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
 
-      console.log('✅ Anti-spoofing model loaded successfully with session pooling');
+      console.log('✅ Anti-spoofing model loaded successfully with SessionPoolManager');
       console.log('📊 Input names:', this.pooledSession.session.inputNames);
       console.log('📊 Output names:', this.pooledSession.session.outputNames);
     } catch (err) {
@@ -112,12 +117,28 @@ export class WebAntiSpoofingService {
       throw new Error('Anti-spoofing model not initialized');
     }
 
+    // Input validation
+    if (!faceImageData || !faceImageData.data || faceImageData.width <= 0 || faceImageData.height <= 0) {
+      throw new Error('Invalid ImageData: ImageData must have valid dimensions and pixel data');
+    }
+
+    if (faceImageData.data.length !== faceImageData.width * faceImageData.height * 4) {
+      throw new Error('Invalid ImageData: Data length does not match dimensions');
+    }
+
     try {
       this.frameCount++;
 
       // Apply increased crop if bbox is provided
       let processedImageData: ImageData;
       if (bbox) {
+        // Validate bbox
+        if (bbox.width <= 0 || bbox.height <= 0 || bbox.x < 0 || bbox.y < 0) {
+          throw new Error('Invalid bounding box dimensions');
+        }
+        if (bbox.x + bbox.width > faceImageData.width || bbox.y + bbox.height > faceImageData.height) {
+          throw new Error('Bounding box exceeds image dimensions');
+        }
         processedImageData = this.increasedCrop(faceImageData, bbox, bboxInc);
       } else {
         processedImageData = faceImageData;
@@ -130,7 +151,17 @@ export class WebAntiSpoofingService {
         console.log('🔍 Tensor shape:', tensor.dims);
       }
 
-      const feeds = { [this.pooledSession.session.inputNames[0]]: tensor };
+      // Debug: Log input details before running inference
+      console.log('🔍 Input names:', this.pooledSession.session.inputNames);
+      console.log('🔍 Output names:', this.pooledSession.session.outputNames);
+      console.log('🔍 Tensor shape:', tensor.dims);
+      console.log('🔍 Tensor type:', tensor.type);
+      
+      const inputName = this.pooledSession.session.inputNames[0];
+      const feeds = { [inputName]: tensor };
+      
+      console.log('🔍 Feeds object:', Object.keys(feeds), 'with tensor shape:', feeds[inputName].dims);
+      
       const outputs = await this.pooledSession.session.run(feeds);
 
       const outputTensor = outputs[this.pooledSession.session.outputNames[0]];
@@ -220,42 +251,78 @@ export class WebAntiSpoofingService {
   private preprocessFaceImage(faceImageData: ImageData): ort.Tensor {
     const { width, height } = faceImageData;
     
-    // Create canvas for resizing
-    const canvas = new OffscreenCanvas(128, 128);
-    const ctx = canvas.getContext('2d')!;
-    
-    // Create ImageData and draw to canvas
-    const sourceCanvas = new OffscreenCanvas(width, height);
-    const sourceCtx = sourceCanvas.getContext('2d')!;
-    sourceCtx.putImageData(faceImageData, 0, 0);
-    
-    // Resize to exactly 128x128 with proper interpolation
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(sourceCanvas, 0, 0, 128, 128);
-    
-    // Get resized image data
-    const resizedImageData = ctx.getImageData(0, 0, 128, 128);
-    const resizedData = resizedImageData.data;
-    
-    // Convert to RGB and normalize to [0, 1] range (standard for most models)
-    const tensorData = new Float32Array(3 * 128 * 128);
-    
-    for (let i = 0; i < 128 * 128; i++) {
-      const pixelIndex = i * 4;
-      
-      // Extract RGB values
-      const r = resizedData[pixelIndex];
-      const g = resizedData[pixelIndex + 1];
-      const b = resizedData[pixelIndex + 2];
-      
-      // Normalize to [0, 1] and arrange in CHW format
-      tensorData[i] = r / 255.0;                    // R channel
-      tensorData[128 * 128 + i] = g / 255.0;        // G channel
-      tensorData[2 * 128 * 128 + i] = b / 255.0;    // B channel
+    // Validate input dimensions
+    if (width <= 0 || height <= 0) {
+      throw new Error(`Invalid image dimensions: ${width}x${height}`);
     }
     
-    return new ort.Tensor('float32', tensorData, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
+    try {
+      // Create canvas for resizing
+      const canvas = new OffscreenCanvas(this.INPUT_SIZE, this.INPUT_SIZE);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Failed to get 2D context from OffscreenCanvas');
+      }
+      
+      // Create ImageData and draw to canvas
+      const sourceCanvas = new OffscreenCanvas(width, height);
+      const sourceCtx = sourceCanvas.getContext('2d');
+      if (!sourceCtx) {
+        throw new Error('Failed to get 2D context from source OffscreenCanvas');
+      }
+      
+      sourceCtx.putImageData(faceImageData, 0, 0);
+      
+      // Resize to exactly 128x128 with proper interpolation
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(sourceCanvas, 0, 0, this.INPUT_SIZE, this.INPUT_SIZE);
+      
+      // Get resized image data
+      const resizedImageData = ctx.getImageData(0, 0, this.INPUT_SIZE, this.INPUT_SIZE);
+      const resizedData = resizedImageData.data;
+      
+      // Validate resized data
+      if (resizedData.length !== this.INPUT_SIZE * this.INPUT_SIZE * 4) {
+        throw new Error(`Invalid resized data length: expected ${this.INPUT_SIZE * this.INPUT_SIZE * 4}, got ${resizedData.length}`);
+      }
+      
+      // Convert to RGB and normalize to [0, 1] range (standard for most models)
+      const tensorData = new Float32Array(3 * this.INPUT_SIZE * this.INPUT_SIZE);
+      
+      for (let i = 0; i < this.INPUT_SIZE * this.INPUT_SIZE; i++) {
+        const pixelIndex = i * 4;
+        
+        // Extract RGB values
+        const r = resizedData[pixelIndex];
+        const g = resizedData[pixelIndex + 1];
+        const b = resizedData[pixelIndex + 2];
+        
+        // Normalize to [0, 1] and arrange in CHW format
+        tensorData[i] = r / 255.0;                                    // R channel
+        tensorData[this.INPUT_SIZE * this.INPUT_SIZE + i] = g / 255.0; // G channel
+        tensorData[2 * this.INPUT_SIZE * this.INPUT_SIZE + i] = b / 255.0; // B channel
+      }
+      
+      // Validate tensor data
+      if (tensorData.length !== 3 * this.INPUT_SIZE * this.INPUT_SIZE) {
+        throw new Error(`Invalid tensor data length: expected ${3 * this.INPUT_SIZE * this.INPUT_SIZE}, got ${tensorData.length}`);
+      }
+
+      // Debug: Log tensor creation details
+      console.log('🔍 Creating tensor with shape:', [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
+      console.log('🔍 Tensor data length:', tensorData.length);
+      console.log('🔍 Expected length:', 3 * this.INPUT_SIZE * this.INPUT_SIZE);
+      
+      const tensor = new ort.Tensor('float32', tensorData, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
+      console.log('🔍 Created tensor dims:', tensor.dims);
+      console.log('🔍 Created tensor type:', tensor.type);
+      
+      return tensor;
+    } catch (error) {
+      console.error('❌ Error in preprocessFaceImage:', error);
+      throw new Error(`Failed to preprocess face image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
 
