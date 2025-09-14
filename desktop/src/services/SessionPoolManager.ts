@@ -113,7 +113,7 @@ export class SessionPoolManager {
   }
 
   /**
-   * Get optimized session options
+   * Get optimized session options with per-model WASM optimizations
    */
   public getOptimizedSessionOptions(modelName?: string): ort.InferenceSession.SessionOptions {
     const baseOptions: ort.InferenceSession.SessionOptions = {
@@ -135,6 +135,21 @@ export class SessionPoolManager {
       }
     };
 
+    // Apply per-model WASM optimizations based on model compatibility
+    if (modelName && this.supportsWasmOptimizations(modelName)) {
+      const isAppProtocol = typeof window !== 'undefined' && window.location?.protocol === 'app:';
+      if (!isAppProtocol) {
+        baseOptions.extra = {
+          ...baseOptions.extra,
+          wasm: {
+            simd: true,
+            proxy: true,
+            numThreads: Math.min(4, typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 4)
+          }
+        };
+      }
+    }
+
     // Don't add freeDimensionOverrides for anti-spoofing model as it causes input shape conflicts
     if (modelName && !modelName.includes('AntiSpoofing')) {
       baseOptions.freeDimensionOverrides = {
@@ -144,6 +159,20 @@ export class SessionPoolManager {
     }
 
     return baseOptions;
+  }
+
+  /**
+   * Check if a model supports WASM optimizations
+   */
+  private supportsWasmOptimizations(modelName: string): boolean {
+    // Models that are known to work well with WASM optimizations
+    const compatibleModels = [
+      'scrfd_2.5g_kps_640x640.onnx',
+      'edgeface-recognition.onnx'
+      // AntiSpoofing model excluded as it may have compatibility issues
+    ];
+    
+    return compatibleModels.some(model => modelName.includes(model));
   }
 
   /**
