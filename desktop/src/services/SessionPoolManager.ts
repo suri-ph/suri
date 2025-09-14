@@ -21,6 +21,10 @@ export class SessionPoolManager {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
+    // Configure global WASM settings for SIMD and proxy support
+    ort.env.wasm.simd = true;  // Enable SIMD acceleration
+    ort.env.wasm.proxy = true; // Enable proxy worker for better UI responsiveness
+    
     // OPTIMIZED: Clean up unused sessions less frequently for better performance
     this.cleanupInterval = setInterval(() => {
       this.cleanupUnusedSessions();
