@@ -26,6 +26,11 @@ export class SessionPoolManager {
     ort.env.wasm.proxy = true; // Enable proxy worker for better UI responsiveness
     ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency); // Multi-threading for better performance
     
+    // Configure WebGL settings for better GPU performance
+    ort.env.webgl.contextId = 'webgl2'; // Prefer WebGL2 for better performance
+    ort.env.webgl.matmulMaxBatchSize = 16; // Optimize for batch processing
+    ort.env.webgl.textureCacheMode = 'full'; // Cache textures for better performance
+    
     // OPTIMIZED: Clean up unused sessions less frequently for better performance
     this.cleanupInterval = setInterval(() => {
       this.cleanupUnusedSessions();
@@ -73,16 +78,48 @@ export class SessionPoolManager {
   }
 
   /**
+   * Detect available GPU capabilities and return optimal execution providers
+   */
+  private getOptimalExecutionProviders(): (ort.InferenceSession.ExecutionProviderConfig | string)[] {
+    const providers: (ort.InferenceSession.ExecutionProviderConfig | string)[] = [];
+    const detectedCapabilities: string[] = [];
+    
+    // Check for WebGPU support (fastest, most modern)
+    if ('gpu' in navigator && navigator.gpu) {
+      providers.push({ name: 'webgpu' });
+      detectedCapabilities.push('WebGPU');
+    }
+    
+    // Check for WebGL2 support (fast, widely supported)
+    const canvas = document.createElement('canvas');
+    const webgl2 = canvas.getContext('webgl2');
+    if (webgl2) {
+      providers.push({ name: 'webgl' });
+      detectedCapabilities.push('WebGL2');
+    } else {
+      // Fallback to WebGL1 if WebGL2 not available
+      const webgl1 = canvas.getContext('webgl');
+      if (webgl1) {
+        providers.push({ name: 'webgl' });
+        detectedCapabilities.push('WebGL1');
+      }
+    }
+    
+    // Always include WASM as final fallback
+    providers.push('wasm');
+    detectedCapabilities.push('WASM+SIMD');
+    
+    console.log(`🚀 GPU Detection: Available accelerators: ${detectedCapabilities.join(' → ')}`);
+    
+    return providers;
+  }
+
+  /**
    * Get optimized session options
    */
   public getOptimizedSessionOptions(modelName?: string): ort.InferenceSession.SessionOptions {
     const baseOptions: ort.InferenceSession.SessionOptions = {
-      executionProviders: [
-        {
-          name: 'webgl'
-        },
-        'wasm'
-      ],
+      executionProviders: this.getOptimalExecutionProviders(),
       logSeverityLevel: 3, // Error only
       logVerbosityLevel: 0,
       enableMemPattern: true,
