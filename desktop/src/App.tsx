@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import LiveCameraRecognition from './components/LiveCameraRecognition.tsx'
+import LiveCameraRecognition from './components/Main.tsx'
 import SystemManagement from './components/SystemManagement.tsx'
 import TitleBar from './components/TitleBar.tsx'
 import { sqliteFaceLogService } from './services/SqliteFaceLogService'
