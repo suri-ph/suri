@@ -75,6 +75,12 @@ export class SessionPoolManager {
    */
   private initializeSharedWebGLContext(): void {
     try {
+      // Check if we're in a worker context where document is not available
+      if (typeof document === 'undefined') {
+        console.log('🔧 Running in worker context - skipping WebGL context initialization');
+        return;
+      }
+      
       const canvas = document.createElement('canvas');
       canvas.width = 1;
       canvas.height = 1;
