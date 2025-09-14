@@ -250,8 +250,8 @@ export function setupFaceLogIPC() {
       
       // Save to file with pretty formatting
       fs.writeFileSync(dbPath, JSON.stringify(databaseData, null, 2), 'utf8');
-      console.log(`💾 Face database saved to: ${dbPath}`);
-      console.log(`📊 Persons stored: ${Object.keys(databaseData).length}`);
+  
+  
       return { success: true };
     } catch (error) {
       console.error('Failed to save face database:', error);
@@ -265,14 +265,14 @@ export function setupFaceLogIPC() {
       const dbPath = getFaceDbPath();
       
       if (!fs.existsSync(dbPath)) {
-        console.log(`📂 Face database file does not exist yet: ${dbPath}`);
+  
         return { success: true, data: {} };
       }
       
       const fileContent = fs.readFileSync(dbPath, 'utf8');
       const databaseData = JSON.parse(fileContent);
-      console.log(`📂 Face database loaded from: ${dbPath}`);
-      console.log(`📊 Persons loaded: ${Object.keys(databaseData).length}`);
+  
+  
       return { success: true, data: databaseData };
     } catch (error) {
       console.error('Failed to load face database:', error);
@@ -296,7 +296,7 @@ export function setupFaceLogIPC() {
       if (existed) {
         delete databaseData[personId];
         fs.writeFileSync(dbPath, JSON.stringify(databaseData, null, 2), 'utf8');
-        console.log(`🗑️ Removed "${personId}" from face database`);
+    
       }
       
       return { success: true, existed };
@@ -326,5 +326,5 @@ export function setupFaceLogIPC() {
     }
   });
 
-  console.log('[SUCCESS] Face Log IPC handlers registered');
+
 }

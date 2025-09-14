@@ -32,7 +32,7 @@ const prewarmServices = () => {
   edgeFaceService = new WebFaceService(0.6);
   // Anti-spoofing stays lazy for memory efficiency
   
-  console.log('🚀 ULTRA-OPTIMIZED: Services pre-instantiated for zero-delay init');
+  
 };
 
 // Start prewarming immediately when worker loads
@@ -48,17 +48,14 @@ self.onmessage = async (event) => {
         const { modelBuffers } = data;
         storedModelBuffers = modelBuffers; // Store for lazy initialization
 
-        // Services are already pre-instantiated, just initialize with models
-        const initStart = performance.now();
-        
         // Parallel initialization with pre-loaded buffers (services already exist)
         await Promise.all([
           scrfdService!.initialize(modelBuffers?.['scrfd_2.5g_kps_640x640.onnx']),
           edgeFaceService!.initialize(modelBuffers?.['edgeface-recognition.onnx'])
         ]);
         
-        const initTime = performance.now() - initStart;
-        console.log(`⚡ ULTRA-OPTIMIZED: Worker models initialized in ${initTime.toFixed(0)}ms`);
+      
+    
         
         // Don't load database here - we'll get it from main thread
         
@@ -328,10 +325,10 @@ self.onmessage = async (event) => {
       case 'anti-spoofing-detect': {
         // Lazy initialization of anti-spoofing service (only when needed for recognized faces)
         if (!antiSpoofingService) {
-          console.log('🔄 Lazy initializing anti-spoofing service...');
+  
           antiSpoofingService = new WebAntiSpoofingService();
           await antiSpoofingService.initialize(storedModelBuffers?.['anti_spoofing.onnx']);
-          console.log('✅ Anti-spoofing service lazy initialized');
+  
         }
         
         const { imageData: transferableImageData } = data;

@@ -14,12 +14,12 @@ function App() {
   const fetchSystemStats = useCallback(async () => {
     try {
       // Use SqliteFaceLogService instead of API
-      const [todayStats, recentLogs] = await Promise.all([
+      await Promise.all([
         sqliteFaceLogService.getTodayStats(),
         sqliteFaceLogService.getRecentLogs(1000)
       ])
 
-      console.log('System stats fetched:', { todayStats, recentLogsCount: recentLogs.length })
+
     } catch (error) {
       console.error('Failed to fetch system stats:', error)
     }
@@ -34,10 +34,10 @@ function App() {
         if (isAvailable) {
           await fetchSystemStats()
         } else {
-          console.error('SQLite3 database not available')
+          // SQLite3 database not available
         }
-      } catch (error) {
-        console.error('Failed to initialize app:', error)
+      } catch {
+        // Failed to initialize app
       }
     }
 

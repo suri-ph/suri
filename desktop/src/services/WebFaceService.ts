@@ -38,13 +38,13 @@ export class WebFaceService {
                   (typeof window !== 'undefined' && window.location.hostname === 'localhost');
     
     const modelName = 'edgeface-recognition.onnx';
-    console.log(`📥 Loading EdgeFace model: ${modelName} (${isDev ? 'development' : 'production'} mode)`);
+
     
     let modelBuffer: ArrayBuffer;
     
     // Use pre-loaded buffer if available (worker context with optimization)
     if (preloadedBuffer) {
-      console.log(`🚀 Using pre-loaded ${modelName} buffer (${(preloadedBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)`);
+
       modelBuffer = preloadedBuffer;
     } else {
       // Fallback to loading methods for main context or dev mode

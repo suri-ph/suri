@@ -36,7 +36,6 @@ export class WebAntiSpoofingService {
                   (typeof window !== 'undefined' && window.location.hostname === 'localhost');
     
     const modelName = 'AntiSpoofing_bin_1.5_128.onnx';
-    console.log(`📥 Loading AntiSpoofing model: ${modelName} (${isDev ? 'development' : 'production'} mode)`);
     
     try {
       // Use SessionPoolManager with ArrayBuffer loading like other models
@@ -47,7 +46,6 @@ export class WebAntiSpoofingService {
           
           if (preloadedBuffer) {
             modelBuffer = preloadedBuffer;
-            console.log('📦 Using preloaded buffer for anti-spoofing model');
           } else {
             if (isDev) {
               // Dev mode - use fetch from public folder
@@ -60,7 +58,6 @@ export class WebAntiSpoofingService {
               // Production mode - no fallback, should use preloaded buffer
               throw new Error('Anti-spoofing model not available through optimized loading paths');
             }
-            console.log(`📦 Model buffer loaded: ${(modelBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
           }
           
           // Use WASM-only execution for anti-spoofing model (WebGL not supported)
@@ -82,7 +79,7 @@ export class WebAntiSpoofingService {
             // NO freeDimensionOverrides - this was causing the input shape conflict!
           };
           
-          console.log('🔧 Using direct session options for anti-spoofing model (no freeDimensionOverrides)');
+
           
           // Create session with WASM-only execution (no fallback needed)
           return await ort.InferenceSession.create(modelBuffer, options);
@@ -95,11 +92,9 @@ export class WebAntiSpoofingService {
       };
       await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
 
-      console.log('✅ Anti-spoofing model loaded successfully with SessionPoolManager');
-      console.log('📊 Input names:', this.pooledSession.session.inputNames);
-      console.log('📊 Output names:', this.pooledSession.session.outputNames);
+
     } catch (err) {
-      console.error('❌ Failed to load anti-spoofing model:', err);
+
       throw new Error(`Anti-spoofing model initialization failed: ${err}`);
     }
   }
@@ -147,21 +142,8 @@ export class WebAntiSpoofingService {
 
       const tensor = this.preprocessFaceImage(processedImageData);
 
-      if (this.frameCount === 1) {
-        console.log('🔍 Model initialized - Input:', this.pooledSession.session.inputNames[0]);
-        console.log('🔍 Tensor shape:', tensor.dims);
-      }
-
-      // Debug: Log input details before running inference
-      console.log('🔍 Input names:', this.pooledSession.session.inputNames);
-      console.log('🔍 Output names:', this.pooledSession.session.outputNames);
-      console.log('🔍 Tensor shape:', tensor.dims);
-      console.log('🔍 Tensor type:', tensor.type);
-      
       const inputName = this.pooledSession.session.inputNames[0];
       const feeds = { [inputName]: tensor };
-      
-      console.log('🔍 Feeds object:', Object.keys(feeds), 'with tensor shape:', feeds[inputName].dims);
       
       const outputs = await this.pooledSession.session.run(feeds);
 
@@ -190,15 +172,15 @@ export class WebAntiSpoofingService {
       // Raw score is the difference between live and spoof logits
       const rawScore = liveLogit - spoofLogit;
 
-      console.log(`Spoof: ${spoofLogit.toFixed(3)}, Live: ${liveLogit.toFixed(3)}, LiveProb: ${liveProb.toFixed(3)}, isSpoof: ${isSpoof}`);
+
 
       return {
         isLive: !isSpoof, // Convert isSpoof to isLive
         confidence,
         score: rawScore,
       };
-    } catch (err) {
-      console.error('❌ Anti-spoofing detection failed:', err);
+    } catch {
+
       return {
         isLive: false,
         confidence: 0,
@@ -310,18 +292,9 @@ export class WebAntiSpoofingService {
         throw new Error(`Invalid tensor data length: expected ${3 * this.INPUT_SIZE * this.INPUT_SIZE}, got ${tensorData.length}`);
       }
 
-      // Debug: Log tensor creation details
-      console.log('🔍 Creating tensor with shape:', [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
-      console.log('🔍 Tensor data length:', tensorData.length);
-      console.log('🔍 Expected length:', 3 * this.INPUT_SIZE * this.INPUT_SIZE);
-      
-      const tensor = new ort.Tensor('float32', tensorData, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
-      console.log('🔍 Created tensor dims:', tensor.dims);
-      console.log('🔍 Created tensor type:', tensor.type);
-      
-      return tensor;
+      return new ort.Tensor('float32', tensorData, [1, 3, this.INPUT_SIZE, this.INPUT_SIZE]);
     } catch (error) {
-      console.error('❌ Error in preprocessFaceImage:', error);
+
       throw new Error(`Failed to preprocess face image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

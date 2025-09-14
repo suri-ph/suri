@@ -40,13 +40,13 @@ export class WebScrfdService {
                   (typeof window !== 'undefined' && window.location.hostname === 'localhost');
     
     const modelName = 'scrfd_2.5g_kps_640x640.onnx';
-    console.log(`📥 Loading SCRFD model: ${modelName} (${isDev ? 'development' : 'production'} mode)`);
+
     
     let modelBuffer: ArrayBuffer;
     
     // Use pre-loaded buffer if available (worker context with optimization)
     if (preloadedBuffer) {
-      console.log(`🚀 Using pre-loaded ${modelName} buffer (${(preloadedBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)`);
+
       modelBuffer = preloadedBuffer;
     } else {
       // Fallback to loading methods for main context or dev mode

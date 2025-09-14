@@ -72,7 +72,7 @@ class Sqlite3FaceDatabase {
   async initialize(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        console.log(`[INFO] Initializing SQLite3 database at: ${this.dbPath}`);
+    
         
         // Create database connection with verbose mode for debugging
         const verbose = sqlite3.verbose();
@@ -83,12 +83,12 @@ class Sqlite3FaceDatabase {
             return;
           }
           
-          console.log(`[INFO] Connected to SQLite3 database at ${this.dbPath}`);
+      
           
           // Create tables if they don't exist
           this.createTables()
             .then(() => {
-              console.log('[SUCCESS] SQLite3 Face Database initialized successfully');
+          
               resolve();
             })
             .catch(reject);
@@ -179,7 +179,7 @@ class Sqlite3FaceDatabase {
           return;
         }
         
-        console.log(`✅ SQLite3: Logged detection for ${personId} (${mode}, ${(confidence * 100).toFixed(1)}%)`);
+    
         resolve(logId);
       });
 
@@ -279,7 +279,7 @@ class Sqlite3FaceDatabase {
         // For SQLite3, we can simply copy the database file
         const backupPath = filePath.endsWith('.db') ? filePath : `${filePath}.db`;
         fs.copyFileSync(this.dbPath, backupPath);
-        console.log(`📁 Database exported to: ${backupPath}`);
+    
         resolve();
       } catch (error) {
         console.error('❌ Failed to export database:', error);
@@ -321,7 +321,7 @@ class Sqlite3FaceDatabase {
               return;
             }
             
-            console.log(`🗑️ Deleted ${deleteCount} old records (older than ${daysToKeep} days)`);
+        
             resolve(deleteCount);
           });
         } else {
@@ -453,7 +453,7 @@ class Sqlite3FaceDatabase {
                 return;
               }
               
-              console.log(`✏️ Updated ${updateCount} records: "${oldPersonId}" -> "${newPersonId}"`);
+          
               resolve(updateCount);
             });
           } else {
@@ -493,7 +493,7 @@ class Sqlite3FaceDatabase {
               return;
             }
             
-            console.log(`🗑️ Deleted ${deleteCount} records for person: ${personId}`);
+        
             resolve(deleteCount);
           });
         } else {
@@ -566,8 +566,6 @@ class Sqlite3FaceDatabase {
         this.db.close((err) => {
           if (err) {
             console.error('❌ Failed to close database:', err);
-          } else {
-            console.log('📊 SQLite3 database closed successfully');
           }
           this.db = null;
           resolve();
@@ -592,7 +590,7 @@ class Sqlite3FaceDatabase {
           return;
         }
         
-        console.log('🧹 Database vacuum completed successfully');
+    
         resolve();
       });
     });

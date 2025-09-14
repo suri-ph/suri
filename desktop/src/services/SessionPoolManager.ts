@@ -17,13 +17,10 @@ export class SessionPoolManager {
   private sessionPools: Map<string, PooledSession[]> = new Map();
   private maxPoolSize = 5; // INCREASED: More sessions for better performance
   private sessionTimeout = 600000; // INCREASED: 10 minutes timeout for better reuse
-  private webglContext: WebGL2RenderingContext | null = null;
+
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
-    // Initialize WebGL context for sharing
-    this.initializeSharedWebGLContext();
-    
     // OPTIMIZED: Clean up unused sessions less frequently for better performance
     this.cleanupInterval = setInterval(() => {
       this.cleanupUnusedSessions();
@@ -55,7 +52,7 @@ export class SessionPoolManager {
           });
           // Immediately release it back to pool
            this.releaseSession(session);
-          console.log(`🔥 Prewarmed model: ${modelName}`);
+    
         } catch {
           // Silently fail prewarming - models will load on demand
         }
@@ -71,42 +68,7 @@ export class SessionPoolManager {
   }
 
   /**
-   * Initialize a shared WebGL context for better performance
-   */
-  private initializeSharedWebGLContext(): void {
-    try {
-      // Check if we're in a worker context where document is not available
-      if (typeof document === 'undefined') {
-        console.log('🔧 Running in worker context - skipping WebGL context initialization');
-        return;
-      }
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = 1;
-      canvas.height = 1;
-      
-      const contextOptions: WebGLContextAttributes = {
-        alpha: false,
-        antialias: false,
-        depth: false,
-        stencil: false,
-        preserveDrawingBuffer: false,
-        powerPreference: 'high-performance',
-        failIfMajorPerformanceCaveat: false
-      };
-      
-      this.webglContext = canvas.getContext('webgl2', contextOptions) as WebGL2RenderingContext;
-      
-      if (this.webglContext) {
-        console.log('🎯 Shared WebGL2 context initialized for session pooling');
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to initialize shared WebGL context:', error);
-    }
-  }
-
-  /**
-   * Get optimized session options with shared WebGL context
+   * Get optimized session options
    */
   public getOptimizedSessionOptions(modelName?: string): ort.InferenceSession.SessionOptions {
     const baseOptions: ort.InferenceSession.SessionOptions = {
@@ -138,9 +100,7 @@ export class SessionPoolManager {
       baseOptions.freeDimensionOverrides = {
         'batch_size': 1
       };
-      console.log(`🔧 Added freeDimensionOverrides for model: ${modelName}`);
-    } else {
-      console.log(`🔧 Skipped freeDimensionOverrides for anti-spoofing model: ${modelName}`);
+
     }
 
     return baseOptions;
@@ -158,13 +118,13 @@ export class SessionPoolManager {
     if (availableSession) {
       availableSession.inUse = true;
       availableSession.lastUsed = Date.now();
-      console.log(`♻️ Reusing pooled session for ${modelName}`);
+
       return availableSession;
     }
     
     // Create new session if pool not full
     if (pool.length < this.maxPoolSize) {
-      console.log(`🆕 Creating new pooled session for ${modelName}`);
+
       const session = await createSessionFn();
       
       const pooledSession: PooledSession = {
@@ -214,14 +174,14 @@ export class SessionPoolManager {
       const activePool = pool.filter(session => {
         if (!session.inUse && (now - session.lastUsed) > this.sessionTimeout) {
           // Session cleanup is handled automatically by ONNX Runtime Web
-          console.log(`Removing unused session for ${modelName}`);
+  
           return false;
         }
         return true;
       });
       
       if (activePool.length !== pool.length) {
-        console.log(`🧹 Cleaned up ${pool.length - activePool.length} unused sessions for ${modelName}`);
+  
         this.sessionPools.set(modelName, activePool);
       }
     }
@@ -234,7 +194,7 @@ export class SessionPoolManager {
     try {
       // Run a dummy inference to warm up the session
       await pooledSession.session.run(dummyInput);
-      console.log(`🔥 Warmed up session for ${pooledSession.modelName}`);
+
     } catch (error) {
       console.warn(`Failed to warm up session for ${pooledSession.modelName}:`, error);
     }
@@ -249,12 +209,7 @@ export class SessionPoolManager {
       this.cleanupInterval = null;
     }
     
-    for (const [modelName, pool] of this.sessionPools.entries()) {
-      // Session cleanup is handled automatically by ONNX Runtime Web
-      console.log(`Clearing ${pool.length} sessions for ${modelName}`);
-    }
-    
     this.sessionPools.clear();
-    console.log('🗑️ Session pool manager disposed');
+    
   }
 }

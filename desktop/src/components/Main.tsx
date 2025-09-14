@@ -144,7 +144,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
       if (!antiSpoofingServiceRef.current) {
         antiSpoofingServiceRef.current = new WebAntiSpoofingService(); // Threshold between real and spoof scores
         await antiSpoofingServiceRef.current.initialize();
-        console.log('✅ Anti-spoofing service initialized');
+  
       }
 
       // Load existing database and get stats
@@ -425,8 +425,8 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
         // Log the best detection from the session, not necessarily the current one
         const bestDetection = deduplicationResult.bestDetection;
         
-        console.log(`📊 Auto-logging best detection for ${personId}: ${deduplicationResult.reason}`);
-        console.log(`Quality Score: ${bestDetection.qualityScore.toFixed(3)}, Confidence: ${bestDetection.confidence.toFixed(3)}, Similarity: ${bestDetection.similarity.toFixed(3)}`);
+
+
         
         // Log to persistent SQLite database using the best detection
         await sqliteFaceLogService.logAutoDetection(
@@ -449,12 +449,12 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
         refreshDatabaseData();
       } else {
         // Log why we didn't log for debugging
-        console.log(`🚫 Not logging ${personId}: ${deduplicationResult.reason}`);
+
         
         // Show active session info for debugging
         const sessionInfo = deduplicationServiceRef.current.getSessionInfo(deduplicationResult.sessionId);
         if (sessionInfo) {
-          console.log(`📋 Session ${deduplicationResult.sessionId}: ${sessionInfo.detections.length} detections, best quality: ${sessionInfo.bestDetection?.qualityScore.toFixed(3) || 'N/A'}`);
+          // Session info available for debugging if needed
         }
       }
       
@@ -647,8 +647,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
             const recognizedFaces = validDetections.filter(d => d.confidence > 0.6 && d.recognition?.personId);
             
             if (recognizedFaces.length > 1) {
-              console.log(`🔥 MULTI-FACE FRAME: Processing ${recognizedFaces.length} faces simultaneously:`, 
-                recognizedFaces.map(f => `${f.recognition?.personId} (${f.confidence.toFixed(2)})`).join(', '));
+              // Multiple faces detected - processing each one
             }
             
             recognizedFaces.forEach(detection => {
@@ -1170,18 +1169,18 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
         
         // Initialize WorkerManager to get face recognition database count
         try {
-          console.log('🔄 Initializing face recognition database for People in DB count...');
+    
           if (!workerManagerRef.current) {
             workerManagerRef.current = new WorkerManager();
           }
           await workerManagerRef.current.initialize();
           const faceStats = await workerManagerRef.current.getStats();
-          console.log('📊 Face recognition stats loaded:', faceStats);
+    
           setSystemStats(prev => ({
             ...prev,
             total_people: faceStats.totalPersons
           }));
-          console.log('✅ People in DB count updated:', faceStats.totalPersons);
+    
         } catch (error) {
           console.error('❌ Failed to initialize face recognition database:', error);
         }

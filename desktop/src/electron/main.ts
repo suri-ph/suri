@@ -76,9 +76,6 @@ async function preloadModels(): Promise<void> {
     'AntiSpoofing_bin_1.5_128.onnx'
   ];
   
-  console.log('🚀 Pre-loading models for optimal performance...');
-  const startTime = performance.now();
-  
   try {
     for (const modelName of modelNames) {
       const modelPath = isDev()
@@ -89,11 +86,11 @@ async function preloadModels(): Promise<void> {
       const arrayBuffer = new ArrayBuffer(buffer.byteLength);
       new Uint8Array(arrayBuffer).set(new Uint8Array(buffer));
       modelBuffers.set(modelName, arrayBuffer);
-      console.log(`✅ Pre-loaded ${modelName} (${(buffer.length / 1024 / 1024).toFixed(1)}MB)`);
+  
     }
     
-    const loadTime = performance.now() - startTime;
-    console.log(`🎯 All models pre-loaded in ${loadTime.toFixed(0)}ms`);
+
+
   } catch (error) {
     console.error('❌ Failed to pre-load models:', error);
     throw error;
@@ -199,7 +196,7 @@ app.whenReady().then(async () => {
     // Initialize SQLite database first
     try {
         await sqlite3FaceDB.initialize();
-        console.log('[SUCCESS] SQLite3 Face Database initialized successfully');
+    
     } catch (error) {
         console.error('[ERROR] Failed to initialize SQLite3 database:', error);
     }

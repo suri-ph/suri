@@ -365,12 +365,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
             total_records: personLogs.length
           }
         });
-
-        // If there are partial matches, show them in console for debugging
-        if (partialMatches.length > 0) {
-          console.log('Partial matches found:', partialMatches);
-        }
-      } else {
+      } 
         // Show partial matches if any
         if (partialMatches.length > 0) {
           setSearchResults({ 
@@ -379,7 +374,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
         } else {
           setSearchResults({ error: 'Person not found' });
         }
-      }
+      
     } catch (error) {
       console.error('Search failed:', error);
       setSearchResults({ error: 'Search failed' });
@@ -453,7 +448,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
           const result = await window.electronAPI.removeFacePerson(person);
           if (result.success && result.existed) {
             embeddingRemoved = true;
-            console.log(`🗑️ Removed "${person}" from face recognition database file`);
+    
           }
         } else {
           console.warn('ElectronAPI not available - cannot remove from face database');

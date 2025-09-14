@@ -60,7 +60,6 @@ export default function AppDropdown({ isConnected, onMenuSelect }: AppDropdownPr
       ),
       action: () => {
         // TODO: Implement about modal
-        console.log('About clicked')
         setIsOpen(false)
       }
     },
@@ -74,7 +73,6 @@ export default function AppDropdown({ isConnected, onMenuSelect }: AppDropdownPr
       ),
       action: () => {
         // TODO: Implement help modal
-        console.log('Help clicked')
         setIsOpen(false)
       }
     }

@@ -38,9 +38,6 @@ export class WorkerManager {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    const startTime = performance.now();
-    console.log('🚀 Starting WorkerManager initialization...');
-
     // Create the worker
     this.worker = new Worker(new URL('./FaceWorker.ts', import.meta.url), {
       type: 'module'
@@ -57,9 +54,9 @@ export class WorkerManager {
 
     // Get pre-loaded model buffers from main process
     const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-    console.log(`🚀 Initializing worker in ${isDev ? 'development' : 'production'} mode`);
+
     
-    const modelInitStart = performance.now();
+   
     
     const modelBuffers: Record<string, ArrayBuffer> = {};
     const transferableBuffers: ArrayBuffer[] = [];
@@ -76,7 +73,7 @@ export class WorkerManager {
         transferableBuffers.push(transferableBuffer);
       }
       
-      console.log(`📦 Retrieved ${Object.keys(modelBuffers).length} pre-loaded models from main process`);
+  
     }
     
     await this.sendMessage({ 
@@ -84,17 +81,13 @@ export class WorkerManager {
       data: { isDev, modelBuffers },
       transferables: transferableBuffers
     });
-    const modelInitTime = performance.now() - modelInitStart;
-    console.log(`⚡ Model initialization completed in ${modelInitTime.toFixed(0)}ms`);
+
+
     
     // Load database from localStorage and send to worker
-    const dbSyncStart = performance.now();
+
     await this.syncDatabaseToWorker();
-    const dbSyncTime = performance.now() - dbSyncStart;
-    console.log(`💾 Database sync completed in ${dbSyncTime.toFixed(0)}ms`);
-    
-    const totalTime = performance.now() - startTime;
-    console.log(`✅ WorkerManager initialization completed in ${totalTime.toFixed(0)}ms (target: <500ms - OPTIMIZED)`);
+  
     
     this.isInitialized = true;
   }
