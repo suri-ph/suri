@@ -24,6 +24,7 @@ export class SessionPoolManager {
     // Configure global WASM settings for SIMD and proxy support
     ort.env.wasm.simd = true;  // Enable SIMD acceleration
     ort.env.wasm.proxy = true; // Enable proxy worker for better UI responsiveness
+    ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency); // Multi-threading for better performance
     
     // OPTIMIZED: Clean up unused sessions less frequently for better performance
     this.cleanupInterval = setInterval(() => {
