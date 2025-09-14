@@ -327,7 +327,7 @@ self.onmessage = async (event) => {
         if (!antiSpoofingService) {
   
           antiSpoofingService = new WebAntiSpoofingService();
-          await antiSpoofingService.initialize(storedModelBuffers?.['anti_spoofing.onnx']);
+          await antiSpoofingService.initialize(storedModelBuffers?.['AntiSpoofing_bin_1.5_128.onnx']);
   
         }
         
