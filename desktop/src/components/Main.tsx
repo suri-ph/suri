@@ -775,13 +775,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
       // Always reset processing flag to allow next frame
       isProcessing.current = false;
     }
-  }, [
-    isStreaming,
-    cameraStatus,
-    captureFrame,
-    loggingMode,
-    handleAutoLog,
-  ]);
+  }, [isStreaming, captureFrame, loggingMode, handleAutoLog]);
 
   const startProcessing = useCallback(() => {
     console.log('🔍 startProcessing: Starting face detection processing loop');
