@@ -84,32 +84,44 @@ export class SessionPoolManager {
     const providers: (ort.InferenceSession.ExecutionProviderConfig | string)[] = [];
     const detectedCapabilities: string[] = [];
     
-    // Check for WebGPU support (fastest, most modern)
-    if ('gpu' in navigator && navigator.gpu) {
-      providers.push({ name: 'webgpu' });
-      detectedCapabilities.push('WebGPU');
-    }
+    // Check if we're in a worker context (no document/navigator access)
+    const isWorkerContext = typeof document === 'undefined' || typeof navigator === 'undefined';
     
-    // Check for WebGL2 support (fast, widely supported)
-    const canvas = document.createElement('canvas');
-    const webgl2 = canvas.getContext('webgl2');
-    if (webgl2) {
-      providers.push({ name: 'webgl' });
-      detectedCapabilities.push('WebGL2');
+    if (isWorkerContext) {
+      // In worker context, use conservative fallback
+      providers.push({ name: 'webgl' }); // Try WebGL first
+      providers.push('wasm'); // Fallback to WASM
+      detectedCapabilities.push('WebGL (worker)', 'WASM+SIMD');
+      console.log(`🔧 Worker Context: Using fallback accelerators: ${detectedCapabilities.join(' → ')}`);
     } else {
-      // Fallback to WebGL1 if WebGL2 not available
-      const webgl1 = canvas.getContext('webgl');
-      if (webgl1) {
-        providers.push({ name: 'webgl' });
-        detectedCapabilities.push('WebGL1');
+      // Main thread context - full GPU detection
+      // Check for WebGPU support (fastest, most modern)
+      if ('gpu' in navigator && navigator.gpu) {
+        providers.push({ name: 'webgpu' });
+        detectedCapabilities.push('WebGPU');
       }
+      
+      // Check for WebGL2 support (fast, widely supported)
+      const canvas = document.createElement('canvas');
+      const webgl2 = canvas.getContext('webgl2');
+      if (webgl2) {
+        providers.push({ name: 'webgl' });
+        detectedCapabilities.push('WebGL2');
+      } else {
+        // Fallback to WebGL1 if WebGL2 not available
+        const webgl1 = canvas.getContext('webgl');
+        if (webgl1) {
+          providers.push({ name: 'webgl' });
+          detectedCapabilities.push('WebGL1');
+        }
+      }
+      
+      // Always include WASM as final fallback
+      providers.push('wasm');
+      detectedCapabilities.push('WASM+SIMD');
+      
+      console.log(`🚀 GPU Detection: Available accelerators: ${detectedCapabilities.join(' → ')}`);
     }
-    
-    // Always include WASM as final fallback
-    providers.push('wasm');
-    detectedCapabilities.push('WASM+SIMD');
-    
-    console.log(`🚀 GPU Detection: Available accelerators: ${detectedCapabilities.join(' → ')}`);
     
     return providers;
   }
