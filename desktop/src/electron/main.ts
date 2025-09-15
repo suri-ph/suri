@@ -118,7 +118,7 @@ ipcMain.handle('models:get-all', async () => {
 function createWindow(): void {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-        width: 1024,
+        width: 1280,
         height: 600,
         webPreferences: {
             nodeIntegration: true,
