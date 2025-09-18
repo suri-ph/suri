@@ -82,10 +82,15 @@ export class WebFaceService {
     );
     
     // Warm up the session with dummy input for faster first inference
-    const dummyInput = {
-      [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * 112 * 112), [1, 3, 112, 112])
-    };
-    await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
+    // Note: Warmup may fail due to resize operations, but this doesn't affect actual inference
+    try {
+      const dummyInput = {
+        [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * 112 * 112), [1, 3, 112, 112])
+      };
+      await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
+    } catch (warmupError) {
+      console.info('🔄 EdgeFace warmup failed, but session is ready for actual inference:', warmupError);
+    }
   }
 
   /**

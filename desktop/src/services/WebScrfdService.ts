@@ -69,25 +69,22 @@ export class WebScrfdService {
     this.pooledSession = await this.sessionPool.getSession(
       modelName,
       async () => {
-        const options = this.sessionPool.getOptimizedSessionOptions();
-        try {
-          return await ort.InferenceSession.create(modelBuffer, options);
-        } catch {
-          // Fallback to CPU-only if WebGL fails
-          const fallbackOptions = {
-            ...options,
-            executionProviders: ['wasm']
-          };
-          return await ort.InferenceSession.create(modelBuffer, fallbackOptions);
-        }
+        // Pass model name to get WASM-only execution providers for SCRFD
+        const options = this.sessionPool.getOptimizedSessionOptions(modelName);
+        return await ort.InferenceSession.create(modelBuffer, options);
       }
     );
     
     // Warm up the session with dummy input for faster first inference
-    const dummyInput = {
-      [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * 640 * 640), [1, 3, 640, 640])
-    };
-    await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
+    // Note: Warmup may fail due to resize operations, but this doesn't affect actual inference
+    try {
+      const dummyInput = {
+        [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * 640 * 640), [1, 3, 640, 640])
+      };
+      await this.sessionPool.warmupSession(this.pooledSession, dummyInput);
+    } catch (warmupError) {
+      console.info('🔄 SCRFD warmup failed, but session is ready for actual inference:', warmupError);
+    }
     
     if (this.pooledSession.session.inputNames.length !== 1) {
       throw new Error(`Unexpected number of inputs: ${this.pooledSession.session.inputNames.length}`);

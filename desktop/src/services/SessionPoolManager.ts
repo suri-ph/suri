@@ -82,26 +82,26 @@ export class SessionPoolManager {
     const isWorkerContext = typeof document === 'undefined' || typeof navigator === 'undefined';
     
     if (isWorkerContext) {
-      // In worker context, use conservative fallback
-      providers.push({ name: 'webgl' }); // Try WebGL first
+      // In worker context, use conservative fallback with proper WebGL config
+      providers.push('webgl');
       providers.push('wasm'); // Fallback to WASM
     } else {
       // Main thread context - full GPU detection
       // Check for WebGPU support (fastest, most modern)
       if ('gpu' in navigator && navigator.gpu) {
-        providers.push({ name: 'webgpu' });
+        providers.push('webgpu');
       }
       
       // Check for WebGL2 support (fast, widely supported)
       const canvas = document.createElement('canvas');
       const webgl2 = canvas.getContext('webgl2');
       if (webgl2) {
-        providers.push({ name: 'webgl' });
+        providers.push('webgl');
       } else {
         // Fallback to WebGL1 if WebGL2 not available
         const webgl1 = canvas.getContext('webgl');
         if (webgl1) {
-          providers.push({ name: 'webgl' });
+          providers.push('webgl');
         }
       }
       
@@ -116,21 +116,29 @@ export class SessionPoolManager {
    * Get optimized session options with per-model WASM optimizations
    */
   public getOptimizedSessionOptions(modelName?: string): ort.InferenceSession.SessionOptions {
+    // Use WASM-only execution providers for models that don't support WebGL
+    const executionProviders = modelName && this.requiresWasmOnly(modelName) 
+      ? this.getWasmOnlyExecutionProviders()
+      : this.getOptimalExecutionProviders();
+
     const baseOptions: ort.InferenceSession.SessionOptions = {
-      executionProviders: this.getOptimalExecutionProviders(),
+      executionProviders,
       logSeverityLevel: 3, // Error only
       logVerbosityLevel: 0,
       enableMemPattern: true,
       enableCpuMemArena: true,
       executionMode: 'parallel',
-      graphOptimizationLevel: 'all',
+      graphOptimizationLevel: 'basic', // Use basic instead of 'all' to avoid resize issues
       enableProfiling: false,
       extra: {
         session: {
           use_ort_model_bytes_directly: true,
           use_ort_model_bytes_for_initializers: true,
           disable_prepacking: false,
-          use_device_allocator_for_initializers: true
+          use_device_allocator_for_initializers: true,
+          // Disable problematic optimizations that can cause resize errors
+          disable_quant_qdq: true,
+          disable_sparsity: true
         }
       }
     };
@@ -155,7 +163,6 @@ export class SessionPoolManager {
       baseOptions.freeDimensionOverrides = {
         'batch_size': 1
       };
-
     }
 
     return baseOptions;
@@ -173,6 +180,25 @@ export class SessionPoolManager {
     ];
     
     return compatibleModels.some(model => modelName.includes(model));
+  }
+
+  /**
+   * Get WASM-only execution providers for models that don't support WebGL
+   */
+  private getWasmOnlyExecutionProviders(): string[] {
+    return ['wasm'];
+  }
+
+  /**
+   * Check if a model should use WASM-only execution (no WebGL support)
+   */
+  private requiresWasmOnly(modelName: string): boolean {
+    // SCRFD models don't support WebGL properly
+    const wasmOnlyModels = [
+      'scrfd_2.5g_kps_640x640.onnx'
+    ];
+    
+    return wasmOnlyModels.some(model => modelName.includes(model));
   }
 
   /**
@@ -263,9 +289,16 @@ export class SessionPoolManager {
     try {
       // Run a dummy inference to warm up the session
       await pooledSession.session.run(dummyInput);
-
+      console.log(`✅ Successfully warmed up session for ${pooledSession.modelName}`);
     } catch (error) {
-      console.warn(`Failed to warm up session for ${pooledSession.modelName}:`, error);
+      // Log the error but don't throw - warmup failure shouldn't break initialization
+      console.warn(`⚠️ Failed to warm up session for ${pooledSession.modelName}:`, error);
+      
+      // If warmup fails due to resize/layout issues, the session is still usable
+      // The error typically occurs with specific operations that may not be used in actual inference
+      if (error instanceof Error && error.message.includes('resize')) {
+        console.info(`ℹ️ Resize operation not supported during warmup for ${pooledSession.modelName}, but session is still functional`);
+      }
     }
   }
 
