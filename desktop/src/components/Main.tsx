@@ -1418,7 +1418,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
         </div>
 
         {/* Sidebar */}
-        <div className="sidebar w-80 my-3 bg-white/[0.02] border-l border-white/[0.08] flex flex-col max-h-full overflow-auto">
+        <div className="sidebar w-80 my-3 bg-white/[0.02] border-l border-white/[0.08] flex flex-col max-h-full overflow-hidden">
           {/* Stats Panel */}
           <div className="px-4 pt-2 pb-4 border-b border-white/[0.08]">
             <h3 className="text-lg font-light mb-3">System Status</h3>
@@ -1483,7 +1483,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
           </div>
 
           {/* Live Detections */}
-          <div className="p-4 border-b border-white/[0.08]">
+          <div className="live-detections p-4 border-b border-white/[0.08] h-40 overflow-auto">
             <h3 className="text-lg font-light mb-4">Live Detections</h3>
             <div className="space-y-2">
               {detectionResults.length === 0 ? (
@@ -1492,7 +1492,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
                 </div>
               ) : (
                 detectionResults.map((detection, index) => (
-                  <div key={index} className="bg-white/[0.05] border border-white/[0.08] rounded p-3">
+                  <div key={index} className="bg-white/[0.05] border border-white/[0.08] rounded p-2">
                     <div className="flex justify-between items-center">
                       <span className="font-medium">
                         {detection.recognition?.personId || 'Unknown'}
@@ -1501,7 +1501,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
                         {(detection.confidence * 100).toFixed(1)}%
                       </span>
                     </div>
-                    {detection.recognition?.similarity && (
+                    {detection.recognition?.personId && detection.recognition?.similarity && (
                       <div className="text-xs text-white/50 mt-1">
                         Similarity: {(detection.recognition.similarity * 100).toFixed(1)}%
                       </div>
