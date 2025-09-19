@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { WorkerManager } from "../services/WorkerManager";
-import { sqliteFaceLogService, type FaceLogEntry } from "../services/SqliteFaceLogService";
+import { faceLogService, type FaceLogEntry } from "../services/FaceLogService";
 import { FaceDeduplicationService } from "../services/FaceDeduplicationService";
 import { WebAntiSpoofingService, type AntiSpoofingResult } from "../services/WebAntiSpoofingService";
 import { preprocessFaceForAntiSpoofing } from "../utils/faceUtils";
@@ -87,8 +87,8 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
   const refreshDatabaseData = useCallback(async () => {
     try {
       const [logs, stats] = await Promise.all([
-        sqliteFaceLogService.getRecentLogs(10),
-        sqliteFaceLogService.getTodayStats()
+        faceLogService.getRecentLogs(10),
+        faceLogService.getTodayStats()
       ]);
       
       setRecentLogs(logs);
@@ -495,7 +495,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
 
         
         // Log to persistent SQLite database using the best detection
-        await sqliteFaceLogService.logAutoDetection(
+        await faceLogService.logAutoDetection(
           personId, 
           bestDetection.confidence, 
           bestDetection.bbox,
@@ -531,7 +531,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
       const lastLogged = autoLogCooldown.get(personId) || 0;
       
       if ((now - lastLogged) > 30000) { // 30 second fallback cooldown
-        await sqliteFaceLogService.logAutoDetection(
+        await faceLogService.logAutoDetection(
           personId, 
           confidence, 
           bbox,
@@ -549,7 +549,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
 
     try {
       // Log to persistent SQLite database
-      await sqliteFaceLogService.logManualDetection(
+      await faceLogService.logManualDetection(
         personId, 
         detection.confidence, 
         detection.bbox,
@@ -1208,15 +1208,15 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
   useEffect(() => {
     const initializeData = async () => {
         // Check if database is available
-        const isAvailable = await sqliteFaceLogService.isAvailable();
+        const isAvailable = await faceLogService.isAvailable();
         
         if (isAvailable) {
           // Load recent logs
-          const logs = await sqliteFaceLogService.getRecentLogs(10);
+          const logs = await faceLogService.getRecentLogs(10);
           setRecentLogs(logs);
           
           // Load today's stats
-          const stats = await sqliteFaceLogService.getTodayStats();
+          const stats = await faceLogService.getTodayStats();
           setSystemStats(prev => ({
             ...prev,
             today_records: stats.totalDetections

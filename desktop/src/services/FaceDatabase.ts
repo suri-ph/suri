@@ -53,7 +53,7 @@ interface PersonRow {
   person_id: string;
 }
 
-class Sqlite3FaceDatabase {
+class FaceDatabase {
   private db: sqlite3.Database | null = null;
   private dbPath: string;
 
@@ -598,4 +598,4 @@ class Sqlite3FaceDatabase {
 }
 
 // Export singleton instance
-export const sqlite3FaceDB = new Sqlite3FaceDatabase();
+export const faceDatabase = new FaceDatabase();

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { sqliteFaceLogService } from '../services/SqliteFaceLogService';
-import type { FaceLogEntry } from '../services/SqliteFaceLogService';
+import { faceLogService } from '../services/FaceLogService.ts';
+import type { FaceLogEntry } from '../services/FaceLogService.ts';
 import '../types/global.d.ts';
 
 interface SystemOverview {
@@ -106,10 +106,10 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
     try {
       setIsLoading(true);
       
-      // Use SqliteFaceLogService instead of HTTP API
+      // Use faceLogService instead of HTTP API
       const [todayStats, recentLogs] = await Promise.all([
-        sqliteFaceLogService.getTodayStats(),
-        sqliteFaceLogService.getRecentLogs(1000) // Get more logs to analyze
+        faceLogService.getTodayStats(),
+        faceLogService.getRecentLogs(1000) // Get more logs to analyze
       ]);
 
       // Process logs to get unique people and attendance data
@@ -187,10 +187,10 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
 
   const fetchAdvancedStats = useCallback(async () => {
     try {
-      // Use SqliteFaceLogService for advanced stats
+      // Use faceLogService for advanced stats
       const [todayStats, recentLogs] = await Promise.all([
-        sqliteFaceLogService.getTodayStats(),
-        sqliteFaceLogService.getRecentLogs(1000)
+        faceLogService.getTodayStats(),
+        faceLogService.getRecentLogs(1000)
       ]);
 
       // Process logs for advanced analytics
@@ -309,10 +309,10 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
     if (!searchQuery.trim()) return;
     
     try {
-      // Use SqliteFaceLogService to search for person
+      // Use faceLogService to search for person
       const [allPeople, personLogs] = await Promise.all([
-        sqliteFaceLogService.getAllPeople(),
-        sqliteFaceLogService.getPersonLogs(searchQuery.trim(), 100)
+        faceLogService.getAllPeople(),
+        faceLogService.getPersonLogs(searchQuery.trim(), 100)
       ]);
       
       const personName = searchQuery.trim();
@@ -325,7 +325,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
       
       if (exactMatch || personLogs.length > 0) {
         // Get detailed person stats
-        const personStats = await sqliteFaceLogService.getPersonStats(exactMatch || personName);
+        const personStats = await faceLogService.getPersonStats(exactMatch || personName);
         
         // Get today's logs for this person
         const today = new Date().toDateString();
@@ -387,8 +387,8 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
     }
     
     try {
-      // Use SqliteFaceLogService clearOldData with 0 days to clear all
-      const deletedCount = await sqliteFaceLogService.clearOldData(0);
+      // Use faceLogService clearOldData with 0 days to clear all
+      const deletedCount = await faceLogService.clearOldData(0);
       alert(`✅ Successfully cleared ${deletedCount} attendance records`);
       
       // Refresh data after clearing
@@ -417,8 +417,8 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
     }
 
     try {
-      // Use SqliteFaceLogService to rename the person
-      const updateCount = await sqliteFaceLogService.updatePersonId(editingPerson, editName.trim());
+      // Use faceLogService to rename the person
+      const updateCount = await faceLogService.updatePersonId(editingPerson, editName.trim());
       
       if (updateCount > 0) {
         alert(`✅ Successfully renamed "${editingPerson}" to "${editName.trim()}" (${updateCount} records updated)`);
@@ -458,7 +458,7 @@ export default function SystemManagement({ onBack }: SystemManagementProps) {
       }
       
       // Then, delete the person's attendance records
-      const deleteCount = await sqliteFaceLogService.deletePersonRecords(person);
+      const deleteCount = await faceLogService.deletePersonRecords(person);
       
       if (deleteCount > 0 || embeddingRemoved) {
         const parts = [];

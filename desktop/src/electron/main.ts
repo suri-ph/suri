@@ -9,7 +9,7 @@ import { readFile } from 'fs/promises';
 const modelBuffers: Map<string, ArrayBuffer> = new Map();
 // Legacy SCRFD service (node-onnx) is unused now; using WebWorker-based pipeline in renderer
 import { setupFaceLogIPC } from "./faceLogIPC.js";
-import { sqlite3FaceDB } from "../services/Sqlite3FaceDatabase.js";
+import { sqlite3FaceDB } from "../services/FaceDatabase.js";
 // Set consistent app name across all platforms for userData directory
 app.setName('Suri');
 

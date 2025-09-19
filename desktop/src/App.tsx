@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import LiveCameraRecognition from './components/Main.tsx'
 import SystemManagement from './components/SystemManagement.tsx'
 import TitleBar from './components/TitleBar.tsx'
-import { sqliteFaceLogService } from './services/SqliteFaceLogService'
+import { faceLogService } from './services/FaceLogService.ts'
 import { globalWorkerPool, type GlobalWorkerPoolState } from './services/GlobalWorkerPool'
 
 export type MenuOption = 
@@ -24,8 +24,8 @@ function App() {
     try {
       // Use SqliteFaceLogService instead of API
       await Promise.all([
-        sqliteFaceLogService.getTodayStats(),
-        sqliteFaceLogService.getRecentLogs(1000)
+        faceLogService.getTodayStats(),
+        faceLogService.getRecentLogs(1000)
       ])
 
 
@@ -42,7 +42,7 @@ function App() {
     const initializeApp = async () => {
       try {
         // Check if SQLite3 database is available
-        const isAvailable = await sqliteFaceLogService.isAvailable()
+        const isAvailable = await faceLogService.isAvailable()
         if (isAvailable) {
           await fetchSystemStats()
         } else {

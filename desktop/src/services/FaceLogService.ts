@@ -1,11 +1,11 @@
 /**
- * SqliteFaceLogService - React frontend interface to SQLite database via Electron IPC
+ * FaceLogService - React frontend interface to SQLite database via Electron IPC
  * 
  * This service provides a clean interface for the React frontend to interact with
  * the SQLite database running in the Electron main process via IPC communication.
  */
 
-import '../types/global.d.ts';
+import '../types/global';
 
 export interface FaceLogEntry {
   id?: string;
@@ -33,17 +33,17 @@ export interface PersonStats {
   manualDetections: number;
 }
 
-export class SqliteFaceLogService {
-  private static instance: SqliteFaceLogService | null = null;
+export class FaceLogService {
+  private static instance: FaceLogService | null = null;
 
   /**
    * Get singleton instance
    */
-  public static getInstance(): SqliteFaceLogService {
-    if (!SqliteFaceLogService.instance) {
-      SqliteFaceLogService.instance = new SqliteFaceLogService();
+  public static getInstance(): FaceLogService {
+    if (!FaceLogService.instance) {
+      FaceLogService.instance = new FaceLogService();
     }
-    return SqliteFaceLogService.instance;
+    return FaceLogService.instance;
   }
 
   private constructor() {
@@ -289,4 +289,4 @@ export class SqliteFaceLogService {
 }
 
 // Export singleton instance for convenience
-export const sqliteFaceLogService = SqliteFaceLogService.getInstance();
+export const faceLogService = FaceLogService.getInstance();
