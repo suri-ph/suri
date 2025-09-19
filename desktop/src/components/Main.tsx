@@ -1410,7 +1410,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
                       : 'bg-green-600 hover:bg-green-700 text-white'
                   }`}
                 >
-                  {isStreaming ? 'Stop Camera' : 'Start Camera'}
+                  {isStreaming ? 'Stop' : 'Start Scan'}
                 </button>
               </div>
             </div>
