@@ -208,6 +208,7 @@ function createWindow(): void {
     // Handle window maximize/restore events
     mainWindow.on('maximize', () => {
         mainWindow.webContents.send('window:maximized')
+        mainWindow.setResizable(false)
         // Reset shape when maximized (rectangular)
         if (process.platform === 'win32') {
             try {
