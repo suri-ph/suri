@@ -220,7 +220,7 @@ function createWindow(): void {
     })
 
     mainWindow.on('unmaximize', () => {
-        mainWindow.setResizable(false)
+        mainWindow.setResizable(true)
         mainWindow.webContents.send('window:unmaximized')
         // Restore rounded shape when unmaximized
         setTimeout(updateWindowShape, 100)
