@@ -48,7 +48,7 @@ self.onmessage = async (event) => {
 
         // Parallel initialization with pre-loaded buffers (services already exist)
         await Promise.all([
-          scrfdService!.initialize(modelBuffers?.['det_500m_kps_320.onnx']),
+          scrfdService!.initialize(modelBuffers?.['det_500m_kps_640.onnx']),
           edgeFaceService!.initialize(modelBuffers?.['edgeface-recognition.onnx'])
         ]);
         

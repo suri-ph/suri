@@ -71,7 +71,7 @@ ipcMain.handle('window:close', () => {
 // Pre-load all models during app startup
 async function preloadModels(): Promise<void> {
   const modelNames = [
-    'det_500m_kps_320.onnx',
+    'det_500m_kps_640.onnx',
     'edgeface-recognition.onnx', 
     'AntiSpoofing_bin_1.5_128.onnx'
   ];

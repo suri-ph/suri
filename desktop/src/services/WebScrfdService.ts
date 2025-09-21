@@ -39,7 +39,7 @@ export class WebScrfdService {
     const isDev = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') || 
                   (typeof window !== 'undefined' && window.location.hostname === 'localhost');
     
-    const modelName = 'det_500m_kps_320.onnx';
+    const modelName = 'det_500m_kps_640.onnx';
 
     
     let modelBuffer: ArrayBuffer;
@@ -78,7 +78,7 @@ export class WebScrfdService {
     // Warm up the session with dummy input for faster first inference
     // Use the correct input size of 320x320 that matches the model's expected dimensions
     try {
-      const WARMUP_INPUT_SIZE = 320; // Match the actual model input size
+      const WARMUP_INPUT_SIZE = 640; // Match the actual model input size
       const dummyInput = {
         [this.pooledSession.session.inputNames[0]]: new ort.Tensor('float32', new Float32Array(3 * WARMUP_INPUT_SIZE * WARMUP_INPUT_SIZE), [1, 3, WARMUP_INPUT_SIZE, WARMUP_INPUT_SIZE])
       };
@@ -110,7 +110,7 @@ export class WebScrfdService {
         return [];
       }
 
-      const FIXED_INPUT_SIZE = 320;
+      const FIXED_INPUT_SIZE = 640;
       
       const scale = Math.min(FIXED_INPUT_SIZE / width, FIXED_INPUT_SIZE / height);
       const scaledWidth = Math.round(width * scale);
@@ -161,7 +161,7 @@ export class WebScrfdService {
   
   private createBlobFromImage(imageData: ImageData): ort.Tensor {
     const { width, height } = imageData;
-    const FIXED_INPUT_SIZE = 320;
+    const FIXED_INPUT_SIZE = 640;
     
     // Create or reuse global canvas for processing (shared across instances for memory efficiency)
     if (!WebScrfdService.globalBlobCanvas) {
@@ -241,7 +241,7 @@ export class WebScrfdService {
     const bboxesList: Float32Array[] = [];
     const kpssList: Float32Array[] = [];
     
-    const FIXED_INPUT_SIZE = 320;
+    const FIXED_INPUT_SIZE = 640;
     
     for (let idx = 0; idx < this.featStrideFpn.length; idx++) {
       const stride = this.featStrideFpn[idx];
