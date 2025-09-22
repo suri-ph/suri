@@ -1,11 +1,8 @@
-"""
-Startup script for the Face Detection API backend
-"""
-
 import argparse
 import logging
 import logging.config
 import sys
+import traceback
 from pathlib import Path
 
 import uvicorn

@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from ..utils.database_manager import FaceDatabaseManager
+from utils.database_manager import FaceDatabaseManager
 
 logger = logging.getLogger(__name__)
 
