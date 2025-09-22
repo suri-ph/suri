@@ -19,7 +19,7 @@ interface DetectionResult {
 }
 
 interface LiveCameraRecognitionProps {
-  onMenuSelect: (menu: 'live-camera' | 'system-management' | 'backend-test') => void;
+  onMenuSelect: (menu: 'live-camera' | 'system-management' | 'backend-test' | 'live-video') => void;
 }
 
 export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecognitionProps) {
@@ -1568,7 +1568,7 @@ export default function LiveCameraRecognition({ onMenuSelect }: LiveCameraRecogn
                 
                 {/* Live Video Button */}
                 <button
-                  onClick={() => onMenuSelect('live-camera')}
+                  onClick={() => onMenuSelect('live-video')}
                   className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 backdrop-blur-xl border border-purple-500/30 text-purple-200 hover:text-purple-100 rounded-xl font-light transition-all duration-300"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
