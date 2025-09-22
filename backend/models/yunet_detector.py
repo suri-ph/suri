@@ -108,9 +108,11 @@ class YuNetDetector:
             List of detected faces with bounding boxes and landmarks
         """
         try:
-            # Set input size based on image dimensions
+            # Only set input size if it has changed (performance optimization)
             h, w = image.shape[:2]
-            self.set_input_size((w, h))
+            current_size = (w, h)
+            if current_size != self.input_size:
+                self.set_input_size(current_size)
             
             # Perform detection
             _, faces = self.model.detect(image)

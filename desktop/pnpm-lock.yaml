@@ -45,6 +45,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.12
         version: 4.1.13(vite@7.1.5(@types/node@24.3.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.44.0))
+      '@types/python-shell':
+        specifier: ^1.0.3
+        version: 1.0.3
       '@types/react':
         specifier: ^19.1.8
         version: 19.1.12
@@ -827,6 +830,10 @@ packages:
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
+
+  '@types/python-shell@1.0.3':
+    resolution: {integrity: sha512-laT15PQn3vFl8cHN0/XVven9wBs+rlgsdZ44h18EDZ7gETgX3q4h5BD4MlLvZjyujB3AyzkOjs1GSK1vgT/uiA==}
+    deprecated: This is a stub types definition. python-shell provides its own type definitions, so you do not need this installed.
 
   '@types/react-dom@19.1.9':
     resolution: {integrity: sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ==}
@@ -2566,6 +2573,10 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  python-shell@5.0.0:
+    resolution: {integrity: sha512-RUOOOjHLhgR1MIQrCtnEqz/HJ1RMZBIN+REnpSUrfft2bXqXy69fwJASVziWExfFXsR1bCY0TznnHooNsCo0/w==}
+    engines: {node: '>=0.10'}
+
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
@@ -3931,6 +3942,10 @@ snapshots:
       '@types/node': 24.3.1
       xmlbuilder: 15.1.1
     optional: true
+
+  '@types/python-shell@1.0.3':
+    dependencies:
+      python-shell: 5.0.0
 
   '@types/react-dom@19.1.9(@types/react@19.1.12)':
     dependencies:
@@ -6034,6 +6049,8 @@ snapshots:
       once: 1.4.0
 
   punycode@2.3.1: {}
+
+  python-shell@5.0.0: {}
 
   queue-microtask@1.2.3: {}
 

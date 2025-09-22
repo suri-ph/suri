@@ -3,6 +3,7 @@ import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
 import { readFile } from 'fs/promises';
+import { PythonShell } from 'python-shell';
 
 
 // Pre-loaded model buffers for better performance
@@ -39,12 +40,141 @@ app.commandLine.appendSwitch('disable-logging')
 app.commandLine.appendSwitch('log-level', '3') // Only show fatal errors
 
 let mainWindowRef: BrowserWindow | null = null
+let pythonBackend: PythonShell | null = null
+let backendPort = 8001
 // Removed legacy scrfdService usage
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Python Backend Service Management
+async function startPythonBackend(): Promise<void> {
+    return new Promise((resolve, reject) => {
+        try {
+            // Get the backend directory path
+            const backendPath = isDev() 
+                ? path.join(__dirname, '..', '..', '..', 'backend')
+                : path.join(process.resourcesPath, 'backend');
+            
+            console.log('Starting Python backend from:', backendPath);
+            
+            // Start Python backend
+            pythonBackend = new PythonShell('run.py', {
+                scriptPath: backendPath,
+                pythonOptions: ['-u'], // Unbuffered output
+                args: ['--port', backendPort.toString()],
+                pythonPath: 'python' // Use system Python
+            });
+
+            // Handle Python backend messages
+            pythonBackend.on('message', (message) => {
+                console.log('[Python Backend]:', message);
+                if (message.includes('Uvicorn running on') || message.includes('Application startup complete')) {
+                    resolve();
+                }
+            });
+
+            pythonBackend.on('error', (error) => {
+                console.error('[Python Backend Error]:', error);
+                reject(error);
+            });
+
+            pythonBackend.on('stderr', (stderr) => {
+                console.error('[Python Backend stderr]:', stderr);
+                // Also check stderr for startup completion messages
+                if (stderr.includes('Uvicorn running on') || stderr.includes('Application startup complete')) {
+                    resolve();
+                }
+            });
+
+            pythonBackend.on('close', (code: number | null, signal: string | null) => {
+                console.log(`Python Backend closed with code: ${code}, signal: ${signal}`);
+                pythonBackend = null;
+            });
+
+            // Timeout after 30 seconds
+            setTimeout(() => {
+                if (pythonBackend) {
+                    reject(new Error('Python backend startup timeout'));
+                }
+            }, 30000);
+
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function stopPythonBackend(): void {
+    if (pythonBackend) {
+        console.log('Stopping Python backend...');
+        pythonBackend.kill();
+        pythonBackend = null;
+    }
+}
+
 // Face Recognition Pipeline IPC handlers
 // Removed legacy face-recognition IPC; detection/recognition handled in renderer via Web Workers
+
+// Backend Service IPC handlers for FastAPI integration
+ipcMain.handle('backend:check-availability', async () => {
+    try {
+        // Check if embedded Python backend is running
+        if (!pythonBackend) {
+            return { available: false, error: 'Python backend not started' };
+        }
+        
+        const response = await fetch(`http://127.0.0.1:${backendPort}/`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(5000)
+        });
+        return { available: response.ok, status: response.status };
+    } catch (error) {
+        return { available: false, error: error instanceof Error ? error.message : String(error) };
+    }
+});
+
+ipcMain.handle('backend:get-models', async () => {
+    try {
+        const response = await fetch(`http://127.0.0.1:${backendPort}/models`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(10000)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        throw new Error(`Failed to get models: ${error instanceof Error ? error.message : String(error)}`);
+    }
+});
+
+ipcMain.handle('backend:detect-faces', async (_event, imageBase64: string, options: any = {}) => {
+    try {
+        const request = {
+            image: imageBase64,
+            model_type: options.model_type || 'yunet',
+            confidence_threshold: options.confidence_threshold || 0.5,
+            nms_threshold: options.nms_threshold || 0.3
+        };
+
+        const response = await fetch(`http://127.0.0.1:${backendPort}/detect`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(request),
+            signal: AbortSignal.timeout(30000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        throw new Error(`Face detection failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+});
 
 // Window control IPC handlers
 ipcMain.handle('window:minimize', () => {
@@ -187,7 +317,7 @@ function createWindow(): void {
 
     // Load the app
     if (isDev()) {
-        mainWindow.loadURL('http://localhost:5123')
+        mainWindow.loadURL('http://localhost:3000')
     } else {
         mainWindow.loadFile(path.join(__dirname, '../../dist-react/index.html'))
     }
@@ -267,6 +397,14 @@ app.whenReady().then(async () => {
     
     createWindow()
     
+    // Start embedded Python backend
+    try {
+        await startPythonBackend();
+        console.log('[INFO] Python backend started successfully');
+    } catch (error) {
+        console.error('[ERROR] Failed to start Python backend:', error);
+    }
+    
     // Pre-load models for optimal performance
     try {
         await preloadModels();
@@ -304,5 +442,5 @@ app.on('window-all-closed', () => {
 // Handle app quit
 app.on('before-quit', () => {
     // Clean up resources
-    // nothing to dispose
+    stopPythonBackend();
 })

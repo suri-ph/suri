@@ -26,8 +26,8 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5123,
-    strictPort: true,
+    port: 3000,
+    strictPort: false,
     headers: {
       // Enable COOP/COEP for SharedArrayBuffer and threading
       'Cross-Origin-Opener-Policy': 'same-origin',

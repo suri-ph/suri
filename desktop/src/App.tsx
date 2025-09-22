@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import LiveCameraRecognition from './components/Main.tsx'
 import SystemManagement from './components/SystemManagement.tsx'
+import BackendTest from './components/BackendTest.tsx'
+import LiveVideo from './components/LiveVideo.tsx'
 import TitleBar from './components/TitleBar.tsx'
 import { faceLogService } from './services/FaceLogService.ts'
 import { globalWorkerPool, type GlobalWorkerPoolState } from './services/GlobalWorkerPool'
@@ -8,6 +10,8 @@ import { globalWorkerPool, type GlobalWorkerPoolState } from './services/GlobalW
 export type MenuOption = 
   | 'live-camera'
   | 'system-management'
+  | 'backend-test'
+  | 'live-video'
 
 function App() {
   const [currentMenu, setCurrentMenu] = useState<MenuOption>('live-camera')
@@ -72,6 +76,10 @@ function App() {
         return <LiveCameraRecognition onMenuSelect={setCurrentMenu} />
       case 'system-management':
         return <SystemManagement onBack={() => setCurrentMenu('live-camera')} />
+      case 'backend-test':
+        return <BackendTest onBack={() => setCurrentMenu('live-camera')} />
+      case 'live-video':
+        return <LiveVideo onBack={() => setCurrentMenu('live-camera')} />
       default:
         return <LiveCameraRecognition onMenuSelect={setCurrentMenu} />
     }

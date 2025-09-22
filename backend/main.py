@@ -371,6 +371,9 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
             if message.get("type") == "detection_request":
                 # Process detection request
                 try:
+                    import time
+                    start_time = time.time()
+                    
                     image = decode_base64_image(message["image"])
                     model_type = message.get("model_type", "yunet")
                     confidence_threshold = message.get("confidence_threshold", 0.6)
@@ -423,12 +426,16 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                             # Don't add anti-spoofing data when processing fails
                             # Just return the original face detections without anti-spoofing
                     
+                    # Calculate processing time
+                    processing_time = time.time() - start_time
+                    
                     # Send response
                     response = {
                         "type": "detection_response",
                         "session_id": session_id,
                         "faces": faces,
                         "model_used": model_type,
+                        "processing_time": processing_time,
                         "timestamp": asyncio.get_event_loop().time()
                     }
                     

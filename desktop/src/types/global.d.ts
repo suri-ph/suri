@@ -29,6 +29,24 @@ declare global {
     onUnmaximize: (callback: () => void) => () => void
   }
 
+  interface BackendAPI {
+    checkAvailability: () => Promise<{ available: boolean; status?: number; error?: string }>
+    getModels: () => Promise<Record<string, any>>
+    detectFaces: (imageBase64: string, options?: {
+      model_type?: string;
+      confidence_threshold?: number;
+      nms_threshold?: number;
+    }) => Promise<{
+      faces: Array<{
+        bbox: [number, number, number, number];
+        confidence: number;
+        landmarks: number[][];
+      }>;
+      model_used: string;
+      processing_time: number;
+    }>
+  }
+
   interface FaceRecognitionAPI {
     // Face Detection & Recognition
     initializeFaceRecognition: (options?: { similarityThreshold?: number }) => Promise<{ success: boolean; error?: string }>
@@ -77,6 +95,8 @@ declare global {
     
     // Generic IPC invoke method
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    // Backend Service API
+    backend: BackendAPI
   }
 
   interface FaceLogEntry {

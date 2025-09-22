@@ -60,6 +60,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Generic IPC invoke method
     invoke: (channel: string, ...args: unknown[]) => {
         return ipcRenderer.invoke(channel, ...args)
+    },
+    // Backend Service API
+    backend: {
+        checkAvailability: () => {
+            return ipcRenderer.invoke('backend:check-availability')
+        },
+        getModels: () => {
+            return ipcRenderer.invoke('backend:get-models')
+        },
+        detectFaces: (imageBase64: string, options?: any) => {
+            return ipcRenderer.invoke('backend:detect-faces', imageBase64, options)
+        }
     }
 })
 
