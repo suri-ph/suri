@@ -21,9 +21,10 @@ from pydantic import BaseModel
 
 from models.yunet_detector import YuNetDetector
 from models.antispoofing_detector import OptimizedAntiSpoofingDetector
+from models.edgeface_detector import EdgeFaceDetector
 from utils.image_utils import decode_base64_image, encode_image_to_base64
 from utils.websocket_manager import manager, handle_websocket_message
-from config import YUNET_MODEL_PATH, YUNET_CONFIG, ANTISPOOFING_MODEL_PATH, ANTISPOOFING_CONFIG
+from config import YUNET_MODEL_PATH, YUNET_CONFIG, ANTISPOOFING_MODEL_PATH, ANTISPOOFING_CONFIG, EDGEFACE_MODEL_PATH, EDGEFACE_CONFIG
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -50,6 +51,7 @@ app.add_middleware(
 # Initialize models
 yunet_detector = None
 optimized_antispoofing_detector = None
+edgeface_detector = None
 
 # Pydantic models for request/response
 class DetectionRequest(BaseModel):
@@ -74,10 +76,39 @@ class StreamingRequest(BaseModel):
     enable_antispoofing: bool = True
     antispoofing_threshold: float = 0.5
 
+class FaceRecognitionRequest(BaseModel):
+    image: str  # Base64 encoded image
+    landmarks: List[List[float]]  # 5-point facial landmarks [[x1,y1], [x2,y2], ...]
+
+class FaceRegistrationRequest(BaseModel):
+    person_id: str
+    image: str  # Base64 encoded image
+    landmarks: List[List[float]]  # 5-point facial landmarks
+
+class FaceRecognitionResponse(BaseModel):
+    success: bool
+    person_id: Optional[str] = None
+    similarity: float
+    processing_time: float
+    error: Optional[str] = None
+
+class FaceRegistrationResponse(BaseModel):
+    success: bool
+    person_id: str
+    total_persons: int
+    processing_time: float
+    error: Optional[str] = None
+
+class PersonRemovalRequest(BaseModel):
+    person_id: str
+
+class SimilarityThresholdRequest(BaseModel):
+    threshold: float
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global yunet_detector, optimized_antispoofing_detector
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector
     try:
         logger.info("Initializing YuNet detector...")
         yunet_detector = YuNetDetector(
@@ -96,6 +127,15 @@ async def startup_event():
             max_batch_size=1,
             cache_duration=1.0,
             frame_skip=2
+        )
+        
+        logger.info("Initializing EdgeFace detector...")
+        edgeface_detector = EdgeFaceDetector(
+            model_path=str(EDGEFACE_MODEL_PATH),
+            input_size=EDGEFACE_CONFIG["input_size"],
+            similarity_threshold=EDGEFACE_CONFIG["similarity_threshold"],
+            providers=EDGEFACE_CONFIG["providers"],
+            database_path=str(EDGEFACE_CONFIG["database_path"])
         )
         
         logger.info("All models initialized successfully")
@@ -141,6 +181,14 @@ async def get_available_models():
         }
     else:
         models_info["optimized_antispoofing"] = {"available": False}
+    
+    if edgeface_detector:
+        models_info["edgeface"] = {
+            "available": True,
+            "info": edgeface_detector.get_model_info()
+        }
+    else:
+        models_info["edgeface"] = {"available": False}
     
     return {
         "models": models_info
@@ -351,8 +399,224 @@ async def detect_faces_upload(
         }
         
     except Exception as e:
-        logger.error(f"Detection error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            logger.error(f"Detection error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+# Face Recognition Endpoints
+
+@app.post("/face/recognize", response_model=FaceRecognitionResponse)
+async def recognize_face(request: FaceRecognitionRequest):
+    """
+    Recognize a face using EdgeFace model
+    """
+    import time
+    start_time = time.time()
+    
+    logger.info(f"Face recognition request received")
+    logger.info(f"  - Landmarks count: {len(request.landmarks)}")
+    logger.info(f"  - Image size: {len(request.image)} chars")
+    
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        # Decode base64 image
+        image = decode_base64_image(request.image)
+        logger.info(f"Image decoded successfully: {image.shape}")
+        
+        # Perform face recognition
+        result = await edgeface_detector.recognize_face_async(image, request.landmarks)
+        
+        processing_time = time.time() - start_time
+        
+        return FaceRecognitionResponse(
+            success=result["success"],
+            person_id=result.get("person_id"),
+            similarity=result.get("similarity", 0.0),
+            processing_time=processing_time,
+            error=result.get("error")
+        )
+        
+    except Exception as e:
+        processing_time = time.time() - start_time
+        logger.error(f"Face recognition error: {e}")
+        return FaceRecognitionResponse(
+            success=False,
+            person_id=None,
+            similarity=0.0,
+            processing_time=processing_time,
+            error=str(e)
+        )
+
+@app.post("/face/register", response_model=FaceRegistrationResponse)
+async def register_person(request: FaceRegistrationRequest):
+    """
+    Register a new person in the face database
+    """
+    import time
+    start_time = time.time()
+    
+    logger.info(f"Person registration request received")
+    logger.info(f"  - Person ID: {request.person_id}")
+    logger.info(f"  - Landmarks count: {len(request.landmarks)}")
+    logger.info(f"  - Image size: {len(request.image)} chars")
+    
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        # Decode base64 image
+        image = decode_base64_image(request.image)
+        logger.info(f"Image decoded successfully: {image.shape}")
+        
+        # Register person
+        result = await edgeface_detector.register_person_async(
+            request.person_id, 
+            image, 
+            request.landmarks
+        )
+        
+        processing_time = time.time() - start_time
+        
+        return FaceRegistrationResponse(
+            success=result["success"],
+            person_id=request.person_id,
+            total_persons=result.get("total_persons", 0),
+            processing_time=processing_time,
+            error=result.get("error")
+        )
+        
+    except Exception as e:
+        processing_time = time.time() - start_time
+        logger.error(f"Person registration error: {e}")
+        return FaceRegistrationResponse(
+            success=False,
+            person_id=request.person_id,
+            total_persons=0,
+            processing_time=processing_time,
+            error=str(e)
+        )
+
+@app.delete("/face/person/{person_id}")
+async def remove_person(person_id: str):
+    """
+    Remove a person from the face database
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        result = edgeface_detector.remove_person(person_id)
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": f"Person {person_id} removed successfully",
+                "total_persons": result.get("total_persons", 0)
+            }
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error", "Person not found"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Person removal error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove person: {e}")
+
+@app.get("/face/persons")
+async def get_all_persons():
+    """
+    Get list of all registered persons
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        persons = edgeface_detector.get_all_persons()
+        stats = edgeface_detector.get_stats()
+        
+        return {
+            "success": True,
+            "persons": persons,
+            "total_count": len(persons),
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Get persons error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get persons: {e}")
+
+@app.post("/face/threshold")
+async def set_similarity_threshold(request: SimilarityThresholdRequest):
+    """
+    Set similarity threshold for face recognition
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        if not (0.0 <= request.threshold <= 1.0):
+            raise HTTPException(status_code=400, detail="Threshold must be between 0.0 and 1.0")
+        
+        edgeface_detector.set_similarity_threshold(request.threshold)
+        
+        return {
+            "success": True,
+            "message": f"Similarity threshold updated to {request.threshold}",
+            "threshold": request.threshold
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Threshold update error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update threshold: {e}")
+
+@app.delete("/face/database")
+async def clear_database():
+    """
+    Clear all persons from the face database
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        result = edgeface_detector.clear_database()
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "Face database cleared successfully",
+                "total_persons": 0
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to clear database"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Database clear error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear database: {e}")
+
+@app.get("/face/stats")
+async def get_face_stats():
+    """
+    Get face recognition statistics and configuration
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        stats = edgeface_detector.get_stats()
+        
+        return {
+            "success": True,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Get stats error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {e}")
 
 @app.websocket("/ws/{client_id}")
 async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):

@@ -62,6 +62,20 @@ MODEL_CONFIGS = {
         "version": "1.5_128",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "margin": 0.2,  # Face crop margin (20%)
+    },
+    "edgeface": {
+        "name": "EdgeFace",
+        "model_path": WEIGHTS_DIR / "edgeface-recognition.onnx",
+        "input_size": (112, 112),  # EdgeFace standard input size
+        "similarity_threshold": 0.6,  # Recognition similarity threshold
+        "providers": ["CPUExecutionProvider"],  # ONNX runtime providers
+        "description": "EdgeFace recognition model for face identification",
+        "version": "production",
+        "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
+        "embedding_dimension": 512,  # Face embedding dimension
+        "database_path": BASE_DIR / "data" / "face_database.json",  # Face database storage
+        "requires_landmarks": True,  # Requires 5-point landmarks for alignment
+        "landmark_count": 5,  # Number of required landmarks
     }
 }
 
@@ -227,3 +241,5 @@ YUNET_MODEL_PATH = config["models"]["yunet"]["model_path"]
 YUNET_CONFIG = config["models"]["yunet"]
 ANTISPOOFING_MODEL_PATH = config["models"]["antispoofing"]["model_path"]
 ANTISPOOFING_CONFIG = config["models"]["antispoofing"]
+EDGEFACE_MODEL_PATH = config["models"]["edgeface"]["model_path"]
+EDGEFACE_CONFIG = config["models"]["edgeface"]
