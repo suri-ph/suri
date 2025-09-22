@@ -8,11 +8,12 @@ import logging
 import time
 from typing import List, Dict, Tuple, Optional, Union
 import os
-import json
 
 import cv2
 import numpy as np
 import onnxruntime as ort
+
+from ..utils.database_manager import FaceDatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +62,23 @@ class EdgeFaceDetector:
         
         # Model components
         self.session = None
-        self.database: Dict[str, np.ndarray] = {}
+        
+        # Initialize SQLite database manager
+        if self.database_path:
+            # Convert .json extension to .db for SQLite
+            if self.database_path.endswith('.json'):
+                sqlite_path = self.database_path.replace('.json', '.db')
+            else:
+                sqlite_path = self.database_path
+            
+            self.db_manager = FaceDatabaseManager(sqlite_path)
+            logger.info(f"Initialized SQLite database: {sqlite_path}")
+        else:
+            self.db_manager = None
+            logger.warning("No database path provided, running without persistence")
         
         # Initialize the model
         self._initialize_model()
-        
-        # Load existing database if available
-        if self.database_path:
-            self._load_database()
         
     def _initialize_model(self):
         """Initialize the ONNX model"""
@@ -98,48 +108,7 @@ class EdgeFaceDetector:
             logger.error(f"Failed to initialize EdgeFace model: {e}")
             raise
     
-    def _load_database(self):
-        """Load face database from JSON file"""
-        try:
-            if os.path.exists(self.database_path):
-                with open(self.database_path, 'r') as f:
-                    data = json.load(f)
-                    
-                # Convert lists back to numpy arrays
-                for person_id, embedding_list in data.items():
-                    self.database[person_id] = np.array(embedding_list, dtype=np.float32)
-                
-                logger.info(f"Loaded {len(self.database)} persons from database")
-            else:
-                logger.info("No existing database found, starting with empty database")
-                
-        except Exception as e:
-            logger.error(f"Failed to load database: {e}")
-            self.database = {}
-    
-    def _save_database(self):
-        """Save face database to JSON file"""
-        try:
-            if not self.database_path:
-                return False
-                
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.database_path), exist_ok=True)
-            
-            # Convert numpy arrays to lists for JSON serialization
-            data = {}
-            for person_id, embedding in self.database.items():
-                data[person_id] = embedding.tolist()
-            
-            with open(self.database_path, 'w') as f:
-                json.dump(data, f, indent=2)
-            
-            logger.info(f"Saved database with {len(self.database)} persons")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to save database: {e}")
-            return False
+
     
     def _align_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         """
@@ -278,13 +247,19 @@ class EdgeFaceDetector:
         Returns:
             Tuple of (person_id, similarity_score)
         """
-        if not self.database:
+        if not self.db_manager:
+            return None, 0.0
+        
+        # Get all persons from SQLite database
+        all_persons = self.db_manager.get_all_persons()
+        
+        if not all_persons:
             return None, 0.0
         
         best_person_id = None
         best_similarity = 0.0
         
-        for person_id, stored_embedding in self.database.items():
+        for person_id, stored_embedding in all_persons.items():
             similarity = self._calculate_similarity(embedding, stored_embedding)
             
             if similarity > best_similarity:
@@ -381,11 +356,15 @@ class EdgeFaceDetector:
             # Extract embedding
             embedding = self._extract_embedding(image, landmarks_array)
             
-            # Store in database
-            self.database[person_id] = embedding
-            
-            # Save database
-            save_success = self._save_database()
+            # Store in SQLite database
+            if self.db_manager:
+                save_success = self.db_manager.add_person(person_id, embedding)
+                stats = self.db_manager.get_stats()
+                total_persons = stats.get("total_persons", 0)
+            else:
+                save_success = False
+                total_persons = 0
+                logger.warning("No database manager available for registration")
             
             logger.info(f"Registered person: {person_id}")
             
@@ -393,7 +372,7 @@ class EdgeFaceDetector:
                 "success": True,
                 "person_id": person_id,
                 "database_saved": save_success,
-                "total_persons": len(self.database)
+                "total_persons": total_persons
             }
             
         except Exception as e:
@@ -420,22 +399,31 @@ class EdgeFaceDetector:
             Removal result
         """
         try:
-            if person_id in self.database:
-                del self.database[person_id]
-                save_success = self._save_database()
+            if self.db_manager:
+                remove_success = self.db_manager.remove_person(person_id)
                 
-                logger.info(f"Removed person: {person_id}")
-                
-                return {
-                    "success": True,
-                    "person_id": person_id,
-                    "database_saved": save_success,
-                    "total_persons": len(self.database)
-                }
+                if remove_success:
+                    stats = self.db_manager.get_stats()
+                    total_persons = stats.get("total_persons", 0)
+                    
+                    logger.info(f"Removed person: {person_id}")
+                    
+                    return {
+                        "success": True,
+                        "person_id": person_id,
+                        "database_saved": True,
+                        "total_persons": total_persons
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Person {person_id} not found in database",
+                        "person_id": person_id
+                    }
             else:
                 return {
                     "success": False,
-                    "error": f"Person {person_id} not found in database",
+                    "error": "No database manager available",
                     "person_id": person_id
                 }
                 
@@ -449,12 +437,20 @@ class EdgeFaceDetector:
     
     def get_all_persons(self) -> List[str]:
         """Get list of all registered persons"""
-        return list(self.database.keys())
+        if self.db_manager:
+            all_persons = self.db_manager.get_all_persons()
+            return list(all_persons.keys())
+        return []
     
     def get_stats(self) -> Dict:
         """Get database statistics"""
+        total_persons = 0
+        if self.db_manager:
+            stats = self.db_manager.get_stats()
+            total_persons = stats.get("total_persons", 0)
+            
         return {
-            "total_persons": len(self.database),
+            "total_persons": total_persons,
             "similarity_threshold": self.similarity_threshold,
             "embedding_dimension": self.EMBEDDING_DIM,
             "input_size": self.input_size,
@@ -470,16 +466,27 @@ class EdgeFaceDetector:
     def clear_database(self) -> Dict:
         """Clear all persons from database"""
         try:
-            self.database.clear()
-            save_success = self._save_database()
-            
-            logger.info("Cleared face database")
-            
-            return {
-                "success": True,
-                "database_saved": save_success,
-                "total_persons": 0
-            }
+            if self.db_manager:
+                clear_success = self.db_manager.clear_database()
+                
+                if clear_success:
+                    logger.info("Cleared face database")
+                    
+                    return {
+                        "success": True,
+                        "database_saved": True,
+                        "total_persons": 0
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": "Failed to clear database"
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": "No database manager available"
+                }
             
         except Exception as e:
             logger.error(f"Database clearing failed: {e}")

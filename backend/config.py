@@ -73,7 +73,7 @@ MODEL_CONFIGS = {
         "version": "production",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "embedding_dimension": 512,  # Face embedding dimension
-        "database_path": BASE_DIR / "data" / "face_database.json",  # Face database storage
+        "database_path": BASE_DIR / "data" / "face_database.db",  # SQLite database storage
         "requires_landmarks": True,  # Requires 5-point landmarks for alignment
         "landmark_count": 5,  # Number of required landmarks
     }
