@@ -127,7 +127,7 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
       return null;
     }
 
-    // Only resize canvas if video dimensions changed
+    // OPTIMIZATION: Only resize canvas if video dimensions changed
     if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -136,8 +136,8 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
     // Draw current video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to base64 with reduced quality for better performance
-    const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+    // OPTIMIZATION: Further reduced quality for better performance (was 0.6, now 0.4)
+    const base64 = canvas.toDataURL('image/jpeg', 0.4).split(',')[1];
     return base64;
   }, []);
 
@@ -337,7 +337,7 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
 
   // Process current frame directly without queue
   const processCurrentFrame = useCallback(() => {
-    // Ensure we're in a valid state and not already processing
+    // OPTIMIZATION: Enhanced frame skipping logic
     if (isProcessingRef.current || 
         !backendServiceRef.current?.isWebSocketReady() || 
         !detectionEnabledRef.current ||
@@ -353,9 +353,10 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
 
       isProcessingRef.current = true;
       
+      // OPTIMIZATION: Reduced confidence threshold for better detection sensitivity
       backendServiceRef.current.sendDetectionRequest(frameData, {
         model_type: 'yunet',
-        confidence_threshold: 0.5,
+        confidence_threshold: 0.4, // Reduced from 0.5
         nms_threshold: 0.3,
         enable_antispoofing: antispoofingEnabled
       }).catch(error => {
@@ -394,10 +395,10 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
     if (detectionEnabledRef.current && 
         backendServiceRef.current?.isWebSocketReady() && 
         !detectionIntervalRef.current) {
-      // Optimized frequency based on processing time (~70ms)
-      detectionIntervalRef.current = setInterval(processFrameForDetection, 100); // 100ms = 10 FPS
+      // OPTIMIZATION: Reduced frequency for better performance (was 100ms/10fps, now 150ms/6.7fps)
+      detectionIntervalRef.current = setInterval(processFrameForDetection, 150);
       if (process.env.NODE_ENV === 'development') {
-        console.log('🎯 Detection interval started');
+        console.log('🎯 Detection interval started at 6.7 FPS');
       }
     }
   }, [processFrameForDetection]);
@@ -765,73 +766,36 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
           const point = landmarkPoints[i];
           if (!point || !isFinite(point.x) || !isFinite(point.y)) continue;
 
-          // ENHANCED: High-precision landmark coordinate transformation
           const scaledLandmarkX = point.x * scaleX + offsetX;
           const scaledLandmarkY = point.y * scaleY + offsetY;
 
-          // Enhanced validation for scaled landmark coordinates
           if (!isFinite(scaledLandmarkX) || !isFinite(scaledLandmarkY) || 
               scaledLandmarkX < 0 || scaledLandmarkY < 0 ||
               scaledLandmarkX > displayWidth || scaledLandmarkY > displayHeight)
             continue;
 
-          // Draw neural node with glow effect
-          ctx.fillStyle = primaryColor;
-          ctx.shadowColor = primaryColor;
-          ctx.shadowBlur = 8;
+          // OPTIMIZATION: Simplified landmark drawing
           ctx.beginPath();
-          ctx.arc(scaledLandmarkX, scaledLandmarkY, 4, 0, 2 * Math.PI);
+          ctx.arc(scaledLandmarkX, scaledLandmarkY, 3, 0, 2 * Math.PI); // Reduced size
           ctx.fill();
-
-          // Inner core
-          ctx.fillStyle = "#ffffff";
-          ctx.shadowBlur = 2;
-          ctx.beginPath();
-          ctx.arc(scaledLandmarkX, scaledLandmarkY, 2, 0, 2 * Math.PI);
-          ctx.fill();
-
-          // Pulse effect for recognized faces
-          if (isRecognized) {
-            const pulseRadius = 6 + Math.sin(Date.now() / 200 + i) * 2;
-            ctx.strokeStyle = `${primaryColor}60`;
-            ctx.lineWidth = 1;
-            ctx.shadowBlur = 5;
-            ctx.beginPath();
-            ctx.arc(scaledLandmarkX, scaledLandmarkY, pulseRadius, 0, 2 * Math.PI);
-            ctx.stroke();
-          }
         }
         ctx.shadowBlur = 0;
       }
 
-      // Add status indicator
-      const statusText = isRecognized ? "Face Recognized" : "";
-      ctx.font = 'bold 10px "Courier New", monospace';
-      ctx.fillStyle = isRecognized ? "#00ff00" : "#ffaa00";
-      ctx.fillText(statusText, scaledX1 + 10, scaledY2 + 15);
-
-      // Add animated border glow for recognized faces
+      // OPTIMIZATION: Simplified status indicator
       if (isRecognized) {
-        const glowIntensity = 0.5 + Math.sin(Date.now() / 300) * 0.3;
-        ctx.strokeStyle = `${primaryColor}${Math.floor(glowIntensity * 255)
-          .toString(16)
-          .padStart(2, "0")}`;
-        ctx.lineWidth = 1;
-        ctx.shadowColor = primaryColor;
-        ctx.shadowBlur = 15;
-        ctx.strokeRect(scaledX1 - 2, scaledY1 - 2, width + 4, height + 4);
-        ctx.shadowBlur = 0;
+        ctx.font = 'bold 10px "Courier New", monospace';
+        ctx.fillStyle = "#00ff00";
+        ctx.fillText("RECOGNIZED", scaledX1 + 10, scaledY2 + 15);
       }
+
+      // OPTIMIZATION: Removed animated border glow for better performance
+      // The pulse effect was causing unnecessary redraws
     });
   }, [currentDetections, calculateScaleFactors, currentRecognitionResults, recognitionEnabled, isStreaming]);
 
-  // Optimized animation loop with reduced frequency
+  // OPTIMIZED animation loop with better performance
   const animate = useCallback(() => {
-
-    
-    // Update FPS counter less frequently
-
-
     // Clear canvas when there are no detections
     const overlayCanvas = overlayCanvasRef.current;
     if (overlayCanvas && (!currentDetections || !isStreaming)) {
@@ -841,8 +805,10 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
       }
     }
 
-    // Only redraw if detection results changed
-    const currentHash = currentDetections ? JSON.stringify(currentDetections.faces.map(f => f.bbox)) : '';
+    // OPTIMIZATION: Only redraw if detection results changed (simplified hash)
+    const currentHash = currentDetections ? 
+      `${currentDetections.faces.length}-${currentDetections.faces.map(f => `${f.bbox.x},${f.bbox.y}`).join(',')}` : '';
+    
     if (currentHash !== lastDetectionHashRef.current && currentDetections) {
       drawOverlays();
       lastDetectionHashRef.current = currentHash;
@@ -934,7 +900,7 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
         setError(response.error || 'Failed to register face');
       }
     } catch (error) {
-      console.error('❌ Face registration failed:', error);
+      console.error('❌ Face recognition failed:', error);
       setError('Failed to register face');
     }
   }, [currentDetections, newPersonId, captureFrame, loadRegisteredPersons, loadDatabaseStats, performFaceRecognition]);

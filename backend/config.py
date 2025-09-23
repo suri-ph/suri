@@ -41,9 +41,9 @@ MODEL_CONFIGS = {
         "name": "YuNet",
         "model_path": WEIGHTS_DIR / "face_detection_yunet_2023mar.onnx",
         "input_size": (320, 320),  # Default input size
-        "score_threshold": 0.8,    # Increased from 0.6 to reduce false positives
-        "nms_threshold": 0.4,      # Increased from 0.3 to better suppress overlapping detections
-        "top_k": 5000,
+        "score_threshold": 0.6,    # OPTIMIZATION: Reduced from 0.8 for better detection
+        "nms_threshold": 0.3,      # OPTIMIZATION: Reduced from 0.4 for faster processing
+        "top_k": 1000,             # OPTIMIZATION: Reduced from 5000 for faster processing
         "backend_id": 0,  # OpenCV DNN backend
         "target_id": 0,   # CPU target
         "description": "YuNet face detection model from OpenCV Zoo",
@@ -110,11 +110,11 @@ IMAGE_CONFIG = {
 
 # Streaming configuration
 STREAMING_CONFIG = {
-    "fps_limit": 30,      # Max FPS for streaming
-    "buffer_size": 5,     # Frame buffer size
-    "quality": 80,        # Stream quality
+    "fps_limit": 15,      # OPTIMIZATION: Reduced from 30 to match frontend processing
+    "buffer_size": 3,     # OPTIMIZATION: Reduced from 5 to minimize latency
+    "quality": 70,        # OPTIMIZATION: Reduced from 80 for faster processing
     "format": "jpg",      # Stream format
-    "timeout": 5.0,       # Processing timeout per frame
+    "timeout": 3.0,       # OPTIMIZATION: Reduced from 5.0 for faster timeout
 }
 
 # Logging configuration
