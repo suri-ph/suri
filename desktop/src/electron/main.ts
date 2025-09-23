@@ -3,7 +3,7 @@ import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
 import { readFile } from 'fs/promises';
-import { backendService } from './backendService.js';
+import { backendService, type DetectionOptions } from './backendService.js';
 
 // Pre-loaded model buffers for better performance
 const modelBuffers: Map<string, ArrayBuffer> = new Map();
@@ -80,7 +80,7 @@ ipcMain.handle('backend:get-models', async () => {
     }
 });
 
-ipcMain.handle('backend:detect-faces', async (_event, imageBase64: string, options: unknown = {}) => {
+ipcMain.handle('backend:detect-faces', async (_event, imageBase64: string, options: DetectionOptions = {}) => {
     try {
         return await backendService.detectFaces(imageBase64, options);
     } catch (error) {
