@@ -88,7 +88,6 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [detectionEnabled, setDetectionEnabled] = useState(false);
   const [currentDetections, setCurrentDetections] = useState<DetectionResult | null>(null);
-  const [fps, setFps] = useState<number>(0);
   const [detectionFps, setDetectionFps] = useState<number>(0);
   const [websocketStatus, setWebsocketStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [backendServiceReady, setBackendServiceReady] = useState(false);
@@ -109,7 +108,6 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
   const [currentRecognitionResults, setCurrentRecognitionResults] = useState<Map<number, FaceRecognitionResponse>>(new Map());
 
   // Performance tracking - throttled updates
-  const fpsCounterRef = useRef({ frames: 0, lastTime: Date.now(), lastUpdate: 0 });
   const detectionCounterRef = useRef({ detections: 0, lastTime: Date.now() });
 
   // Settings view state
@@ -812,15 +810,10 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
 
   // Optimized animation loop with reduced frequency
   const animate = useCallback(() => {
-    const now = Date.now();
+
     
     // Update FPS counter less frequently
-    fpsCounterRef.current.frames++;
-    if (now - fpsCounterRef.current.lastUpdate >= 1000) { // Update every second
-      setFps(fpsCounterRef.current.frames);
-      fpsCounterRef.current.frames = 0;
-      fpsCounterRef.current.lastUpdate = now;
-    }
+
 
     // Clear canvas when there are no detections
     const overlayCanvas = overlayCanvasRef.current;
@@ -1192,7 +1185,6 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
             <div className={`px-2 py-1 rounded ${recognitionEnabled ? 'bg-indigo-600' : 'bg-gray-600'}`}>
               Recognition: {recognitionEnabled ? 'Enabled' : 'Disabled'}
             </div>
-            <div className="text-gray-300">Video FPS: {fps}</div>
             <div className="text-gray-300">Detection FPS: {detectionFps}</div>
             {currentDetections && (
               <div className="text-gray-300">
