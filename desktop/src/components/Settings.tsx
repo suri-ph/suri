@@ -164,7 +164,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
   const renderOverview = () => (
     <div className="space-y-6">
       {/* People Database Section */}
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6">
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
         <h3 className="text-lg font-light text-white/90 mb-4 flex items-center space-x-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -184,7 +184,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
       </div>
 
       {/* Performance Section */}
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6">
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
         <h3 className="text-lg font-light text-white/90 mb-4 flex items-center space-x-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
@@ -210,7 +210,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
         </button>
       </div>
       
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden">
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl overflow-hidden">
         <div className="max-h-96 overflow-y-auto">
           {allPersons.length === 0 ? (
             <div className="p-6 text-center text-white/60">
@@ -309,7 +309,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
       </div>
 
       {searchResults.length > 0 && (
-        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden">
+        <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl overflow-hidden">
           <div className="divide-y divide-white/[0.05]">
             {searchResults.map((person) => (
               <div key={person.person_id} className="p-4">
@@ -328,7 +328,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
 
   const renderMaintenance = () => (
     <div className="space-y-6">
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6">
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
         <h3 className="text-lg font-light text-white/90 mb-4">System Maintenance</h3>
         <div className="space-y-4">
           <button
@@ -371,7 +371,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
         </div>
 
         {/* Floating Statistics Dashboard */}
-        <div className={`${isModal ? "absolute top-0 right-0" : "fixed top-6 right-6"} bg-black/40 backdrop-blur-sm border border-white/[0.1] rounded-2xl p-4 min-w-[200px] z-10`}>
+        <div className={`${isModal ? "absolute top-0 right-0" : "fixed top-6 right-6"} bg-black/40 border border-white/[0.1] rounded-2xl p-4 min-w-[200px] z-10`}>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-white/60">Total People</span>
@@ -416,7 +416,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
         {/* Content Area */}
         <div className="relative">
           {isLoading && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-black/20 rounded-2xl flex items-center justify-center z-10">
               <div className="flex items-center space-x-3 text-white">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                 <span>Loading...</span>
@@ -432,7 +432,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
 
         {/* Delete Confirmation Dialog */}
         {showDeleteDialog && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-slate-800 border border-white/[0.1] rounded-2xl p-6 max-w-md w-full mx-4">
               <h3 className="text-lg font-medium text-white mb-4">Confirm Deletion</h3>
               <p className="text-white/70 mb-6">
@@ -462,7 +462,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, isModal = false }) =
   // Return modal wrapper if isModal is true, otherwise return content directly
   if (isModal) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
         <div className="bg-slate-900 border border-white/[0.1] rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative">
           {mainContent}
         </div>
