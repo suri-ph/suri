@@ -505,10 +505,23 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
     
     // Clear detection results
     setCurrentDetections(null);
+    lastDetectionRef.current = null;
     
     // Reset FPS tracking
     setDetectionFps(0);
     detectionCounterRef.current = { detections: 0, lastTime: Date.now() };
+    
+    // Reset performance tracking refs
+    lastDetectionHashRef.current = '';
+    lastVideoSizeRef.current = {width: 0, height: 0};
+    lastCanvasSizeRef.current = {width: 0, height: 0};
+    scaleFactorsRef.current = {scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0};
+    
+    // Clear recognition results
+    setCurrentRecognitionResults(new Map());
+    
+    // Clear any errors
+    setError(null);
     
     // Clear overlay canvas immediately
     const overlayCanvas = overlayCanvasRef.current;
