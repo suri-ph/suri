@@ -55,7 +55,13 @@ interface RemovalResult {
   message: string;
 }
 
-interface PersonInfo {
+interface UpdateResult {
+  success: boolean;
+  message: string;
+  updated_records: number;
+}
+
+export interface PersonInfo {
   person_id: string;
   embedding_count: number;
   last_seen?: string;
@@ -484,12 +490,31 @@ export class BackendService {
    */
   async removePerson(personId: string): Promise<RemovalResult> {
     try {
+      const response = await fetch(`${this.config.baseUrl}/face/person/${encodeURIComponent(personId)}`, {
+        method: 'DELETE',
+        signal: AbortSignal.timeout(this.config.timeout)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Person removal failed:', error);
+      throw error;
+    }
+  }
+
+  async updatePerson(oldPersonId: string, newPersonId: string): Promise<UpdateResult> {
+    try {
       const requestBody = {
-        person_id: personId
+        old_person_id: oldPersonId,
+        new_person_id: newPersonId
       };
 
-      const response = await fetch(`${this.config.baseUrl}/face/remove`, {
-        method: 'POST',
+      const response = await fetch(`${this.config.baseUrl}/face/person`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -503,7 +528,7 @@ export class BackendService {
 
       return await response.json();
     } catch (error) {
-      console.error('Person removal failed:', error);
+      console.error('Person update failed:', error);
       throw error;
     }
   }
@@ -563,8 +588,8 @@ export class BackendService {
    */
   async clearDatabase(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/face/clear`, {
-        method: 'POST',
+      const response = await fetch(`${this.config.baseUrl}/face/database`, {
+        method: 'DELETE',
         signal: AbortSignal.timeout(this.config.timeout)
       });
 

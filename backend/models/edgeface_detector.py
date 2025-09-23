@@ -738,21 +738,60 @@ class EdgeFaceDetector:
             all_persons = self.db_manager.get_all_persons()
             return list(all_persons.keys())
         return []
-    
+
+    def update_person_id(self, old_person_id: str, new_person_id: str) -> Dict:
+        """Update a person's ID in the database"""
+        try:
+            if self.db_manager:
+                updated_count = self.db_manager.update_person_id(old_person_id, new_person_id)
+                if updated_count > 0:
+                    return {
+                        "success": True,
+                        "message": f"Person '{old_person_id}' renamed to '{new_person_id}' successfully",
+                        "updated_records": updated_count
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Person '{old_person_id}' not found or '{new_person_id}' already exists",
+                        "updated_records": 0
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": "No database manager available",
+                    "updated_records": 0
+                }
+                
+        except Exception as e:
+            logger.error(f"Person update failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "updated_records": 0
+            }
+
     def get_stats(self) -> Dict:
         """Get database statistics"""
         total_persons = 0
+        total_embeddings = 0
+        persons = []
+        
         if self.db_manager:
+            # Get basic stats
             stats = self.db_manager.get_stats()
             total_persons = stats.get("total_persons", 0)
             
+            # Get total embeddings
+            total_embeddings = self.db_manager.get_total_embeddings()
+            
+            # Get detailed person information
+            persons = self.db_manager.get_all_persons_with_details()
+            
         return {
             "total_persons": total_persons,
-            "similarity_threshold": self.similarity_threshold,
-            "embedding_dimension": self.EMBEDDING_DIM,
-            "input_size": self.input_size,
-            "model_path": self.model_path,
-            "database_path": self.database_path
+            "total_embeddings": total_embeddings,
+            "persons": persons
         }
     
     def set_similarity_threshold(self, threshold: float):

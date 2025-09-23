@@ -362,6 +362,109 @@ class FaceDatabaseManager:
             logger.error(error_msg)
             return False, error_msg
     
+    def get_all_persons_with_details(self) -> List[Dict[str, Any]]:
+        """
+        Get all persons with detailed information including embedding counts and last seen
+        
+        Returns:
+            List[Dict[str, Any]]: List of person details with person_id, embedding_count, and last_seen
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Get all persons with their embedding counts and last seen timestamps
+                cursor.execute("""
+                    SELECT 
+                        person_id,
+                        COUNT(*) as embedding_count,
+                        MAX(updated_at) as last_seen
+                    FROM faces 
+                    GROUP BY person_id
+                    ORDER BY last_seen DESC
+                """)
+                
+                results = cursor.fetchall()
+                
+                persons = []
+                for row in results:
+                    persons.append({
+                        "person_id": row["person_id"],
+                        "embedding_count": row["embedding_count"],
+                        "last_seen": row["last_seen"]
+                    })
+                
+                return persons
+                
+        except Exception as e:
+            logger.error(f"Failed to get persons with details: {e}")
+            return []
+    
+    def get_total_embeddings(self) -> int:
+        """
+        Get total number of embeddings in the database
+        
+        Returns:
+            int: Total number of embeddings
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) as total FROM faces")
+                result = cursor.fetchone()
+                return result['total'] if result else 0
+                
+        except Exception as e:
+            logger.error(f"Failed to get total embeddings: {e}")
+            return 0
+    
+    def update_person_id(self, old_person_id: str, new_person_id: str) -> int:
+        """
+        Update a person's ID in the database
+        
+        Args:
+            old_person_id (str): Current person ID
+            new_person_id (str): New person ID
+            
+        Returns:
+            int: Number of records updated
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if old person exists
+                cursor.execute("SELECT COUNT(*) as count FROM faces WHERE person_id = ?", (old_person_id,))
+                old_count = cursor.fetchone()['count']
+                
+                if old_count == 0:
+                    logger.warning(f"Person '{old_person_id}' not found in database")
+                    return 0
+                
+                # Check if new person ID already exists
+                cursor.execute("SELECT COUNT(*) as count FROM faces WHERE person_id = ?", (new_person_id,))
+                new_count = cursor.fetchone()['count']
+                
+                if new_count > 0:
+                    logger.warning(f"Person '{new_person_id}' already exists in database")
+                    return 0
+                
+                # Update the person_id
+                cursor.execute(
+                    "UPDATE faces SET person_id = ?, updated_at = CURRENT_TIMESTAMP WHERE person_id = ?",
+                    (new_person_id, old_person_id)
+                )
+                
+                updated_count = cursor.rowcount
+                conn.commit()
+                
+                logger.info(f"Updated {updated_count} records from '{old_person_id}' to '{new_person_id}'")
+                return updated_count
+                
+        except Exception as e:
+            logger.error(f"Failed to update person ID from '{old_person_id}' to '{new_person_id}': {e}")
+            return 0
+    
     def close(self):
         """
         Close the database connection

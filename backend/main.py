@@ -103,6 +103,10 @@ class PersonRemovalRequest(BaseModel):
 class SimilarityThresholdRequest(BaseModel):
     threshold: float
 
+class PersonUpdateRequest(BaseModel):
+    old_person_id: str
+    new_person_id: str
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
@@ -484,6 +488,39 @@ async def remove_person(person_id: str):
         logger.error(f"Person removal error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to remove person: {e}")
 
+@app.put("/face/person")
+async def update_person(request: PersonUpdateRequest):
+    """
+    Update a person's ID in the face database
+    """
+    try:
+        if not edgeface_detector:
+            raise HTTPException(status_code=500, detail="EdgeFace detector not available")
+        
+        # Validate input
+        if not request.old_person_id.strip() or not request.new_person_id.strip():
+            raise HTTPException(status_code=400, detail="Both old and new person IDs must be provided")
+        
+        if request.old_person_id.strip() == request.new_person_id.strip():
+            raise HTTPException(status_code=400, detail="Old and new person IDs must be different")
+        
+        # Update person ID using EdgeFaceDetector method
+        result = edgeface_detector.update_person_id(
+            request.old_person_id.strip(), 
+            request.new_person_id.strip()
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error", "Update failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Person update error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update person: {e}")
+
 @app.get("/face/persons")
 async def get_all_persons():
     """
@@ -570,10 +607,8 @@ async def get_face_stats():
         
         stats = edgeface_detector.get_stats()
         
-        return {
-            "success": True,
-            "stats": stats
-        }
+        # Return stats directly in the format expected by the Settings component
+        return stats
         
     except Exception as e:
         logger.error(f"Get stats error: {e}")
