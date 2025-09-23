@@ -8,6 +8,7 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
+import { fileURLToPath } from 'node:url';
 import isDev from './util.js';
 
 const sleep = promisify(setTimeout);
@@ -107,7 +108,8 @@ export class BackendService {
   private getBackendExecutablePath(): string {
     if (isDev()) {
       // In development, use Python script
-      const backendDir = path.join(__dirname, '..', '..', '..', 'backend');
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      const backendDir = path.join(currentDir, '..', '..', '..', 'backend');
       return path.join(backendDir, 'run.py');
     } else {
       // In production, use PyInstaller executable
