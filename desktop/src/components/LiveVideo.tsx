@@ -141,6 +141,13 @@ export default function LiveVideo() {
     reacquisitions: 0,
     attendanceEvents: 0
   });
+  const [pendingAttendance, setPendingAttendance] = useState<Array<{
+    id: string;
+    personId: string;
+    confidence: number;
+    timestamp: number;
+    faceData: any;
+  }>>([]);
   const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
   const [groupMembers, setGroupMembers] = useState<AttendanceMember[]>([]);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
@@ -241,6 +248,21 @@ export default function LiveVideo() {
           if (response.success && response.person_id) {
             console.log(`🎯 Face ${index} recognized as: ${response.person_id} (${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
+            // Group-based filtering: Only process faces that belong to the current group
+            if (currentGroup) {
+              try {
+                const member = await attendanceManager.getMember(response.person_id);
+                if (!member || member.group_id !== currentGroup.id) {
+                  console.log(`🚫 Face ${index} filtered out: ${response.person_id} ${!member ? 'not registered' : `belongs to group ${member.group_id}, not current group ${currentGroup.id}`}`);
+                  return null; // Filter out this face completely
+                }
+                console.log(`✅ Face ${index} belongs to current group: ${response.person_id}`);
+              } catch (error) {
+                console.warn(`⚠️ Error validating group membership for ${response.person_id}:`, error);
+                return null; // Filter out on error
+              }
+            }
+            
             // Elite Tracking System - Update tracked face with recognition data
             const faceId = `face_${index}_${Date.now()}`;
             const currentTime = Date.now();
@@ -287,25 +309,20 @@ export default function LiveVideo() {
             // Enhanced Attendance Processing with comprehensive error handling
             if (attendanceEnabled && currentGroup && response.person_id) {
               console.log(`🔍 Processing attendance for ${response.person_id} in group ${currentGroup.name}`);
+              console.log(`📊 Recognition details:`, {
+                person_id: response.person_id,
+                similarity: response.similarity,
+                confidence: face.confidence,
+                antispoofing: face.antispoofing,
+                trackingMode: trackingMode
+              });
               
               try {
-                // Verify member exists and belongs to current group
-                const member = await attendanceManager.getMember(response.person_id);
-                console.log(`👤 Member lookup result:`, member);
-                
-                if (!member) {
-                  console.warn(`⚠️ Person ${response.person_id} is not registered as a member`);
-                  return { index, result: response };
-                }
-                
-                if (member.group_id !== currentGroup.id) {
-                  console.warn(`⚠️ Person ${response.person_id} belongs to group ${member.group_id}, not current group ${currentGroup.id}`);
-                  return { index, result: response };
-                }
-                
+                // Note: Group validation is now done at recognition level
                 // Enhanced confidence check with anti-spoofing validation
                 const minConfidence = 0.7; // Minimum confidence for attendance
                 const actualConfidence = response.similarity || 0;
+                console.log(`🎯 Confidence check: ${actualConfidence} >= ${minConfidence} = ${actualConfidence >= minConfidence}`);
                 
                 if (actualConfidence < minConfidence) {
                   console.warn(`⚠️ Recognition confidence ${actualConfidence} below threshold ${minConfidence}`);
@@ -313,37 +330,71 @@ export default function LiveVideo() {
                 }
                 
                 // Check anti-spoofing if available
-                if (face.antispoofing && !face.antispoofing.is_real) {
+                console.log(`🛡️ Anti-spoofing check:`, {
+                  hasAntispoofing: !!face.antispoofing,
+                  status: face.antispoofing?.status,
+                  isReal: face.antispoofing?.status === 'real'
+                });
+                
+                if (face.antispoofing && face.antispoofing.status !== 'real') {
                   console.warn(`⚠️ Anti-spoofing failed for ${response.person_id}: ${face.antispoofing.status}`);
                   return { index, result: response };
                 }
                 
                 console.log(`✅ All checks passed, processing attendance event...`);
                 
-                // Process attendance event with enhanced error handling
-                const attendanceEvent = await attendanceManager.processAttendanceEvent(
-                  response.person_id,
-                  actualConfidence,
-                  'LiveVideo Camera' // location
-                );
-                
-                if (attendanceEvent) {
-                  console.log(`📋 ✅ Attendance successfully recorded: ${response.person_id} - ${attendanceEvent.type} at ${attendanceEvent.timestamp}`);
+                if (trackingMode === 'auto') {
+                  // AUTO MODE: Process attendance event immediately
+                  const attendanceEvent = await attendanceManager.processAttendanceEvent(
+                    response.person_id,
+                    actualConfidence,
+                    'LiveVideo Camera' // location
+                  );
                   
-                  // Update tracking stats
-                  setTrackingStats(prev => ({
-                    ...prev,
-                    attendanceEvents: prev.attendanceEvents + 1
-                  }));
-                  
-                  // Refresh attendance data
-                  await loadAttendanceData();
-                  
-                  // Show success notification
-                  setError(null);
+                  if (attendanceEvent) {
+                    console.log(`📋 ✅ Attendance automatically recorded: ${response.person_id} - ${attendanceEvent.type} at ${attendanceEvent.timestamp}`);
+                    
+                    // Update tracking stats
+                    setTrackingStats(prev => ({
+                      ...prev,
+                      attendanceEvents: prev.attendanceEvents + 1
+                    }));
+                    
+                    // Refresh attendance data
+                    await loadAttendanceData();
+                    
+                    // Show success notification
+                    setError(null);
+                  } else {
+                    console.error(`❌ Attendance event processing returned null for ${response.person_id}`);
+                    setError(`Failed to record attendance for ${response.person_id}`);
+                  }
                 } else {
-                  console.error(`❌ Attendance event processing returned null for ${response.person_id}`);
-                  setError(`Failed to record attendance for ${response.person_id}`);
+                  // MANUAL MODE: Add to pending queue for manual confirmation
+                  const pendingId = `${response.person_id}_${Date.now()}`;
+                  const pendingItem = {
+                    id: pendingId,
+                    personId: response.person_id,
+                    confidence: actualConfidence,
+                    timestamp: Date.now(),
+                    faceData: face
+                  };
+                  
+                  setPendingAttendance(prev => {
+                    // Check if this person is already in pending queue (avoid duplicates)
+                    const existingIndex = prev.findIndex(item => item.personId === response.person_id);
+                    if (existingIndex >= 0) {
+                      // Update existing entry with latest data
+                      const updated = [...prev];
+                      updated[existingIndex] = pendingItem;
+                      return updated;
+                    } else {
+                      // Add new entry
+                      return [...prev, pendingItem];
+                    }
+                  });
+                  
+                  console.log(`⏳ Manual mode: Added ${response.person_id} to pending attendance queue`);
                 }
                 
               } catch (error) {
@@ -1173,7 +1224,7 @@ export default function LiveVideo() {
       return;
     }
 
-    if (face.antispoofing && !face.antispoofing.is_real) {
+    if (face.antispoofing && face.antispoofing.status !== 'real') {
       setError('Anti-spoofing check failed - live face required');
       return;
     }
@@ -1801,8 +1852,12 @@ export default function LiveVideo() {
                     <span className="font-mono text-green-400">{trackingStats.reacquisitions}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-white/60">Attendance Events</span>
-                    <span className="font-mono text-blue-400">{trackingStats.attendanceEvents}</span>
+                    <span className="text-white/60">
+                      {trackingMode === 'manual' ? 'Pending Confirmations' : 'Attendance Events'}
+                    </span>
+                    <span className="font-mono text-blue-400">
+                      {trackingMode === 'manual' ? pendingAttendance.length : trackingStats.attendanceEvents}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -2000,6 +2055,84 @@ export default function LiveVideo() {
                            </option>
                          ))}
                        </select>
+                     </div>
+                   )}
+
+                   {/* Manual Confirmation Queue */}
+                   {trackingMode === 'manual' && pendingAttendance.length > 0 && (
+                     <div>
+                       <h4 className="text-sm font-medium mb-2 text-white/80">
+                         Pending Confirmations ({pendingAttendance.length}):
+                       </h4>
+                       <div className="space-y-2 max-h-60 overflow-y-auto">
+                         {pendingAttendance.map(pending => {
+                           const member = groupMembers.find(m => m.person_id === pending.personId);
+                           return (
+                             <div key={pending.id} className="bg-yellow-600/10 border border-yellow-500/30 rounded p-3">
+                               <div className="flex justify-between items-start">
+                                 <div className="flex-1">
+                                   <div className="font-medium text-sm text-yellow-300">
+                                     {member ? member.name : pending.personId}
+                                   </div>
+                                   <div className="text-xs text-white/60">
+                                     Confidence: {(pending.confidence * 100).toFixed(1)}%
+                                   </div>
+                                   <div className="text-xs text-white/50">
+                                     {new Date(pending.timestamp).toLocaleTimeString()}
+                                   </div>
+                                 </div>
+                                 <div className="flex space-x-2">
+                                   <button
+                                     onClick={async () => {
+                                       // Confirm attendance
+                                       try {
+                                         const attendanceEvent = await attendanceManager.processAttendanceEvent(
+                                           pending.personId,
+                                           pending.confidence,
+                                           'LiveVideo Camera'
+                                         );
+                                         
+                                         if (attendanceEvent) {
+                                           console.log(`📋 ✅ Manual confirmation: ${pending.personId} - ${attendanceEvent.type}`);
+                                           
+                                           // Update tracking stats
+                                           setTrackingStats(prev => ({
+                                             ...prev,
+                                             attendanceEvents: prev.attendanceEvents + 1
+                                           }));
+                                           
+                                           // Remove from pending queue
+                                           setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
+                                           
+                                           // Refresh attendance data
+                                           await loadAttendanceData();
+                                           setError(null);
+                                         }
+                                       } catch (error) {
+                                         console.error('Failed to confirm attendance:', error);
+                                         setError('Failed to confirm attendance');
+                                       }
+                                     }}
+                                     className="px-2 py-1 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-300 rounded text-xs transition-colors"
+                                   >
+                                     ✓ Confirm
+                                   </button>
+                                   <button
+                                     onClick={() => {
+                                       // Reject attendance
+                                       setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
+                                       console.log(`❌ Manual rejection: ${pending.personId}`);
+                                     }}
+                                     className="px-2 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 rounded text-xs transition-colors"
+                                   >
+                                     ✗ Reject
+                                   </button>
+                                 </div>
+                               </div>
+                             </div>
+                           );
+                         })}
+                       </div>
                      </div>
                    )}
 
@@ -2236,7 +2369,7 @@ export default function LiveVideo() {
                       <div className="space-y-3">
                         {currentDetections.faces.map((face, index) => {
                           const isValidForRegistration = face.confidence > 0.8 && 
-                            (!face.antispoofing || face.antispoofing.is_real);
+                            (!face.antispoofing || face.antispoofing.status === 'real');
                           
                           return (
                             <div
