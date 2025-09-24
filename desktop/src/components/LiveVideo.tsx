@@ -251,6 +251,7 @@ export default function LiveVideo() {
             console.log(`🎯 Face ${index} recognized as: ${response.person_id} (${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
             // Group-based filtering: Only process faces that belong to the current group (by name)
+            let memberName = response.person_id; // Default to person_id if no member found
             if (currentGroup) {
               try {
                 const member = await attendanceManager.getMember(response.person_id);
@@ -259,17 +260,30 @@ export default function LiveVideo() {
                   return null; // Filter out this face completely
                 }
                 
+                // Store the member's name for display
+                memberName = member.name || response.person_id;
+                
                 // Get the member's group information to compare group names
                 const memberGroup = await attendanceManager.getGroup(member.group_id);
                 if (!memberGroup || memberGroup.name !== currentGroup.name) {
                   const memberGroupName = memberGroup ? memberGroup.name : 'unknown group';
-                  console.log(`🚫 Face ${index} filtered out: ${response.person_id} belongs to group "${memberGroupName}", not current group "${currentGroup.name}"`);
+                  console.log(`🚫 Face ${index} filtered out: ${memberName} belongs to group "${memberGroupName}", not current group "${currentGroup.name}"`);
                   return null; // Filter out this face completely
                 }
-                console.log(`✅ Face ${index} belongs to current group "${currentGroup.name}": ${response.person_id}`);
+                console.log(`✅ Face ${index} belongs to current group "${currentGroup.name}": ${memberName}`);
               } catch (error) {
                 console.warn(`⚠️ Error validating group membership for ${response.person_id}:`, error);
                 return null; // Filter out on error
+              }
+            } else {
+              // When no group is selected, still try to get the member name for display
+              try {
+                const member = await attendanceManager.getMember(response.person_id);
+                if (member && member.name) {
+                  memberName = member.name;
+                }
+              } catch (error) {
+                // Silently fail and use person_id as fallback
               }
             }
             
@@ -318,7 +332,7 @@ export default function LiveVideo() {
             
             // Enhanced Attendance Processing with comprehensive error handling
             if (attendanceEnabled && currentGroup && response.person_id) {
-              console.log(`🔍 Processing attendance for ${response.person_id} in group ${currentGroup.name}`);
+              console.log(`🔍 Processing attendance for ${memberName} in group ${currentGroup.name}`);
               console.log(`📊 Recognition details:`, {
                 person_id: response.person_id,
                 similarity: response.similarity,
@@ -336,7 +350,7 @@ export default function LiveVideo() {
                 
                 if (actualConfidence < minConfidence) {
                   console.warn(`⚠️ Recognition confidence ${actualConfidence} below threshold ${minConfidence}`);
-                  return { index, result: response };
+                  return { index, result: { ...response, memberName } };
                 }
                 
                 // Check anti-spoofing if available
@@ -417,7 +431,7 @@ export default function LiveVideo() {
               if (!response.person_id) console.log(`ℹ️ No person ID in response`);
             }
             
-            return { index, result: response };
+            return { index, result: { ...response, memberName } };
           } else if (response.success) {
             console.log(`👤 Face ${index} not recognized (similarity: ${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
@@ -993,7 +1007,7 @@ export default function LiveVideo() {
        let label = "UNKNOWN";
        
        if (isRecognized && recognitionResult?.person_id) {
-         label = recognitionResult.person_id.toUpperCase();
+         label = (recognitionResult.memberName || recognitionResult.person_id).toUpperCase();
        } else if (antispoofing?.status === 'fake') {
          label = "⚠ SPOOF";
        } else if (antispoofing?.status === 'real') {
@@ -1991,7 +2005,7 @@ export default function LiveVideo() {
                           <div className="flex items-center space-x-2">
                             <div className="font-medium">
                               {isRecognized && recognitionResult?.person_id ? 
-                                recognitionResult.person_id.toUpperCase() : 
+                                (recognitionResult.memberName || recognitionResult.person_id).toUpperCase() : 
                                 `Face ${index + 1}`
                               }
                             </div>
