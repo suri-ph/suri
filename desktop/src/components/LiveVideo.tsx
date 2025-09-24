@@ -39,10 +39,6 @@ interface DetectionResult {
   processing_time: number;
 }
 
-interface LiveVideoProps {
-  onBack?: (menu?: string) => void;
-}
-
 interface WebSocketFaceData {
   bbox?: number[];
   confidence?: number;
@@ -75,7 +71,7 @@ interface WebSocketPongMessage {
   message?: string;
 }
 
-export default function LiveVideo({ onBack }: LiveVideoProps) {
+export default function LiveVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -1232,7 +1228,7 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
   }, [attendanceEnabled, currentGroup, loadAttendanceData]);
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
+    <div className="pt-8 h-screen bg-black text-white flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between">
         <h1 className="text-xl font-light">Live Video Detection</h1>
@@ -1262,14 +1258,6 @@ export default function LiveVideo({ onBack }: LiveVideoProps) {
             </svg>
             <span className="text-sm font-light tracking-wider uppercase">Settings</span>
           </button>
-          {onBack && (
-            <button
-              onClick={() => onBack()}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded transition-colors"
-            >
-              ← Back
-            </button>
-          )}
         </div>
       </div>
 
