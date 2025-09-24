@@ -1776,9 +1776,6 @@ export default function LiveVideo() {
                   <div className={`w-2 h-2 rounded-full ${
                     isStreaming ? 'bg-green-500' : 'bg-red-500'
                   }`}></div>
-                  <span className="text-sm text-white/60">
-                    Camera: {isStreaming ? 'Active' : 'Stopped'}
-                  </span>
                 </div>
 
                 <div className="text-sm text-white/60">
@@ -1855,13 +1852,6 @@ export default function LiveVideo() {
               {attendanceEnabled && (
                 <>
                   <div className="border-t border-white/[0.08] pt-3 mt-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-white/60">Attendance</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                        <span className="text-xs font-light tracking-wider uppercase text-blue-300">Active</span>
-                      </div>
-                    </div>
                     {currentGroup && (
                       <>
                         <div className="flex justify-between items-center">
