@@ -590,17 +590,27 @@ export default function LiveVideo() {
             });
           }
           
-          if (recognitionEnabled && detectionResult.faces.length > 0) {
-            performFaceRecognition(detectionResult);
-          } else if (!recognitionEnabled && detectionResult.faces.length > 0) {
-            // Store detection result for delayed recognition when recognition becomes enabled
-            console.log('💾 Storing detection result for delayed recognition');
-            setLastDetectionForRecognition(detectionResult);
+          if (recognitionEnabled && backendServiceReady && detectionResult.faces.length > 0) {
+            // Await face recognition to complete before resetting processing flag
+            performFaceRecognition(detectionResult).catch(error => {
+              console.error('❌ Face recognition failed:', error);
+            }).finally(() => {
+              // Always reset processing flag after recognition completes or fails
+              isProcessingRef.current = false;
+            });
+          } else {
+            if (!recognitionEnabled && detectionResult.faces.length > 0) {
+              // Store detection result for delayed recognition when recognition becomes enabled
+              console.log('💾 Storing detection result for delayed recognition');
+              setLastDetectionForRecognition(detectionResult);
+            }
+            // Mark processing as complete - interval will handle next frame
+            isProcessingRef.current = false;
           }
+        } else {
+          // No faces detected, reset processing flag immediately
+          isProcessingRef.current = false;
         }
-
-        // Mark processing as complete - interval will handle next frame
-        isProcessingRef.current = false;
       });
 
       // Handle connection messages
