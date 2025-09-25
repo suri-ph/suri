@@ -509,7 +509,6 @@ export default function LiveVideo() {
           const readinessCheck = await window.electronAPI?.backend.checkReadiness();
           
           if (readinessCheck?.ready && readinessCheck?.modelsLoaded) {
-            console.log('✅ Backend is ready for WebSocket connection');
             return true;
           }
           
@@ -529,8 +528,7 @@ export default function LiveVideo() {
       if (!isBackendReady) {
         throw new Error('Backend not ready: Models still loading after retries');
       }
-      
-      console.log('✅ Backend is ready, connecting WebSocket...');
+
 
       // Connect to WebSocket
       await backendServiceRef.current.connectWebSocket();
@@ -745,9 +743,6 @@ export default function LiveVideo() {
         backendServiceRef.current?.isWebSocketReady() && 
         !detectionIntervalRef.current) {
       detectionIntervalRef.current = setInterval(processFrameForDetection, 0);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🎯 Detection interval started at 14 FPS (optimized for YuNet speed)');
-      }
     }
   }, [processFrameForDetection]);
 
@@ -788,7 +783,6 @@ export default function LiveVideo() {
 
             const checkVideoReady = () => {
               if (video.videoWidth > 0 && video.videoHeight > 0) {
-                console.log('✅ Video is ready with dimensions:', video.videoWidth, 'x', video.videoHeight);
                 resolve();
               } else {
                 setTimeout(checkVideoReady, 50); // Check every 50ms
@@ -811,25 +805,18 @@ export default function LiveVideo() {
         setIsStreaming(true);
         isStreamingRef.current = true; // Set ref immediately for synchronous access
         
-        // Check backend readiness before starting detection with retry logic
-        console.log('🔍 Checking backend readiness before starting detection...');
-        
         try {
           // Wait for backend to be ready with retry logic
           const waitForBackendReady = async (maxAttempts = 10, baseDelay = 500) => {
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              console.log(`🔍 Backend readiness check attempt ${attempt}/${maxAttempts}`);
-              
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {       
               const readinessCheck = await window.electronAPI?.backend.checkReadiness();
-              
+            
               if (readinessCheck?.ready && readinessCheck?.modelsLoaded) {
-                console.log('✅ Backend is ready with models loaded');
                 return true;
               }
               
               if (attempt < maxAttempts) {
                 const delay = baseDelay * Math.pow(1.5, attempt - 1); // Exponential backoff
-                console.log(`⏳ Backend not ready yet (${readinessCheck?.error || 'models loading'}), retrying in ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
               }
             }
@@ -849,9 +836,7 @@ export default function LiveVideo() {
             detectionEnabledRef.current = false;
             return;
           }
-          
-          console.log('✅ Backend is ready, proceeding with detection setup');
-          
+                
           // Automatically start detection when camera starts
           setDetectionEnabled(true);
           detectionEnabledRef.current = true;
