@@ -120,7 +120,7 @@ export default function LiveVideo() {
   const [currentGroup, setCurrentGroup] = useState<AttendanceGroup | null>(null);
   
   // Recognition is enabled when backend is ready (removed group dependency for instant recognition)
-  const recognitionEnabled = backendServiceReady;
+  const recognitionEnabled = true;
   
   // Store last detection result for delayed recognition
   const [lastDetectionForRecognition, setLastDetectionForRecognition] = useState<any>(null);
