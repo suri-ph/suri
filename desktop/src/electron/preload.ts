@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         checkAvailability: () => {
             return ipcRenderer.invoke('backend:check-availability')
         },
+        checkReadiness: () => {
+            return ipcRenderer.invoke('backend:check-readiness')
+        },
         getModels: () => {
             return ipcRenderer.invoke('backend:get-models')
         },

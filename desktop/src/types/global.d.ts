@@ -31,6 +31,7 @@ declare global {
 
   interface BackendAPI {
     checkAvailability: () => Promise<{ available: boolean; status?: number; error?: string }>
+    checkReadiness: () => Promise<{ ready: boolean; modelsLoaded: boolean; error?: string }>
     getModels: () => Promise<Record<string, {
       name: string;
       type: string;

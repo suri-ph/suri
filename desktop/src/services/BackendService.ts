@@ -141,6 +141,41 @@ export class BackendService {
   }
 
   /**
+   * Check if the backend is ready for face recognition (models loaded)
+   */
+  async checkReadiness(): Promise<{ ready: boolean; modelsLoaded: boolean; error?: string }> {
+    try {
+      // First check if backend is available
+      const isAvailable = await this.isBackendAvailable();
+      if (!isAvailable) {
+        return { ready: false, modelsLoaded: false, error: 'Backend not available' };
+      }
+
+      // Check if critical models are loaded
+      const models = await this.getAvailableModels();
+      const requiredModels = ['yunet', 'edgeface'];
+      const loadedModels = Object.keys(models).filter(key => 
+        requiredModels.some(required => key.toLowerCase().includes(required.toLowerCase()))
+      );
+
+      const modelsLoaded = loadedModels.length >= requiredModels.length;
+      
+      return {
+        ready: modelsLoaded,
+        modelsLoaded,
+        error: modelsLoaded ? undefined : 'Required face recognition models not loaded'
+      };
+    } catch (error) {
+      console.error('Failed to check backend readiness:', error);
+      return {
+        ready: false,
+        modelsLoaded: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
    * Get available models from the backend
    */
   async getAvailableModels(): Promise<Record<string, ModelInfo>> {

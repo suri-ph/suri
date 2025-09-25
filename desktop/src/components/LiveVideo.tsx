@@ -95,6 +95,7 @@ export default function LiveVideo() {
   const [detectionFps, setDetectionFps] = useState<number>(0);
   const [websocketStatus, setWebsocketStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [backendServiceReady, setBackendServiceReady] = useState(false);
+  const backendServiceReadyRef = useRef(false);
   const lastDetectionRef = useRef<DetectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
@@ -504,11 +505,43 @@ export default function LiveVideo() {
         backendServiceRef.current = new BackendService();
       }
 
+      // Check backend readiness before connecting WebSocket with retry logic
+      console.log('🔍 Checking backend readiness before WebSocket connection...');
+      
+      const waitForBackendReady = async (maxAttempts = 5, baseDelay = 300) => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          console.log(`🔍 WebSocket backend readiness check attempt ${attempt}/${maxAttempts}`);
+          
+          const readinessCheck = await window.electronAPI?.backend.checkReadiness();
+          
+          if (readinessCheck?.ready && readinessCheck?.modelsLoaded) {
+            console.log('✅ Backend is ready for WebSocket connection');
+            return true;
+          }
+          
+          if (attempt < maxAttempts) {
+            const delay = baseDelay * Math.pow(1.3, attempt - 1); // Smaller exponential backoff for WebSocket
+            console.log(`⏳ Backend not ready for WebSocket (${readinessCheck?.error || 'models loading'}), retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+        
+        console.warn('⚠️ Backend readiness timeout for WebSocket after all attempts');
+        return false;
+      };
+      
+      const isBackendReady = await waitForBackendReady();
+      
+      if (!isBackendReady) {
+        throw new Error('Backend not ready: Models still loading after retries');
+      }
+      
+      console.log('✅ Backend is ready, connecting WebSocket...');
+
       // Connect to WebSocket
       await backendServiceRef.current.connectWebSocket();
       
-      // Mark backend service as ready
-      setBackendServiceReady(true);
+      // Backend service ready state will be set when connection confirmation is received
         
         // Register message handler for detection responses
         backendServiceRef.current.onMessage('detection_response', (data: WebSocketDetectionResponse) => {
@@ -584,13 +617,13 @@ export default function LiveVideo() {
           if (process.env.NODE_ENV === 'development') {
             console.log('🔍 Recognition check:', {
               recognitionEnabled,
-              backendServiceReady,
+              backendServiceReady: backendServiceReadyRef.current,
               currentGroup: currentGroup?.name || 'null',
               facesDetected: detectionResult.faces.length
             });
           }
           
-          if (recognitionEnabled && backendServiceReady && detectionResult.faces.length > 0) {
+          if (recognitionEnabled && backendServiceReadyRef.current && detectionResult.faces.length > 0) {
             // Await face recognition to complete before resetting processing flag
             performFaceRecognition(detectionResult).catch(error => {
               console.error('❌ Face recognition failed:', error);
@@ -617,6 +650,12 @@ export default function LiveVideo() {
       backendServiceRef.current.onMessage('connection', (data: WebSocketConnectionMessage) => {
         if (process.env.NODE_ENV === 'development') {
           console.log('🔗 WebSocket connection message:', data);
+        }
+        // Set backend service as ready when connection is confirmed
+        if (data.status === 'connected') {
+          setBackendServiceReady(true);
+          backendServiceReadyRef.current = true;
+          console.log('✅ Backend service marked as ready after connection confirmation');
         }
       });
 
@@ -645,6 +684,7 @@ export default function LiveVideo() {
       console.error('❌ WebSocket initialization failed:', error);
       setError('Failed to connect to real-time detection service');
       setBackendServiceReady(false);
+      backendServiceReadyRef.current = false;
     }
   }, [recognitionEnabled, performFaceRecognition]);
 
@@ -792,44 +832,91 @@ export default function LiveVideo() {
         setIsStreaming(true);
         isStreamingRef.current = true; // Set ref immediately for synchronous access
         
-        // Automatically start detection when camera starts
-        setDetectionEnabled(true);
-        detectionEnabledRef.current = true;
+        // Check backend readiness before starting detection with retry logic
+        console.log('🔍 Checking backend readiness before starting detection...');
         
-        if (websocketStatus === 'disconnected') {
-          try {
-            await initializeWebSocket();
-            // Wait for WebSocket to be fully ready before starting detection
-            let attempts = 0;
-            const maxAttempts = 20; // Increased attempts for better reliability
-            const waitForReady = () => {
-              return new Promise<void>((resolve, reject) => {
-                const checkReady = () => {
-                  if (backendServiceRef.current?.isWebSocketReady()) {
-                    console.log('✅ WebSocket is ready, starting detection interval');
-                    startDetectionInterval();
-                    resolve();
-                  } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(checkReady, 100); // Check every 100ms
-                  } else {
-                    reject(new Error('WebSocket readiness timeout'));
-                  }
-                };
-                checkReady();
-              });
-            };
+        try {
+          // Wait for backend to be ready with retry logic
+          const waitForBackendReady = async (maxAttempts = 10, baseDelay = 500) => {
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              console.log(`🔍 Backend readiness check attempt ${attempt}/${maxAttempts}`);
+              
+              const readinessCheck = await window.electronAPI?.backend.checkReadiness();
+              
+              if (readinessCheck?.ready && readinessCheck?.modelsLoaded) {
+                console.log('✅ Backend is ready with models loaded');
+                return true;
+              }
+              
+              if (attempt < maxAttempts) {
+                const delay = baseDelay * Math.pow(1.5, attempt - 1); // Exponential backoff
+                console.log(`⏳ Backend not ready yet (${readinessCheck?.error || 'models loading'}), retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
             
-            await waitForReady();
-          } catch (error) {
-            console.error('❌ Failed to initialize WebSocket or start detection:', error);
+            console.warn('⚠️ Backend readiness timeout after all attempts');
+            return false;
+          };
+          
+          const isBackendReady = await waitForBackendReady();
+          
+          if (!isBackendReady) {
+            console.warn('⚠️ Backend not ready for face recognition after retries');
+            setError('Backend models are still loading. Please wait and try again.');
+            
+            // Still allow camera to start but don't enable detection
             setDetectionEnabled(false);
             detectionEnabledRef.current = false;
-            setError('Failed to connect to detection service');
+            return;
           }
-        } else if (websocketStatus === 'connected') {
-          // WebSocket is already connected, start detection immediately
-          startDetectionInterval();
+          
+          console.log('✅ Backend is ready, proceeding with detection setup');
+          
+          // Automatically start detection when camera starts
+          setDetectionEnabled(true);
+          detectionEnabledRef.current = true;
+          
+          if (websocketStatus === 'disconnected') {
+            try {
+              await initializeWebSocket();
+              // Wait for WebSocket to be fully ready before starting detection
+              let attempts = 0;
+              const maxAttempts = 20; // Increased attempts for better reliability
+              const waitForReady = () => {
+                return new Promise<void>((resolve, reject) => {
+                  const checkReady = () => {
+                    if (backendServiceRef.current?.isWebSocketReady()) {
+                      console.log('✅ WebSocket is ready, starting detection interval');
+                      startDetectionInterval();
+                      resolve();
+                    } else if (attempts < maxAttempts) {
+                      attempts++;
+                      setTimeout(checkReady, 100); // Check every 100ms
+                    } else {
+                      reject(new Error('WebSocket readiness timeout'));
+                    }
+                  };
+                  checkReady();
+                });
+              };
+              
+              await waitForReady();
+            } catch (error) {
+              console.error('❌ Failed to initialize WebSocket or start detection:', error);
+              setDetectionEnabled(false);
+              detectionEnabledRef.current = false;
+              setError('Failed to connect to detection service');
+            }
+          } else if (websocketStatus === 'connected') {
+            // WebSocket is already connected, start detection immediately
+            startDetectionInterval();
+          }
+        } catch (error) {
+          console.error('❌ Failed to check backend readiness:', error);
+          setError('Failed to check backend readiness');
+          setDetectionEnabled(false);
+          detectionEnabledRef.current = false;
         }
         // If websocketStatus is 'connecting', the useEffect will handle starting detection when connected
       }

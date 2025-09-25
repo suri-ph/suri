@@ -69,6 +69,14 @@ ipcMain.handle('backend:check-availability', async () => {
     }
 });
 
+ipcMain.handle('backend:check-readiness', async () => {
+    try {
+        return await backendService.checkReadiness();
+    } catch (error) {
+        return { ready: false, modelsLoaded: false, error: error instanceof Error ? error.message : String(error) };
+    }
+});
+
 ipcMain.handle('backend:get-models', async () => {
     try {
         return await backendService.getModels();

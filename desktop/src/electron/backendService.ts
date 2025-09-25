@@ -393,6 +393,57 @@ export class BackendService {
   }
 
   /**
+   * Check if backend is fully ready for face recognition (models loaded)
+   */
+  async checkReadiness(): Promise<{ ready: boolean; modelsLoaded: boolean; error?: string }> {
+    try {
+      if (!this.status.isRunning) {
+        return { ready: false, modelsLoaded: false, error: 'Backend service not started' };
+      }
+
+      // First check basic availability
+      const healthResponse = await fetch(`${this.getUrl()}/`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (!healthResponse.ok) {
+        return { ready: false, modelsLoaded: false, error: 'Backend health check failed' };
+      }
+
+      // Then check if models are loaded and ready
+      const modelsResponse = await fetch(`${this.getUrl()}/models`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!modelsResponse.ok) {
+        return { ready: false, modelsLoaded: false, error: 'Models endpoint not available' };
+      }
+
+      const modelsData: ModelsResponse = await modelsResponse.json();
+      
+      // Check if critical models for face recognition are available
+      const yunetAvailable = modelsData.models.yunet?.available || false;
+      const edgefaceAvailable = modelsData.models.edgeface?.available || false;
+      
+      const modelsLoaded = yunetAvailable && edgefaceAvailable;
+      
+      return { 
+        ready: modelsLoaded, 
+        modelsLoaded,
+        error: modelsLoaded ? undefined : 'Face recognition models not fully loaded'
+      };
+    } catch (error) {
+      return { 
+        ready: false, 
+        modelsLoaded: false,
+        error: error instanceof Error ? error.message : String(error) 
+      };
+    }
+  }
+
+  /**
    * Get available models from backend
    */
   async getModels(): Promise<ModelsResponse> {
