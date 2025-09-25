@@ -1939,7 +1939,31 @@ export default function LiveVideo() {
                 )}
               </div>
               
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-4">
+                {/* Detection Settings - Toggle Switch */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-xs transition-colors duration-200 ${
+                      trackingMode === 'auto' ? 'text-cyan-300' : 'text-white/40'
+                    }`}>Auto</span>
+                    <button
+                      onClick={() => setTrackingMode(trackingMode === 'auto' ? 'manual' : 'auto')}
+                      className={`relative w-10 h-3 rounded-full transition-all duration-300 focus:outline-none flex items-center ${
+                        trackingMode === 'auto' 
+                          ? 'bg-cyan-500' 
+                          : 'bg-orange-500'
+                      }`}
+                    >
+                      <div className={`absolute left-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                        trackingMode === 'auto' ? 'translate-x-0' : 'translate-x-6'
+                      }`}></div>
+                    </button>
+                    <span className={`text-xs transition-colors duration-200 ${
+                      trackingMode === 'manual' ? 'text-orange-300' : 'text-white/40'
+                    }`}>Manual</span>
+                  </div>
+                </div>
+
                 <button
                   onClick={isStreaming ? stopCamera : startCamera}
                   className={`px-4 py-2 rounded font-medium transition-colors duration-150 ${
@@ -2013,38 +2037,7 @@ export default function LiveVideo() {
             </div>
           </div>
 
-          {/* Detection Settings */}
-          <div className="px-4 py-4 border-b border-white/[0.08]">
-            <h3 className="text-lg font-light mb-3">Detection Settings</h3>
-            <div className="space-y-3">
-              {/* Elite Tracking Mode */}
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Tracking Mode</span>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => setTrackingMode('auto')}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors duration-150 ${
-                      trackingMode === 'auto'
-                        ? 'bg-cyan-600 text-white'
-                        : 'bg-white/[0.05] text-white/70 hover:bg-white/[0.08] border border-white/[0.1]'
-                    }`}
-                  >
-                    Auto
-                  </button>
-                  <button
-                    onClick={() => setTrackingMode('manual')}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors duration-150 ${
-                      trackingMode === 'manual'
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-white/[0.05] text-white/70 hover:bg-white/[0.08] border border-white/[0.1]'
-                    }`}
-                  >
-                    Manual
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {/* Recognition Controls */}
           {recognitionEnabled && (
