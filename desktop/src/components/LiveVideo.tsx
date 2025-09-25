@@ -1044,10 +1044,10 @@ export default function LiveVideo() {
        let primaryColor: string;
 
        if (isRecognized) {
-         primaryColor = "#00ffff"; // Cyan for recognized
+         primaryColor = "#00ff41";
        } else if (antispoofing) {
          if (antispoofing.status === 'real') {
-           primaryColor = "#00ff41"; // Green for real
+           primaryColor = "#ff0000"; // Green for real
          } else if (antispoofing.status === 'fake') {
            primaryColor = "#ff0000"; // Red for fake
          } else {
