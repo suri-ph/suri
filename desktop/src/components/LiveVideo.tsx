@@ -169,28 +169,17 @@ export default function LiveVideo() {
   const [newMemberRole, setNewMemberRole] = useState('');
   const [newMemberEmployeeId, setNewMemberEmployeeId] = useState('');
   const [newMemberStudentId, setNewMemberStudentId] = useState('');
-  const [selectedPersonForMember, setSelectedPersonForMember] = useState<string>('');
-  const [memberAddMode, setMemberAddMode] = useState<'existing' | 'new'>('new');
+
 
   // Reset member form function
   const resetMemberForm = useCallback(() => {
-    setSelectedPersonForMember('');
     setNewMemberName('');
     setNewMemberRole('');
     setNewMemberEmployeeId('');
     setNewMemberStudentId('');
-    setMemberAddMode('new');
   }, []);
 
-  // Handle mode switching with form reset
-  const handleMemberModeSwitch = useCallback((mode: 'existing' | 'new') => {
-    setSelectedPersonForMember('');
-    setNewMemberName('');
-    setNewMemberRole('');
-    setNewMemberEmployeeId('');
-    setNewMemberStudentId('');
-    setMemberAddMode(mode);
-  }, []);
+
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
 
   // OPTIMIZED: Capture frame with reduced canvas operations and better context settings
@@ -1646,16 +1635,11 @@ export default function LiveVideo() {
   const handleAddMember = useCallback(async () => {
     if (!currentGroup) return null;
     
-    // Validation based on mode
-    if (memberAddMode === 'existing') {
-      if (!selectedPersonForMember || !newMemberName.trim()) return null;
-    } else {
-      if (!newMemberName.trim()) return null;
-    }
+    // Validation for new member creation
+    if (!newMemberName.trim()) return null;
     
     try {
       const options: {
-        personId?: string;
         role?: string;
         employee_id?: string;
         student_id?: string;
@@ -1664,11 +1648,6 @@ export default function LiveVideo() {
       if (newMemberRole.trim()) options.role = newMemberRole.trim();
       if (newMemberEmployeeId.trim()) options.employee_id = newMemberEmployeeId.trim();
       if (newMemberStudentId.trim()) options.student_id = newMemberStudentId.trim();
-      
-      // For existing members, provide the person ID; for new members, let it auto-generate
-      if (memberAddMode === 'existing') {
-        options.personId = selectedPersonForMember;
-      }
       
       const newMember = await attendanceManager.addMember(
         currentGroup.id,
@@ -1681,15 +1660,15 @@ export default function LiveVideo() {
       setShowMemberManagement(false);
       
       await loadAttendanceData();
-      console.log(`✅ ${memberAddMode === 'existing' ? 'Existing person added' : 'New person created and added'} successfully`);
+      console.log('✅ New person created and added successfully');
       
       return newMember;
     } catch (error) {
       console.error('❌ Failed to add member:', error);
-      setError(`Failed to ${memberAddMode === 'existing' ? 'add existing person' : 'create new person'}`);
+      setError('Failed to create new person');
       return null;
     }
-  }, [memberAddMode, selectedPersonForMember, newMemberName, newMemberRole, newMemberEmployeeId, newMemberStudentId, currentGroup, loadAttendanceData, resetMemberForm]);
+  }, [newMemberName, newMemberRole, newMemberEmployeeId, newMemberStudentId, currentGroup, loadAttendanceData, resetMemberForm]);
 
   const handleRemoveMember = useCallback(async (personId: string) => {
     try {
@@ -2728,91 +2707,26 @@ export default function LiveVideo() {
         {showMemberManagement && currentGroup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
-              <h3 className="text-xl font-bold mb-4">Member Management</h3>
+              <h3 className="text-xl font-bold mb-4">Add New Member</h3>
               <p className="text-gray-400 mb-4">Group: {getGroupTypeIcon(currentGroup.type)} {currentGroup.name}</p>
               
               {/* Add New Member */}
               <div className="mb-6">
-                <h4 className="text-lg font-medium mb-3">Add New Member</h4>
-                
-                {/* Tab Selection */}
-                <div className="flex mb-4 bg-gray-700 rounded-lg p-1">
-                  <button
-                    onClick={() => handleMemberModeSwitch('existing')}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm transition-colors ${
-                      memberAddMode === 'existing' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    Add Existing Person
-                  </button>
-                  <button
-                    onClick={() => handleMemberModeSwitch('new')}
-                    className={`flex-1 px-3 py-2 rounded-md text-sm transition-colors ${
-                      memberAddMode === 'new' 
-                        ? 'bg-green-600 text-white' 
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    Create New Person
-                  </button>
-                </div>
 
+                
                 <div className="space-y-3">
-                  {memberAddMode === 'existing' ? (
-                    /* Add Existing Registered Person */
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Select Registered Person:</label>
-                        <select
-                          value={selectedPersonForMember}
-                          onChange={(e) => setSelectedPersonForMember(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="">Select a person...</option>
-                          {registeredPersons
-                            .filter(person => !groupMembers.some(member => member.person_id === person.person_id))
-                            .map((person, index) => (
-                              <option key={person.person_id} value={person.person_id}>
-                                Person #{index + 1} ({person.embedding_count} face{person.embedding_count !== 1 ? 's' : ''})
-                              </option>
-                            ))}
-                        </select>
-                        {registeredPersons.filter(person => !groupMembers.some(member => member.person_id === person.person_id)).length === 0 && (
-                          <p className="text-yellow-400 text-xs mt-1">
-                            No registered persons available. Register faces first or create a new person.
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Display Name:</label>
-                        <input
-                          type="text"
-                          value={newMemberName}
-                          onChange={(e) => setNewMemberName(e.target.value)}
-                          placeholder="Enter display name"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    /* Create New Person */
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Full Name:</label>
-                        <input
-                          type="text"
-                          value={newMemberName}
-                          onChange={(e) => setNewMemberName(e.target.value)}
-                          placeholder="Enter full name"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                    </>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Full Name:</label>
+                    <input
+                      type="text"
+                      value={newMemberName}
+                      onChange={(e) => setNewMemberName(e.target.value)}
+                      placeholder="Enter full name"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                   
-                  {/* Common fields for both modes */}
+                  {/* Additional fields */}
                   <div>
                     <label className="block text-sm font-medium mb-2">Role (Optional):</label>
                     <input
@@ -2849,14 +2763,10 @@ export default function LiveVideo() {
                   )}
                   <button
                     onClick={handleAddMember}
-                    disabled={
-                      memberAddMode === 'existing' 
-                        ? (!selectedPersonForMember || !newMemberName.trim())
-                        : (!newMemberName.trim())
-                    }
+                    disabled={!newMemberName.trim()}
                     className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded transition-colors"
                   >
-                    {memberAddMode === 'existing' ? 'Add Existing Person' : 'Create & Add New Person'}
+                    Add Member
                   </button>
                   
 
@@ -2866,7 +2776,7 @@ export default function LiveVideo() {
               {/* Current Members */}
               {groupMembers.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-lg font-medium mb-3">Current Members ({groupMembers.length})</h4>
+                  <h4 className="text-xxs font-medium mb-3">Current Members ({groupMembers.length})</h4>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {groupMembers.map(member => (
                       <div key={member.person_id} className="flex items-center justify-between p-3 bg-gray-700 rounded">
