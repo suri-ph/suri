@@ -391,29 +391,34 @@ class OptimizedAntiSpoofingDetector:
     def _apply_hysteresis(self, real_score: float, face_id: str = None) -> bool:
         """
         Apply hysteresis to reduce flickering by requiring a confidence margin
-        before changing the decision
+        before changing the decision. Optimized for performance.
         """
+        # Fast path: no face ID provided, use simple threshold
         if face_id is None:
-            # No face ID provided, use simple threshold
             return real_score > self.threshold
         
-        # Get last decision for this face
-        last_decision = self.last_decisions.get(face_id, None)
+        # Fast path: check if we have a previous decision
+        last_decision = self.last_decisions.get(face_id)
         
         if last_decision is None:
             # First time seeing this face, use simple threshold
             decision = real_score > self.threshold
-        else:
-            # Apply hysteresis based on last decision
-            if last_decision:  # Last decision was "real"
-                # Require score to drop below threshold - margin to switch to "fake"
-                decision = real_score > (self.threshold - self.hysteresis_margin)
-            else:  # Last decision was "fake"
-                # Require score to rise above threshold + margin to switch to "real"
-                decision = real_score > (self.threshold + self.hysteresis_margin)
+            self.last_decisions[face_id] = decision
+            return decision
         
-        # Store the decision for next time
-        self.last_decisions[face_id] = decision
+        # Optimized hysteresis: pre-calculate thresholds
+        if last_decision:  # Last decision was "real"
+            # Use lower threshold to prevent flickering to "fake"
+            threshold = self.threshold - self.hysteresis_margin
+        else:  # Last decision was "fake"
+            # Use higher threshold to prevent flickering to "real"
+            threshold = self.threshold + self.hysteresis_margin
+        
+        decision = real_score > threshold
+        
+        # Only update if decision changed (reduces dictionary writes)
+        if decision != last_decision:
+            self.last_decisions[face_id] = decision
         
         return decision
     
