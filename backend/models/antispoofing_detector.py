@@ -28,7 +28,8 @@ class OptimizedAntiSpoofingDetector:
         cache_duration: float = 0.0,  # No caching
         session_options: Optional[Dict] = None,
         smoothing_factor: float = 0.0,  # Disabled by default to prevent cross-contamination
-        enable_temporal_smoothing: bool = False  # Explicit control
+        enable_temporal_smoothing: bool = False,  # Explicit control
+        hysteresis_margin: float = 0.1  # Stability margin to reduce flickering
     ):
         self.model_path = model_path
         self.input_size = input_size
@@ -38,6 +39,7 @@ class OptimizedAntiSpoofingDetector:
         self.session_options = session_options
         self.smoothing_factor = smoothing_factor
         self.enable_temporal_smoothing = enable_temporal_smoothing
+        self.hysteresis_margin = hysteresis_margin
         
         # Model components
         self.session = None
@@ -46,6 +48,7 @@ class OptimizedAntiSpoofingDetector:
         self.previous_results = {}  # face_id -> previous result
         self.result_history = {}    # face_id -> list of recent results
         self.max_history = 5        # Keep last 5 results for smoothing
+        self.last_decisions = {}    # Store last decisions for hysteresis
         
         # Initialize model
         self._initialize_model()
@@ -136,15 +139,15 @@ class OptimizedAntiSpoofingDetector:
                 logger.debug(f"Face too small: {width}x{height}, minimum required: {min_size}x{min_size}")
                 return None
             
-            # Use consistent margin calculation
-            margin_x = width * margin
-            margin_y = height * margin
+            # Use consistent margin calculation with stable rounding
+            margin_x = int(width * margin)
+            margin_y = int(height * margin)
             
-            # Calculate expanded coordinates with proper rounding
-            x1 = max(0, int(round(x - margin_x)))
-            y1 = max(0, int(round(y - margin_y)))
-            x2 = min(w, int(round(x + width + margin_x)))
-            y2 = min(h, int(round(y + height + margin_y)))
+            # Calculate expanded coordinates with stable integer arithmetic
+            x1 = max(0, int(x) - margin_x)
+            y1 = max(0, int(y) - margin_y)
+            x2 = min(w, int(x + width) + margin_x)
+            y2 = min(h, int(y + height) + margin_y)
             
             # Ensure we have a valid crop area
             if x2 <= x1 or y2 <= y1:
@@ -211,11 +214,12 @@ class OptimizedAntiSpoofingDetector:
         
         # Combine results with face data and apply temporal smoothing if enabled
         for (face_id, face), face_crop in zip(valid_faces, face_crops):
-            # Process this face individually
-            antispoofing_result = self._process_single_face(face_crop)
             # Generate a stable face identifier based on bbox position
             bbox = face.get('bbox', face.get('box', {}))
             stable_face_id = self._generate_stable_face_id(bbox)
+            
+            # Process this face individually with hysteresis
+            antispoofing_result = self._process_single_face(face_crop, stable_face_id)
             
             # Apply temporal smoothing only if enabled
             if self.enable_temporal_smoothing:
@@ -312,7 +316,7 @@ class OptimizedAntiSpoofingDetector:
                 "error": str(e)
             } for _ in face_crops]
 
-    def _process_single_face(self, face_crop: np.ndarray) -> Dict:
+    def _process_single_face(self, face_crop: np.ndarray, face_id: str = None) -> Dict:
         """Process a single face crop individually"""
         try:
             # Preprocess the face
@@ -323,8 +327,8 @@ class OptimizedAntiSpoofingDetector:
             outputs = self.session.run(None, {input_name: input_tensor})
             prediction = outputs[0][0]  # Get first (and only) prediction
             
-            # Process the prediction
-            result = self._process_single_prediction(prediction)
+            # Process the prediction with hysteresis
+            result = self._process_single_prediction(prediction, face_id)
             return result
             
         except Exception as e:
@@ -339,9 +343,9 @@ class OptimizedAntiSpoofingDetector:
                 "error": str(e)
             }
     
-    def _process_single_prediction(self, prediction: np.ndarray) -> Dict:
+    def _process_single_prediction(self, prediction: np.ndarray, face_id: str = None) -> Dict:
         """
-        Process model prediction to determine if face is real or fake
+        Process model prediction to determine if face is real or fake with hysteresis
         Model output format: [real_logit, fake_logit]
         """
         try:
@@ -352,8 +356,8 @@ class OptimizedAntiSpoofingDetector:
             real_score = float(softmax_probs[0])  # First element is real
             fake_score = float(softmax_probs[1])  # Second element is fake
             
-            # Determine if face is real based on threshold
-            is_real = real_score > self.threshold
+            # Apply hysteresis to reduce flickering
+            is_real = self._apply_hysteresis(real_score, face_id)
             confidence = real_score if is_real else fake_score
             
             return {
@@ -380,11 +384,39 @@ class OptimizedAntiSpoofingDetector:
         return self.detect_faces_batch(image, face_detections)
     
     def set_threshold(self, threshold: float):
-        """Set the threshold for real/fake classification"""
+        """Update the threshold for real/fake classification"""
         self.threshold = threshold
-        logger.info(f"Threshold updated to: {threshold}")
+        logger.info(f"Updated threshold to {threshold}")
     
-
+    def _apply_hysteresis(self, real_score: float, face_id: str = None) -> bool:
+        """
+        Apply hysteresis to reduce flickering by requiring a confidence margin
+        before changing the decision
+        """
+        if face_id is None:
+            # No face ID provided, use simple threshold
+            return real_score > self.threshold
+        
+        # Get last decision for this face
+        last_decision = self.last_decisions.get(face_id, None)
+        
+        if last_decision is None:
+            # First time seeing this face, use simple threshold
+            decision = real_score > self.threshold
+        else:
+            # Apply hysteresis based on last decision
+            if last_decision:  # Last decision was "real"
+                # Require score to drop below threshold - margin to switch to "fake"
+                decision = real_score > (self.threshold - self.hysteresis_margin)
+            else:  # Last decision was "fake"
+                # Require score to rise above threshold + margin to switch to "real"
+                decision = real_score > (self.threshold + self.hysteresis_margin)
+        
+        # Store the decision for next time
+        self.last_decisions[face_id] = decision
+        
+        return decision
+    
     def _generate_stable_face_id(self, bbox) -> str:
         """Generate a stable face ID based on bbox position to prevent cross-contamination"""
         try:
@@ -492,10 +524,11 @@ class OptimizedAntiSpoofingDetector:
             }
 
     def clear_cache(self):
-        """Clear cache and temporal smoothing history"""
+        """Clear all cached results, temporal history, and hysteresis decisions"""
         self.previous_results.clear()
         self.result_history.clear()
-        logger.info("Cleared temporal smoothing history")
+        self.last_decisions.clear()
+        logger.info("Cache, temporal history, and hysteresis decisions cleared")
     
     def get_model_info(self) -> Dict:
         """Get model information"""
