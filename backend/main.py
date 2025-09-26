@@ -631,10 +631,107 @@ async def get_face_stats():
 @app.websocket("/ws/{client_id}")
 async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
     """
-    WebSocket endpoint for real-time face detection streaming
+    WebSocket endpoint for real-time face detection streaming with adaptive processing
     """
     await manager.connect(websocket, client_id)
     session_id = client_id
+    
+    # Enhanced adaptive processing metrics
+    processing_times = []
+    frame_intervals = []
+    max_samples = 15  # Larger rolling window for better stability
+    target_fps = 30   # Target FPS for optimal performance
+    min_delay = 0.008  # Minimum delay (~125 FPS max)
+    max_delay = 0.25   # Maximum delay (4 FPS min)
+    current_delay = 0.033  # Start at ~30 FPS
+    last_frame_time = None
+    performance_trend = 0  # Track if performance is improving or degrading
+    overload_counter = 0   # Track consecutive overload situations
+    
+    # Queue management for overload prevention
+    processing_queue = []
+    max_queue_size = 3  # Maximum pending frames
+    is_processing = False
+    dropped_frames = 0
+    
+    def calculate_adaptive_delay(processing_time: float) -> float:
+        """Enhanced adaptive delay calculation with intelligent auto-adjustment"""
+        nonlocal current_delay, processing_times, frame_intervals, last_frame_time
+        nonlocal performance_trend, overload_counter
+        
+        current_time = asyncio.get_event_loop().time()
+        
+        # Track frame intervals for throughput analysis
+        if last_frame_time is not None:
+            frame_interval = current_time - last_frame_time
+            frame_intervals.append(frame_interval)
+            if len(frame_intervals) > max_samples:
+                frame_intervals.pop(0)
+        last_frame_time = current_time
+        
+        # Add current processing time to rolling window
+        processing_times.append(processing_time)
+        if len(processing_times) > max_samples:
+            processing_times.pop(0)
+        
+        # Calculate performance metrics
+        avg_processing_time = sum(processing_times) / len(processing_times)
+        max_processing_time = max(processing_times) if processing_times else processing_time
+        min_processing_time = min(processing_times) if processing_times else processing_time
+        
+        # Calculate performance trend (improving vs degrading)
+        if len(processing_times) >= 5:
+            recent_avg = sum(processing_times[-3:]) / 3
+            older_avg = sum(processing_times[-6:-3]) / 3 if len(processing_times) >= 6 else recent_avg
+            performance_trend = (older_avg - recent_avg) / older_avg if older_avg > 0 else 0
+        
+        # Detect system overload
+        is_overloaded = processing_time > avg_processing_time * 1.5 or processing_time > 0.1
+        if is_overloaded:
+            overload_counter += 1
+        else:
+            overload_counter = max(0, overload_counter - 1)
+        
+        # Calculate base optimal interval
+        # Use a more conservative buffer for stability
+        base_interval = avg_processing_time * 1.3  # 30% buffer
+        
+        # Apply dynamic adjustments based on system state
+        adjustment_factor = 1.0
+        
+        # Performance trend adjustment
+        if performance_trend > 0.1:  # Performance improving
+            adjustment_factor *= 0.9  # Slightly more aggressive
+        elif performance_trend < -0.1:  # Performance degrading
+            adjustment_factor *= 1.15  # More conservative
+        
+        # Overload protection
+        if overload_counter > 3:
+            adjustment_factor *= 1.4  # Much more conservative during overload
+        elif overload_counter > 1:
+            adjustment_factor *= 1.2  # Moderately more conservative
+        
+        # Variability adjustment - if processing times are inconsistent, be more conservative
+        if len(processing_times) >= 5:
+            processing_variance = (max_processing_time - min_processing_time) / avg_processing_time
+            if processing_variance > 0.5:  # High variability
+                adjustment_factor *= 1.1
+        
+        # Calculate optimal interval with adjustments
+        optimal_interval = base_interval * adjustment_factor
+        
+        # Intelligent bounds based on current performance
+        dynamic_min_delay = max(min_delay, avg_processing_time * 0.8)
+        dynamic_max_delay = min(max_delay, avg_processing_time * 3.0)
+        
+        # Clamp to dynamic bounds
+        optimal_interval = max(dynamic_min_delay, min(optimal_interval, dynamic_max_delay))
+        
+        # Adaptive smoothing - more aggressive smoothing during stable periods
+        smoothing_factor = 0.3 if overload_counter == 0 and abs(performance_trend) < 0.05 else 0.15
+        current_delay = current_delay * (1 - smoothing_factor) + optimal_interval * smoothing_factor
+        
+        return current_delay
     
     try:
         while True:
@@ -643,7 +740,44 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
             message = json.loads(data)
             
             if message.get("type") == "detection_request":
+                # Queue management - prevent overload
+                if is_processing and len(processing_queue) >= max_queue_size:
+                    # Drop frame if queue is full
+                    dropped_frames += 1
+                    logger.warning(f"Frame dropped due to queue overload. Total dropped: {dropped_frames}")
+                    
+                    # Send immediate response to maintain flow
+                    overload_response = {
+                        "type": "detection_response",
+                        "session_id": session_id,
+                        "faces": [],
+                        "model_used": message.get("model_type", "yunet"),
+                        "processing_time": 0.001,  # Minimal processing time
+                        "timestamp": asyncio.get_event_loop().time(),
+                        "frame_dropped": True,
+                        "adaptive_metrics": {
+                            "current_fps": 1.0 / current_delay if current_delay > 0 else 0,
+                            "actual_fps": 0,
+                            "avg_processing_time": sum(processing_times) / len(processing_times) if processing_times else 0,
+                            "recommended_delay": current_delay,
+                            "performance_trend": performance_trend,
+                            "overload_counter": overload_counter,
+                            "system_efficiency": 0,
+                            "samples_count": len(processing_times),
+                            "queue_size": len(processing_queue),
+                            "dropped_frames": dropped_frames
+                        }
+                    }
+                    await websocket.send_text(json.dumps(overload_response))
+                    continue
+                
+                # Add to queue if currently processing
+                if is_processing:
+                    processing_queue.append(message)
+                    continue
+                
                 # Process detection request
+                is_processing = True
                 try:
                     import time
                     start_time = time.time()
@@ -701,19 +835,59 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                     # Calculate processing time
                     processing_time = time.time() - start_time
                     
-                    # Send response
+                    # Calculate adaptive delay for optimal performance
+                    adaptive_delay = calculate_adaptive_delay(processing_time)
+                    
+                    # Send response with enhanced performance metrics
+                    avg_processing_time = sum(processing_times) / len(processing_times) if processing_times else processing_time
+                    avg_frame_interval = sum(frame_intervals) / len(frame_intervals) if frame_intervals else adaptive_delay
+                    actual_fps = 1.0 / avg_frame_interval if avg_frame_interval > 0 else 0
+                    target_fps_current = 1.0 / adaptive_delay if adaptive_delay > 0 else 0
+                    
                     response = {
                         "type": "detection_response",
                         "session_id": session_id,
                         "faces": faces,
                         "model_used": model_type,
                         "processing_time": processing_time,
-                        "timestamp": asyncio.get_event_loop().time()
+                        "timestamp": asyncio.get_event_loop().time(),
+                        "frame_dropped": False,
+                        "adaptive_metrics": {
+                            "current_fps": target_fps_current,
+                            "actual_fps": actual_fps,
+                            "avg_processing_time": avg_processing_time,
+                            "recommended_delay": adaptive_delay,
+                            "performance_trend": performance_trend,
+                            "overload_counter": overload_counter,
+                            "system_efficiency": min(1.0, avg_processing_time / adaptive_delay) if adaptive_delay > 0 else 0,
+                            "samples_count": len(processing_times),
+                            "queue_size": len(processing_queue),
+                            "dropped_frames": dropped_frames
+                        }
                     }
                     
                     await websocket.send_text(json.dumps(response))
                     
+                    # Mark processing as complete
+                    is_processing = False
+                    
+                    # Adaptive delay before requesting next frame
+                    if adaptive_delay > 0:
+                        await asyncio.sleep(adaptive_delay)
+                    
+                    # Request next frame for continuous processing
+                    next_frame_request = {
+                        "type": "request_next_frame",
+                        "session_id": session_id,
+                        "timestamp": asyncio.get_event_loop().time()
+                    }
+                    
+                    await websocket.send_text(json.dumps(next_frame_request))
+                    
                 except Exception as e:
+                    # Reset processing flag on error
+                    is_processing = False
+                    
                     error_response = {
                         "type": "error",
                         "message": str(e),
