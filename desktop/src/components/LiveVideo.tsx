@@ -88,6 +88,10 @@ export default function LiveVideo() {
   const lastVideoSizeRef = useRef<{width: number, height: number}>({width: 0, height: 0});
   const scaleFactorsRef = useRef<{scaleX: number, scaleY: number, offsetX: number, offsetY: number}>({scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0});
   const lastDetectionHashRef = useRef<string>('');
+  
+  // OPTIMIZATION: Cache video rect to avoid repeated getBoundingClientRect calls
+  const videoRectRef = useRef<DOMRect | null>(null);
+  const lastVideoRectUpdateRef = useRef<number>(0);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [detectionEnabled, setDetectionEnabled] = useState(false);
@@ -190,7 +194,7 @@ export default function LiveVideo() {
   }, []);
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
 
-  // Optimized capture frame with better error handling
+  // OPTIMIZED: Capture frame with reduced canvas operations and better context settings
   const captureFrame = useCallback((): string | null => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -209,7 +213,11 @@ export default function LiveVideo() {
       return null;
     }
 
-    const ctx = canvas.getContext('2d');
+    // OPTIMIZATION: Get context with optimized settings
+    const ctx = canvas.getContext('2d', { 
+      alpha: false, // No transparency needed for capture
+      willReadFrequently: false // We don't read pixels frequently
+    });
     if (!ctx) {
       console.warn('⚠️ captureFrame: Failed to get canvas context');
       return null;
@@ -225,7 +233,7 @@ export default function LiveVideo() {
       // Draw current video frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // OPTIMIZATION: Further reduced quality for better performance (was 0.6, now 0.4)
+      // OPTIMIZATION: Use lower quality for better performance (0.4 instead of 0.6)
       const base64 = canvas.toDataURL('image/jpeg', 0.4).split(',')[1];
       return base64;
     } catch (error) {
@@ -1011,7 +1019,20 @@ export default function LiveVideo() {
     }
   }, []);
 
+  // OPTIMIZATION: Cache video rect to avoid repeated getBoundingClientRect calls
+  const getVideoRect = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return null;
 
+    const now = Date.now();
+    // Update rect only every 100ms to reduce layout thrashing
+    if (!videoRectRef.current || now - lastVideoRectUpdateRef.current > 100) {
+      videoRectRef.current = video.getBoundingClientRect();
+      lastVideoRectUpdateRef.current = now;
+    }
+    
+    return videoRectRef.current;
+  }, []);
 
   // Memoized scale calculation to avoid recalculation
   const calculateScaleFactors = useCallback(() => {
@@ -1064,40 +1085,48 @@ export default function LiveVideo() {
     return scaleFactorsRef.current;
   }, []);
 
-  // Advanced futuristic drawing system
+  // OPTIMIZED: Advanced futuristic drawing system with performance improvements
   const drawOverlays = useCallback(() => {
     const video = videoRef.current;
     const overlayCanvas = overlayCanvasRef.current;
     
     if (!video || !overlayCanvas || !currentDetections) return;
 
-    const ctx = overlayCanvas.getContext('2d', { willReadFrequently: true });
+    // OPTIMIZATION: Get context with optimized settings
+    const ctx = overlayCanvas.getContext('2d', { 
+      alpha: true, // Need transparency for overlays
+      willReadFrequently: false // We don't read pixels frequently
+    });
     if (!ctx) return;
-
-    // Clear canvas first
-    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
     // Only draw when streaming and have detections
     if (!isStreaming || !currentDetections.faces || currentDetections.faces.length === 0) {
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       return;
     }
 
-    // CRITICAL: Always get fresh dimensions and recalculate for accuracy
-    // Force layout recalculation to ensure accurate dimensions after resize
-    void video.offsetHeight; // Force reflow
-    const rect = video.getBoundingClientRect();
+    // OPTIMIZATION: Use cached video rect instead of getBoundingClientRect
+    const rect = getVideoRect();
+    if (!rect) return;
+
     const displayWidth = Math.round(rect.width);
     const displayHeight = Math.round(rect.height);
 
-    // ENHANCED: Update canvas size to exactly match video display size
+    // OPTIMIZATION: Only resize canvas if dimensions actually changed
+    let needsClear = false;
     if (overlayCanvas.width !== displayWidth || overlayCanvas.height !== displayHeight) {
       overlayCanvas.width = displayWidth;
       overlayCanvas.height = displayHeight;
       overlayCanvas.style.width = `${displayWidth}px`;
       overlayCanvas.style.height = `${displayHeight}px`;
-      
-      // Clear canvas after size change
+      needsClear = true;
+    }
+
+    // Clear canvas only when needed
+    if (needsClear) {
       ctx.clearRect(0, 0, displayWidth, displayHeight);
+    } else {
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     }
 
     // Get cached scale factors
@@ -1835,8 +1864,8 @@ export default function LiveVideo() {
       }
     };
 
-    // Poll every 100ms for responsive status updates
-    const statusInterval = setInterval(pollWebSocketStatus, 100);
+    // OPTIMIZATION: Poll every 250ms for responsive status updates (reduced from 100ms)
+    const statusInterval = setInterval(pollWebSocketStatus, 250);
 
     return () => {
       clearInterval(statusInterval);
