@@ -2015,7 +2015,7 @@ export default function LiveVideo() {
 
         {/* Sidebar */}
         <div className="w-80 my-3 bg-white/[0.02] border-l border-white/[0.08] flex flex-col max-h-full">
-          <div className="px-4 pt-2 pb-4 border-b border-white/[0.08]">
+          <div className="px-4 py-2 border-b border-white/[0.08]">
             <div className="space-y-3">
                 <div className="flex justify-between">
                                        <button
@@ -2357,7 +2357,7 @@ export default function LiveVideo() {
   
                      {currentGroup && groupMembers.length === 0 && (
                        <div className="text-white/50 text-sm text-center py-4">
-                         No members in this group. Click "Members" to add some.
+                         No members in this group. <br/>Click "Members" to add some.
                        </div>
                      )}
                    </div>
