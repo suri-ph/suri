@@ -2043,7 +2043,6 @@ export default function LiveVideo() {
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowRegistrationDialog(true)}
-                    disabled={!currentDetections?.faces?.length}
                     className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 disabled:bg-white/[0.05] disabled:text-white/40 backdrop-blur-xl border border-green-500/30 text-green-200 hover:text-green-100 rounded-xl font-light transition-all duration-300"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
