@@ -2089,18 +2089,6 @@ export default function LiveVideo() {
              <div className="flex-1 p-4 min-h-0 h-full">
                {attendanceEnabled ? (
                  <>
-                   <div className="flex items-center justify-between mb-4 flex-col">
-                     <div className="flex space-x-2  w-full">
-                       <button
-                         onClick={() => setShowGroupManagement(true)}
-                         className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 rounded text-xs transition-colors"
-                       >
-                         Groups
-                       </button>
-
-                     </div>
-                   </div>
-  
                    <div className="space-y-4 h-full overflow-y-auto">
                      {/* Group Selection */}
                      {attendanceGroups.length > 0 && (
@@ -2109,11 +2097,20 @@ export default function LiveVideo() {
                          <select
                            value={currentGroup?.id || ''}
                            onChange={(e) => {
+                             if (e.target.value === 'create-new') {
+                               setShowGroupManagement(true);
+                               return;
+                             }
                              const group = attendanceGroups.find(g => g.id === e.target.value);
                              if (group) handleSelectGroup(group);
                            }}
                            className="w-full bg-white/[0.05] text-white text-sm border border-white/[0.1] rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
                          >
+                           <option value="create-new" className="bg-black text-white">
+                             ➕ Create New Group
+                           </option>
+                           <option disabled className="bg-black text-gray-500">
+                           </option>
                            {attendanceGroups.map(group => (
                              <option key={group.id} value={group.id} className="bg-black text-white">
                                {getGroupTypeIcon(group.type)} {group.name}
@@ -2121,7 +2118,7 @@ export default function LiveVideo() {
                            ))}
                          </select>
                        </div>
-                     )}
+                     ) }
   
                      {/* Manual Confirmation Queue */}
                      {trackingMode === 'manual' && pendingAttendance.length > 0 && (
@@ -2236,8 +2233,16 @@ export default function LiveVideo() {
                      {/* No data states */}
                      {attendanceGroups.length === 0 && (
                        <div className="text-white/50 text-sm text-center py-4">
-                         No groups created yet. <br /> Click "Groups" to create one.
+                         No groups created yet. <br /> Click "Create Group" to create one.
+
+                                                <button
+                         onClick={() => setShowGroupManagement(true)}
+                         className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 rounded text-xs transition-colors"
+                       >
+                         Create Group
+                       </button>
                        </div>
+                       
                      )}
   
 
