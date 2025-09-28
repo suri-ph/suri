@@ -573,9 +573,43 @@ async def process_attendance_event(
         if not member:
             raise HTTPException(status_code=404, detail="Member not found")
         
-        # Get current settings to check confidence threshold
+        # Get current settings to check confidence threshold and cooldown
         settings = db.get_settings()
         confidence_threshold = settings.get("confidence_threshold", 0.6)
+        cooldown_seconds = settings.get("attendance_cooldown_seconds", 10)
+        
+        # Check for recent attendance records to enforce cooldown
+        current_time = datetime.now()
+        recent_records = db.get_records(
+            person_id=event_data.person_id,
+            start_date=current_time.replace(hour=0, minute=0, second=0, microsecond=0),
+            end_date=current_time,
+            limit=10
+        )
+        
+        # Check if there's a recent record within the cooldown period
+        if recent_records:
+            for record in recent_records:
+                record_time = record.get('timestamp')
+                if isinstance(record_time, str):
+                    record_time = datetime.fromisoformat(record_time.replace('Z', '+00:00'))
+                elif not isinstance(record_time, datetime):
+                    continue
+                    
+                time_diff = (current_time - record_time).total_seconds()
+                if time_diff < cooldown_seconds:
+                    # Return early response indicating cooldown is active
+                    return AttendanceEventResponse(
+                        id=None,
+                        person_id=event_data.person_id,
+                        group_id=member["group_id"],
+                        type=None,
+                        timestamp=current_time,
+                        confidence=event_data.confidence,
+                        location=event_data.location,
+                        processed=False,
+                        error=f"Attendance cooldown active. Please wait {int(cooldown_seconds - time_diff)} more seconds."
+                    )
         
         # Determine attendance type based on current session state
         today = datetime.now().date().strftime('%Y-%m-%d')

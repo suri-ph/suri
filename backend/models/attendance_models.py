@@ -143,10 +143,10 @@ class AttendanceEventCreate(BaseModel):
 
 
 class AttendanceEventResponse(BaseModel):
-    id: str
+    id: Optional[str]
     person_id: str
     group_id: str
-    type: AttendanceType
+    type: Optional[AttendanceType]
     timestamp: datetime
     confidence: float
     location: Optional[str]
@@ -165,6 +165,7 @@ class AttendanceSettingsUpdate(BaseModel):
     enable_break_tracking: Optional[bool] = None
     enable_location_tracking: Optional[bool] = None
     confidence_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+    attendance_cooldown_seconds: Optional[int] = Field(None, ge=1, le=300)
 
 
 class AttendanceSettingsResponse(BaseModel):
@@ -177,6 +178,7 @@ class AttendanceSettingsResponse(BaseModel):
     enable_break_tracking: bool
     enable_location_tracking: bool
     confidence_threshold: float
+    attendance_cooldown_seconds: int
 
 
 # Statistics Models
