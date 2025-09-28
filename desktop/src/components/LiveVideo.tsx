@@ -1999,17 +1999,13 @@ export default function LiveVideo() {
                     </svg>
                     <span className="text-sm font-light tracking-wider uppercase">Register Face</span>
                   </button>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60">Registered Persons</span>
-                  <span className="font-mono">{registeredPersons.length}</span>
-                </div>
                 </div>
               </div>
             )}
              <div className="p-4 border-b border-white/[0.08]">
-               <div className="space-y-2 max-h-32 overflow-y-auto recent-logs-scroll">
+               <div className="space-y-2 h-32 max-h-32 overflow-y-auto recent-logs-scroll">
                 {!currentDetections?.faces?.length ? (
-                  <div className="text-white/50 text-sm text-center py-4">
+                  <div className="text-white/50 text-sm text-center pt-14">
                     No faces detected
                   </div>
                 ) : (
@@ -2199,7 +2195,7 @@ export default function LiveVideo() {
                      {recentAttendance.length > 0 && (
                        <div>
                          <h4 className="text-sm font-medium mb-2 text-white/80">Log:</h4>
-                         <div className="space-y-1 max-h-40 overflow-y-auto">
+                         <div className="space-y-1 overflow-y-auto">
                            {recentAttendance.slice(0, 10).map(record => {
                              const member = groupMembers.find(m => m.person_id === record.person_id);
                              return (
