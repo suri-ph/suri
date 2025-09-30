@@ -382,9 +382,13 @@ export default function LiveVideo() {
             return null;
           }
           
+          // Convert bbox to array format [x, y, width, height]
+          const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
+          
           const response = await backendServiceRef.current.recognizeFace(
             frameData,
             landmarks,
+            bbox,
             currentGroupValue?.id
           );
 
@@ -1596,10 +1600,14 @@ export default function LiveVideo() {
         [face.landmarks.left_mouth_corner.x, face.landmarks.left_mouth_corner.y]
       ];
       
+      // Convert bbox to array format [x, y, width, height]
+      const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
+      
       const response = await backendServiceRef.current.registerFace(
         frameData,
         selectedPersonForRegistration.trim(),
         landmarks,
+        bbox,
         currentGroup?.id
       );
 

@@ -185,84 +185,34 @@ class EdgeFaceDetector:
     
 
     
-    def _align_face(self, image: np.ndarray, landmarks: np.ndarray, bbox: Optional[List[float]] = None) -> np.ndarray:
+    def _align_face(self, image: np.ndarray, landmarks: np.ndarray, bbox: List[float]) -> np.ndarray:
         """
         Align face using FaceMesh detector for high-quality alignment
         
         Args:
             image: Input image
-            landmarks: 5-point landmarks from YuNet (used as fallback only)
-            bbox: Face bounding box [x1, y1, x2, y2] for FaceMesh
+            landmarks: 5-point landmarks from YuNet (not used, kept for compatibility)
+            bbox: Face bounding box [x, y, width, height] for FaceMesh (required)
             
         Returns:
             Aligned face crop (112x112)
         """
-        try:
-            # Use FaceMesh alignment (primary method)
-            if self.facemesh_alignment and self.facemesh_detector is not None and bbox is not None:
-                try:
-                    # Get FaceMesh landmarks
-                    facemesh_result = self.facemesh_detector.detect_landmarks(image, bbox)
-                    if facemesh_result['success'] and facemesh_result['landmarks_5']:
-                        # Use FaceMesh-derived 5-point landmarks for alignment
-                        facemesh_landmarks = np.array(facemesh_result['landmarks_5'], dtype=np.float32)
-                        
-                        # Create aligned face using FaceMesh landmarks and similarity transform
-                        aligned_face = self._create_aligned_face(image, facemesh_landmarks)
-                        logger.debug("Using FaceMesh landmarks for alignment")
-                        return aligned_face
-                    else:
-                        logger.debug("FaceMesh detection failed, using fallback landmarks")
-                except Exception as e:
-                    logger.warning(f"FaceMesh alignment failed: {e}")
+        # Use FaceMesh alignment (required)
+        if self.facemesh_alignment and self.facemesh_detector is not None:
+            # Get FaceMesh landmarks
+            facemesh_result = self.facemesh_detector.detect_landmarks(image, bbox)
+            if facemesh_result['success'] and facemesh_result['landmarks_5']:
+                # Use FaceMesh-derived 5-point landmarks for alignment
+                facemesh_landmarks = np.array(facemesh_result['landmarks_5'], dtype=np.float32)
+                
+                # Create aligned face using FaceMesh landmarks and similarity transform
+                aligned_face = self._create_aligned_face(image, facemesh_landmarks)
+                logger.debug("Using FaceMesh landmarks for alignment")
+                return aligned_face
             else:
-                if not self.facemesh_alignment:
-                    logger.debug("FaceMesh alignment disabled, using fallback")
-                elif bbox is None:
-                    logger.debug("No bbox provided for FaceMesh, using fallback")
-            
-            # Fallback: simple crop and resize based on landmarks
-            if landmarks is not None and landmarks.shape == (5, 2):
-                # Calculate bounding box from landmarks
-                x_coords = landmarks[:, 0]
-                y_coords = landmarks[:, 1]
-                
-                # Add margin around landmarks
-                margin = 0.3  # 30% margin
-                x_min, x_max = np.min(x_coords), np.max(x_coords)
-                y_min, y_max = np.min(y_coords), np.max(y_coords)
-                
-                width = x_max - x_min
-                height = y_max - y_min
-                
-                x_margin = width * margin
-                y_margin = height * margin
-                
-                x1 = max(0, int(x_min - x_margin))
-                y1 = max(0, int(y_min - y_margin))
-                x2 = min(image.shape[1], int(x_max + x_margin))
-                y2 = min(image.shape[0], int(y_max + y_margin))
-                
-                face_crop = image[y1:y2, x1:x2]
-            else:
-                # Ultimate fallback: center crop
-                h, w = image.shape[:2]
-                center_x, center_y = w // 2, h // 2
-                size = min(w, h) // 2
-                
-                x1 = max(0, center_x - size)
-                y1 = max(0, center_y - size)
-                x2 = min(w, center_x + size)
-                y2 = min(h, center_y + size)
-                
-                face_crop = image[y1:y2, x1:x2]
-            
-            return cv2.resize(face_crop, self.input_size)
-            
-        except Exception as e:
-            logger.error(f"Face alignment failed completely: {e}")
-            # Ultimate fallback: resize entire image
-            return cv2.resize(image, self.input_size)
+                raise ValueError("FaceMesh detection failed - unable to detect landmarks")
+        else:
+            raise ValueError("FaceMesh alignment is disabled or not available")
     
     def _create_aligned_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         """
@@ -450,14 +400,14 @@ class EdgeFaceDetector:
             logger.error(f"Image preprocessing failed: {e}")
             raise
     
-    def _extract_embedding(self, image: np.ndarray, landmarks: np.ndarray, bbox: Optional[List[float]] = None) -> np.ndarray:
+    def _extract_embedding(self, image: np.ndarray, landmarks: np.ndarray, bbox: List[float]) -> np.ndarray:
         """
         Extract face embedding from image using landmarks
         
         Args:
             image: Input image
             landmarks: 5-point facial landmarks
-            bbox: Optional bounding box [x, y, width, height] from face detection
+            bbox: Bounding box [x, y, width, height] from face detection (required)
             
         Returns:
             Normalized face embedding (512-dim)
@@ -536,14 +486,14 @@ class EdgeFaceDetector:
         else:
             return None, best_similarity
     
-    def recognize_face(self, image: np.ndarray, landmarks: List[List[float]], bbox: Optional[List[float]] = None) -> Dict:
+    def recognize_face(self, image: np.ndarray, landmarks: List[List[float]], bbox: List[float]) -> Dict:
         """
         Recognize face in image using landmarks (synchronous)
         
         Args:
             image: Input image as numpy array (BGR format)
             landmarks: 5-point facial landmarks in YuNet order [[x1,y1], [x2,y2], ...]
-            bbox: Optional bounding box [x, y, width, height] from face detection
+            bbox: Bounding box [x, y, width, height] from face detection (required)
             
         Returns:
             Recognition result with person_id and similarity
@@ -595,14 +545,14 @@ class EdgeFaceDetector:
                 "error": str(e)
             }
     
-    async def recognize_face_async(self, image: np.ndarray, landmarks: List[List[float]], bbox: Optional[List[float]] = None) -> Dict:
+    async def recognize_face_async(self, image: np.ndarray, landmarks: List[List[float]], bbox: List[float]) -> Dict:
         """
         Recognize face in image using landmarks (asynchronous)
         
         Args:
             image: Input image as numpy array (BGR format)
             landmarks: 5-point facial landmarks
-            bbox: Optional bounding box [x, y, width, height] from face detection
+            bbox: Bounding box [x, y, width, height] from face detection (required)
             
         Returns:
             Recognition result with person_id and similarity
@@ -611,7 +561,7 @@ class EdgeFaceDetector:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.recognize_face, image, landmarks, bbox)
     
-    def register_person(self, person_id: str, image: np.ndarray, landmarks: List[List[float]], bbox: Optional[List[float]] = None) -> Dict:
+    def register_person(self, person_id: str, image: np.ndarray, landmarks: List[List[float]], bbox: List[float]) -> Dict:
         """
         Register a new person in the database
         
@@ -619,7 +569,7 @@ class EdgeFaceDetector:
             person_id: Unique identifier for the person
             image: Input image
             landmarks: 5-point facial landmarks in YuNet order
-            bbox: Optional bounding box [x, y, width, height] from face detection
+            bbox: Bounding box [x, y, width, height] from face detection (required)
             
         Returns:
             Registration result
@@ -671,7 +621,7 @@ class EdgeFaceDetector:
                 "person_id": person_id
             }
     
-    async def register_person_async(self, person_id: str, image: np.ndarray, landmarks: List[List[float]], bbox: Optional[List[float]] = None) -> Dict:
+    async def register_person_async(self, person_id: str, image: np.ndarray, landmarks: List[List[float]], bbox: List[float]) -> Dict:
         """Register person asynchronously"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.register_person, person_id, image, landmarks, bbox)

@@ -450,6 +450,7 @@ export class BackendService {
   async recognizeFace(
     imageData: ImageData | string,
     landmarks?: number[][],
+    bbox?: number[],
     groupId?: string
   ): Promise<FaceRecognitionResponse> {
     try {
@@ -460,6 +461,7 @@ export class BackendService {
       const requestBody = {
         image: base64Image,
         landmarks: landmarks,
+        bbox: bbox,
         group_id: groupId
       };
 
@@ -490,6 +492,7 @@ export class BackendService {
     imageData: ImageData | string,
     personId: string,
     landmarks?: number[][],
+    bbox?: number[],
     groupId?: string
   ): Promise<FaceRegistrationResponse> {
     try {
@@ -501,6 +504,7 @@ export class BackendService {
         image: base64Image,
         person_id: personId,
         landmarks: landmarks,
+        bbox: bbox,
         group_id: groupId
       };
 
