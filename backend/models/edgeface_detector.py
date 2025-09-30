@@ -135,6 +135,32 @@ class EdgeFaceDetector:
             logger.error(f"Failed to initialize EdgeFace model: {e}")
             raise
     
+    def _convert_yunet_landmarks_to_edgeface_order(self, landmarks: np.ndarray) -> np.ndarray:
+        """
+        Convert YuNet landmark order to EdgeFace expected order
+        
+        YuNet order: [right_eye, left_eye, nose_tip, right_mouth_corner, left_mouth_corner]
+        EdgeFace order: [left_eye, right_eye, nose_tip, left_mouth_corner, right_mouth_corner]
+        
+        Args:
+            landmarks: YuNet landmarks array of shape (5, 2)
+            
+        Returns:
+            Converted landmarks array in EdgeFace order
+        """
+        if landmarks.shape[0] < 5:
+            raise ValueError("Insufficient landmarks for conversion (need 5 points)")
+            
+        # Convert from YuNet order to EdgeFace order
+        converted_landmarks = np.zeros_like(landmarks[:5])
+        converted_landmarks[0] = landmarks[1]  # left_eye (YuNet index 1 -> EdgeFace index 0)
+        converted_landmarks[1] = landmarks[0]  # right_eye (YuNet index 0 -> EdgeFace index 1)
+        converted_landmarks[2] = landmarks[2]  # nose_tip (same position)
+        converted_landmarks[3] = landmarks[4]  # left_mouth_corner (YuNet index 4 -> EdgeFace index 3)
+        converted_landmarks[4] = landmarks[3]  # right_mouth_corner (YuNet index 3 -> EdgeFace index 4)
+        
+        return converted_landmarks
+    
 
     
     def _align_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
@@ -385,7 +411,7 @@ class EdgeFaceDetector:
         
         Args:
             image: Input image as numpy array (BGR format)
-            landmarks: 5-point facial landmarks [[x1,y1], [x2,y2], ...]
+            landmarks: 5-point facial landmarks in YuNet order [[x1,y1], [x2,y2], ...]
             
         Returns:
             Recognition result with person_id and similarity
@@ -399,6 +425,9 @@ class EdgeFaceDetector:
             
             # Take first 5 landmarks if more are provided
             landmarks_array = landmarks_array[:5]
+            
+            # Convert from YuNet order to EdgeFace expected order
+            landmarks_array = self._convert_yunet_landmarks_to_edgeface_order(landmarks_array)
             
             # Validate landmark quality with improved handling for angled faces
             if not self._validate_landmarks_quality(landmarks_array):
@@ -456,7 +485,7 @@ class EdgeFaceDetector:
         Args:
             person_id: Unique identifier for the person
             image: Input image
-            landmarks: 5-point facial landmarks
+            landmarks: 5-point facial landmarks in YuNet order
             
         Returns:
             Registration result
@@ -470,6 +499,9 @@ class EdgeFaceDetector:
             
             # Take first 5 landmarks if more are provided
             landmarks_array = landmarks_array[:5]
+            
+            # Convert from YuNet order to EdgeFace expected order
+            landmarks_array = self._convert_yunet_landmarks_to_edgeface_order(landmarks_array)
             
             # Validate landmark quality with improved handling for angled faces
             if not self._validate_landmarks_quality(landmarks_array):
