@@ -4,7 +4,6 @@
 
 export interface FaceRecognitionRequest {
   image: string; // base64 encoded image
-  landmarks?: number[][];
   bbox?: number[]; // Optional bounding box [x, y, width, height]
   group_id?: string;
 }
@@ -20,7 +19,6 @@ export interface FaceRecognitionResponse {
 export interface FaceRegistrationRequest {
   image: string; // base64 encoded image
   person_id: string;
-  landmarks?: number[][];
   bbox?: number[]; // Optional bounding box [x, y, width, height]
   group_id?: string;
 }

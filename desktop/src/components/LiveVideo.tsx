@@ -369,16 +369,6 @@ export default function LiveVideo() {
       // Process each detected face for recognition
       const recognitionPromises = detectionResult.faces.map(async (face, index) => {
         try {
-          // Convert landmarks to the format expected by backend: [[x1,y1], [x2,y2], ...]
-          // YuNet already provides landmarks in the correct face perspective order
-          const landmarks = [
-            [face.landmarks.right_eye.x, face.landmarks.right_eye.y],
-            [face.landmarks.left_eye.x, face.landmarks.left_eye.y],
-            [face.landmarks.nose_tip.x, face.landmarks.nose_tip.y],
-            [face.landmarks.right_mouth_corner.x, face.landmarks.right_mouth_corner.y],
-            [face.landmarks.left_mouth_corner.x, face.landmarks.left_mouth_corner.y]
-          ];
-          
           if (!backendServiceRef.current) {
             console.error('Backend service not initialized');
             return null;
@@ -389,7 +379,6 @@ export default function LiveVideo() {
           
           const response = await backendServiceRef.current.recognizeFace(
             frameData,
-            landmarks,
             bbox,
             currentGroupValue?.id
           );
@@ -1633,23 +1622,12 @@ export default function LiveVideo() {
 
       const face = currentDetections.faces[faceIndex];
       
-      // Convert landmarks to the format expected by backend: [[x1,y1], [x2,y2], ...]
-      // YuNet already provides landmarks in the correct face perspective order
-      const landmarks = [
-        [face.landmarks.right_eye.x, face.landmarks.right_eye.y],
-        [face.landmarks.left_eye.x, face.landmarks.left_eye.y],
-        [face.landmarks.nose_tip.x, face.landmarks.nose_tip.y],
-        [face.landmarks.right_mouth_corner.x, face.landmarks.right_mouth_corner.y],
-        [face.landmarks.left_mouth_corner.x, face.landmarks.left_mouth_corner.y]
-      ];
-      
       // Convert bbox to array format [x, y, width, height]
       const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
       
       const response = await backendServiceRef.current.registerFace(
         frameData,
         selectedPersonForRegistration.trim(),
-        landmarks,
         bbox,
         currentGroup?.id
       );
@@ -1797,14 +1775,6 @@ export default function LiveVideo() {
       ctx.drawImage(video, 0, 0);
 
       const frameData = canvas.toDataURL('image/jpeg', 0.95);
-      // YuNet already provides landmarks in the correct face perspective order
-      const landmarks = [
-        [face.landmarks.right_eye.x, face.landmarks.right_eye.y],
-        [face.landmarks.left_eye.x, face.landmarks.left_eye.y],
-        [face.landmarks.nose_tip.x, face.landmarks.nose_tip.y],
-        [face.landmarks.right_mouth_corner.x, face.landmarks.right_mouth_corner.y],
-        [face.landmarks.left_mouth_corner.x, face.landmarks.left_mouth_corner.y]
-      ];
 
       console.log(`🎯 Registering elite face for ${selectedPersonForRegistration} in group ${currentGroup.name}`);
 
@@ -1815,7 +1785,6 @@ export default function LiveVideo() {
         currentGroup.id,
         selectedPersonForRegistration,
         frameData,
-        landmarks,
         bbox
       );
 

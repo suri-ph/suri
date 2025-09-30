@@ -619,30 +619,28 @@ export class AttendanceManager {
   }
 
   async registerFaceForGroupPerson(
-     groupId: string, 
-     personId: string, 
-     imageData: string, 
-     landmarks: number[][],
-     bbox: number[]
-   ): Promise<{ success: boolean; message?: string; error?: string }> {
-     try {
-       const result = await this.httpClient.post<{ success: boolean; message: string; person_id: string; group_id: string; total_persons: number }>(
-         `${API_ENDPOINTS.groups}/${groupId}/persons/${personId}/register-face`,
-         {
-           image: imageData,
-           landmarks: landmarks,
-           bbox: bbox
-         }
-       );
-       return { success: true, message: result.message };
-     } catch (error) {
-       console.error('Error registering face for group person:', error);
-       return { 
-         success: false, 
-         error: error instanceof Error ? error.message : 'Failed to register face' 
-       };
-     }
-   }
+    groupId: string, 
+    personId: string, 
+    imageData: string, 
+    bbox: number[]
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const result = await this.httpClient.post<{ success: boolean; message: string; person_id: string; group_id: string; total_persons: number }>(
+        `${API_ENDPOINTS.groups}/${groupId}/persons/${personId}/register-face`,
+        {
+          image: imageData,
+          bbox: bbox
+        }
+      );
+      return { success: true, message: result.message };
+    } catch (error) {
+      console.error('Error registering face for group person:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to register face' 
+      };
+    }
+  }
 
    async removeFaceDataForGroupPerson(
      groupId: string, 
