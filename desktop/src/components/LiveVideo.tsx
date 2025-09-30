@@ -1230,20 +1230,61 @@ export default function LiveVideo() {
     return "#ff0000"; // Red for all unknown faces
   };
 
-  // Helper function to draw complete bounding box
+  // Helper function to draw modern bounding box with rounded corners
   const drawBoundingBox = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) => {
+    const width = x2 - x1;
+    const height = y2 - y1;
+    const cornerRadius = 8; // Modern rounded corners
+    
     ctx.beginPath();
-    ctx.rect(x1, y1, x2 - x1, y2 - y1);
+    ctx.roundRect(x1, y1, width, height, cornerRadius);
+    ctx.stroke();
+    
+    // Add subtle corner accents for modern look
+    const accentLength = 20;
+    const accentOffset = 4;
+    
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    
+    // Top-left corner accent
+    ctx.beginPath();
+    ctx.moveTo(x1 + accentOffset, y1 + accentLength);
+    ctx.lineTo(x1 + accentOffset, y1 + accentOffset);
+    ctx.lineTo(x1 + accentLength, y1 + accentOffset);
+    ctx.stroke();
+    
+    // Top-right corner accent
+    ctx.beginPath();
+    ctx.moveTo(x2 - accentLength, y1 + accentOffset);
+    ctx.lineTo(x2 - accentOffset, y1 + accentOffset);
+    ctx.lineTo(x2 - accentOffset, y1 + accentLength);
+    ctx.stroke();
+    
+    // Bottom-left corner accent
+    ctx.beginPath();
+    ctx.moveTo(x1 + accentOffset, y2 - accentLength);
+    ctx.lineTo(x1 + accentOffset, y2 - accentOffset);
+    ctx.lineTo(x1 + accentLength, y2 - accentOffset);
+    ctx.stroke();
+    
+    // Bottom-right corner accent
+    ctx.beginPath();
+    ctx.moveTo(x2 - accentLength, y2 - accentOffset);
+    ctx.lineTo(x2 - accentOffset, y2 - accentOffset);
+    ctx.lineTo(x2 - accentOffset, y2 - accentLength);
     ctx.stroke();
   };
 
-  // Helper function to setup canvas context
+  // Helper function to setup canvas context with modern styling
   const setupCanvasContext = (ctx: CanvasRenderingContext2D, color: string) => {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2; // Slightly thicker for modern look
     ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8; // Softer glow effect
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
   };
 
   const drawOverlays = useCallback(() => {
@@ -1326,7 +1367,7 @@ export default function LiveVideo() {
       ctx.font = 'bold 16px "Courier New", monospace';
       ctx.fillText(label, x1, y1 - 10);
 
-      // Show LOGGED text if person is in cooldown
+      // Show modern logged indicator if person is in cooldown
       if (isRecognized && recognitionResult?.person_id) {
         const cooldownInfo = persistentCooldowns.get(recognitionResult.person_id);
         if (cooldownInfo) {
@@ -1335,27 +1376,33 @@ export default function LiveVideo() {
           const cooldownMs = attendanceCooldownSeconds * 1000;
           
           if (timeSinceStart < cooldownMs) {
-            // Simple LOGGED text in center of bounding box
+            // Modern logged indicator in center of bounding box
             ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black background
-            ctx.font = 'bold 18px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
             
             const centerX = (x1 + x2) / 2;
             const centerY = (y1 + y2) / 2;
             
-            // Measure text to create background
-            const textMetrics = ctx.measureText('LOGGED');
-            const textWidth = textMetrics.width + 20;
-            const textHeight = 30;
+            // Modern pill-shaped background with subtle transparency
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
             
-            // Draw background rectangle
-            ctx.fillRect(centerX - textWidth/2, centerY - textHeight/2, textWidth, textHeight);
+            const pillWidth = 80;
+            const pillHeight = 28;
+            const pillRadius = 14;
             
-            // Draw LOGGED text
+            // Draw pill background
+            ctx.beginPath();
+            ctx.roundRect(centerX - pillWidth/2, centerY - pillHeight/2, pillWidth, pillHeight, pillRadius);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw text with modern typography
             ctx.fillStyle = '#FFFFFF';
-            ctx.fillText('LOGGED', centerX, centerY);
+            ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Logged', centerX, centerY);
             
             ctx.restore();
           }
