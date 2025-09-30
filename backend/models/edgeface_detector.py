@@ -261,33 +261,33 @@ class EdgeFaceDetector:
             
             # Adjust reference points based on pose estimation
             
-            # 1. Handle yaw rotation (side view)
-            if abs(horizontal_asymmetry) > 0.15:  # Significant side angle
+            # 1. Handle yaw rotation (side view) - More responsive to side angles
+            if abs(horizontal_asymmetry) > 0.1:  # Lowered threshold from 0.15 to 0.1
                 # Adjust eye positions for side view
-                yaw_factor = np.clip(horizontal_asymmetry, -0.5, 0.5)
+                yaw_factor = np.clip(horizontal_asymmetry, -0.6, 0.6)  # Increased range for better side view handling
                 
-                # Shift reference points horizontally
-                reference[:, 0] += yaw_factor * 10  # Adjust x coordinates
+                # Shift reference points horizontally with improved scaling
+                reference[:, 0] += yaw_factor * 8  # Reduced from 10 for more stable alignment
                 
-                # Adjust eye separation for perspective
-                eye_separation_factor = 1.0 - abs(yaw_factor) * 0.3
+                # Adjust eye separation for perspective with better factor
+                eye_separation_factor = 1.0 - abs(yaw_factor) * 0.25  # Reduced from 0.3 for less aggressive adjustment
                 eye_center_x = (reference[0, 0] + reference[1, 0]) / 2
                 reference[0, 0] = eye_center_x - (reference[1, 0] - eye_center_x) * eye_separation_factor / 2
                 reference[1, 0] = eye_center_x + (reference[1, 0] - eye_center_x) * eye_separation_factor / 2
             
-            # 2. Handle pitch rotation (up/down view)
-            if abs(vertical_ratio) > 0.2:  # Significant up/down angle
-                # Adjust vertical positions
-                pitch_factor = np.clip(vertical_ratio, -0.5, 0.5)
+            # 2. Handle pitch rotation (up/down view) - More conservative adjustments
+            if abs(vertical_ratio) > 0.25:  # Increased threshold for pitch adjustment
+                # Adjust vertical positions with reduced factors
+                pitch_factor = np.clip(vertical_ratio, -0.4, 0.4)  # Reduced range
                 
-                # Shift nose and mouth positions
-                reference[2, 1] += pitch_factor * 8   # nose
-                reference[3, 1] += pitch_factor * 12  # left mouth
-                reference[4, 1] += pitch_factor * 12  # right mouth
+                # Shift nose and mouth positions with smaller adjustments
+                reference[2, 1] += pitch_factor * 6   # nose (reduced from 8)
+                reference[3, 1] += pitch_factor * 9   # left mouth (reduced from 12)
+                reference[4, 1] += pitch_factor * 9   # right mouth (reduced from 12)
                 
-                # Adjust eye positions slightly
-                reference[0, 1] += pitch_factor * 3   # left eye
-                reference[1, 1] += pitch_factor * 3   # right eye
+                # Adjust eye positions slightly with smaller factor
+                reference[0, 1] += pitch_factor * 2   # left eye (reduced from 3)
+                reference[1, 1] += pitch_factor * 2   # right eye (reduced from 3)
             
             # 3. Handle roll rotation (head tilt)
             if abs(eye_angle) > 0.1:  # Significant head tilt
@@ -482,16 +482,16 @@ class EdgeFaceDetector:
             if eye_distance == 0:
                 return 1.0  # Invalid landmarks
             
-            # 1. Yaw (side view) difficulty
+            # 1. Yaw (side view) difficulty - More tolerant for side views
             nose_to_left_eye = np.linalg.norm(nose - left_eye)
             nose_to_right_eye = np.linalg.norm(nose - right_eye)
             horizontal_asymmetry = abs(nose_to_right_eye - nose_to_left_eye) / eye_distance
-            yaw_difficulty = min(horizontal_asymmetry / 0.3, 1.0)  # Normalize to 0-1
+            yaw_difficulty = min(horizontal_asymmetry / 0.5, 1.0)  # Increased tolerance from 0.3 to 0.5
             
-            # 2. Pitch (up/down view) difficulty
+            # 2. Pitch (up/down view) difficulty - More tolerant for normal head movements
             nose_to_eye_center = nose - eye_center
             vertical_ratio = abs(nose_to_eye_center[1]) / eye_distance
-            pitch_difficulty = min(vertical_ratio / 0.4, 1.0)  # Normalize to 0-1
+            pitch_difficulty = min(vertical_ratio / 0.6, 1.0)  # Increased tolerance from 0.4 to 0.6
             
             # 3. Roll (head tilt) difficulty
             eye_angle = abs(np.arctan2(eye_vector[1], eye_vector[0]))
@@ -505,12 +505,12 @@ class EdgeFaceDetector:
             # Ideal ratio is around 0.7-0.8, deviations indicate perspective distortion
             geometry_difficulty = min(abs(mouth_to_eye_ratio - 0.75) / 0.25, 1.0)
             
-            # Combine difficulties (weighted average)
+            # Combine difficulties (weighted average) - Rebalanced for better side view handling
             total_difficulty = (
-                yaw_difficulty * 0.4 +      # Yaw is most important
-                pitch_difficulty * 0.3 +    # Pitch is second
-                roll_difficulty * 0.2 +     # Roll is less critical
-                geometry_difficulty * 0.1   # Geometry as backup indicator
+                yaw_difficulty * 0.3 +      # Reduced from 0.4 to be less penalizing for side views
+                pitch_difficulty * 0.3 +    # Pitch remains important
+                roll_difficulty * 0.25 +    # Increased slightly as roll affects alignment
+                geometry_difficulty * 0.15  # Increased as geometry is a good indicator
             )
             
             return min(total_difficulty, 1.0)
@@ -569,10 +569,10 @@ class EdgeFaceDetector:
                 
                 # Lower threshold for difficult poses (angled faces)
                 # More difficult poses get more lenient thresholds
-                threshold_reduction = pose_difficulty * 0.08  # Reduced to 8% reduction (was 15%)
+                threshold_reduction = pose_difficulty * 0.05  # Further reduced to 5% reduction for better stability
                 effective_threshold = max(
                     self.similarity_threshold - threshold_reduction,
-                    self.similarity_threshold * 0.85  # Never go below 85% of original (was 70%)
+                    self.similarity_threshold * 0.90  # Never go below 90% of original for better accuracy
                 )
                 
                 logger.debug(f"Pose difficulty: {pose_difficulty:.3f}, "
