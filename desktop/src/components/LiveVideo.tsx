@@ -146,6 +146,7 @@ export default function LiveVideo() {
     occlusionCount: number;
     angleConsistency: number;
     cooldownRemaining?: number;
+    antispoofingStatus?: 'real' | 'fake' | 'error';
   }>>(new Map());
   const [selectedTrackingTarget, setSelectedTrackingTarget] = useState<string | null>(null);
 
@@ -361,6 +362,18 @@ export default function LiveVideo() {
           if (response.success && response.person_id) {
             console.log(`🎯 Face ${index} recognized as: ${response.person_id} (${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
+            // Anti-spoofing validation: Reject spoofed faces before processing
+            if (face.antispoofing?.status === 'fake') {
+              console.log(`🚫 Face ${index} rejected: Spoofed face detected for ${response.person_id}`);
+              return null; // Filter out spoofed faces completely
+            }
+            
+            // Also reject faces with anti-spoofing errors for safety
+            if (face.antispoofing?.status === 'error') {
+              console.log(`🚫 Face ${index} rejected: Anti-spoofing error for ${response.person_id}`);
+              return null; // Filter out faces with anti-spoofing errors
+            }
+            
             // Group-based filtering: Only process faces that belong to the current group (by name)
             let memberName = response.person_id; // Default to person_id if no member found
             if (currentGroup) {
@@ -410,10 +423,13 @@ export default function LiveVideo() {
             // Update tracking data
             setTrackedFaces(prev => {
               const newTracked = new Map(prev);
+              const currentAntispoofingStatus = face.antispoofing?.status;
+              
+              // Find existing track with simple matching logic
               const existingTrack = Array.from(newTracked.values()).find(
                 track => track.personId === response.person_id && 
-                Math.abs(track.bbox.x - face.bbox.x) < 50 && 
-                Math.abs(track.bbox.y - face.bbox.y) < 50
+                Math.abs(track.bbox.x - face.bbox.x) < 100 && 
+                Math.abs(track.bbox.y - face.bbox.y) < 100
               );
               
               if (existingTrack) {
@@ -427,6 +443,14 @@ export default function LiveVideo() {
                 });
                 existingTrack.occlusionCount = 0; // Reset occlusion count
                 existingTrack.angleConsistency = calculateAngleConsistency(existingTrack.trackingHistory);
+                
+                // Update anti-spoofing status - once real, stay real
+                if (currentAntispoofingStatus === 'real') {
+                  existingTrack.antispoofingStatus = 'real';
+                } else if (!existingTrack.antispoofingStatus) {
+                  existingTrack.antispoofingStatus = currentAntispoofingStatus;
+                }
+                
                 newTracked.set(existingTrack.id, existingTrack);
               } else {
                 // Create new track
@@ -439,7 +463,8 @@ export default function LiveVideo() {
                   isLocked: trackingMode === 'auto',
                   personId: response.person_id,
                   occlusionCount: 0,
-                  angleConsistency: 1.0
+                  angleConsistency: 1.0,
+                  antispoofingStatus: currentAntispoofingStatus
                 });
               }
               
@@ -600,7 +625,8 @@ export default function LiveVideo() {
                 isLocked: false,
                 personId: undefined,
                 occlusionCount: 0,
-                angleConsistency: 1.0
+                angleConsistency: 1.0,
+                antispoofingStatus: face.antispoofing?.status
               });
               return newTracked;
             });
@@ -633,7 +659,7 @@ export default function LiveVideo() {
       console.error('❌ Face recognition processing failed:', error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [captureFrame, currentRecognitionResults]);
+  }, [captureFrame]);
 
   // Initialize WebSocket connection
   const initializeWebSocket = useCallback(async () => {
@@ -1746,37 +1772,7 @@ export default function LiveVideo() {
     });
   }, []);
 
-  const reacquireFace = useCallback((newFace: { bbox: { x: number; y: number; width: number; height: number }; confidence: number }, personId?: string) => {
-    const currentTime = Date.now();
-    let bestMatch: { id: string; personId?: string; bbox: { x: number; y: number; width: number; height: number }; lastSeen: number; confidence: number } | null = null;
-    let bestScore = 0;
-    
-    // Find best matching track for re-acquisition
-    trackedFaces.forEach(track => {
-      if (track.personId === personId || (!personId && !track.personId)) {
-        const timeDiff = currentTime - track.lastSeen;
-        const spatialDiff = Math.sqrt(
-          Math.pow(newFace.bbox.x - track.bbox.x, 2) + 
-          Math.pow(newFace.bbox.y - track.bbox.y, 2)
-        );
-        
-        // Score based on time and spatial proximity
-        const score = Math.max(0, 1 - (timeDiff / 5000) - (spatialDiff / 200));
-        
-        if (score > bestScore && score > 0.3) {
-          bestScore = score;
-          bestMatch = track;
-        }
-      }
-    });
-    
-    if (bestMatch) {
 
-      return bestMatch.id;
-    }
-    
-    return null;
-  }, [trackedFaces]);
 
   const lockTrackingTarget = useCallback((faceId: string) => {
     setTrackedFaces(prev => {
