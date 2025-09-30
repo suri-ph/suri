@@ -323,6 +323,13 @@ export default function LiveVideo() {
   // Face recognition function
   const performFaceRecognition = useCallback(async (detectionResult: DetectionResult) => {
     try {
+      // Only perform recognition when a group is selected
+      if (!currentGroup) {
+        console.log('ℹ️ No group selected - skipping face recognition, faces will show as Unknown');
+        setCurrentRecognitionResults(new Map());
+        return;
+      }
+
       const frameData = captureFrame();
       if (!frameData) {
         console.warn('⚠️ Failed to capture frame for face recognition');
@@ -792,24 +799,14 @@ export default function LiveVideo() {
           isProcessingRef.current = false;
 
           // Perform face recognition if enabled
-          if (process.env.NODE_ENV === 'development') {
-            console.log('🔍 Recognition check:', {
-              recognitionEnabled,
-              backendServiceReady: backendServiceReadyRef.current,
-              currentGroup: currentGroup?.name || 'null',
-              facesDetected: detectionResult.faces.length
-            });
-          }
-          
           if (recognitionEnabled && backendServiceReadyRef.current && detectionResult.faces.length > 0) {
             // Perform face recognition asynchronously without blocking next frame processing
             performFaceRecognition(detectionResult).catch(error => {
-              console.error('❌ Face recognition failed:', error);
+              console.error('Face recognition failed:', error);
             });
           } else {
             if (!recognitionEnabled && detectionResult.faces.length > 0) {
               // Store detection result for delayed recognition when recognition becomes enabled
-              console.log('💾 Storing detection result for delayed recognition');
               setLastDetectionForRecognition(detectionResult);
             }
             // Backend controls the adaptive processing flow
@@ -1994,7 +1991,6 @@ export default function LiveVideo() {
   // Clear recognition state whenever group changes to prevent data mixing
   useEffect(() => {
     // Handle group changes (including switching to null when group is deleted)
-    console.log(`🔄 Group changed to: ${currentGroup?.name || 'null'} - Clearing recognition state`);
     
     // Clear all recognition and tracking state to prevent data mixing
     setCurrentRecognitionResults(new Map());
@@ -2006,12 +2002,20 @@ export default function LiveVideo() {
     // Clear delayed recognition state to prevent cross-group recognition
     setLastDetectionForRecognition(null);
     
+    // Clear registered persons to force reload for new group context
+    setRegisteredPersons([]);
+    
     // Stop detection if running (use ref for synchronous check)
     if (isStreamingRef.current) {
       console.log(`🛑 Stopping detection due to group change`);
       stopCamera();
     }
-  }, [currentGroup, stopCamera]);
+    
+    // Reload registered persons for the new group context
+    if (currentGroup && backendServiceRef.current) {
+      loadRegisteredPersons();
+    }
+  }, [currentGroup, stopCamera, loadRegisteredPersons]);
 
   // Load attendance data when current group changes
   useEffect(() => {
@@ -2023,34 +2027,31 @@ export default function LiveVideo() {
   // Initialize attendance system on component mount
   useEffect(() => {
     const initializeAttendance = async () => {
-      console.log('🔄 Initializing attendance system...');
-      
       try {
         // Load existing groups first
         const groups = await attendanceManager.getGroups();
         setAttendanceGroups(groups);
         
         if (groups.length === 0) {
-          console.log('ℹ️ No groups available. Please create a group first.');
           setCurrentGroup(null);
         } else if (!currentGroup) {
           // Select the first available group
           setCurrentGroup(groups[0]);
-          console.log('📌 Selected first available group as current:', groups[0]);
         }
       } catch (error) {
-        console.error('❌ Failed to initialize attendance system:', error);
+        console.error('Failed to initialize attendance system:', error);
         setError('Failed to initialize attendance system');
       }
     };
 
-    initializeAttendance();
+    initializeAttendance().catch(error => {
+      console.error('Error in initializeAttendance:', error);
+    });
   }, []); // Empty dependency array means this runs only on mount
 
   // Handle delayed recognition when recognitionEnabled becomes true
   useEffect(() => {
     if (recognitionEnabled && lastDetectionForRecognition && lastDetectionForRecognition.faces.length > 0) {
-      console.log('🔄 Performing delayed recognition for stored detection result');
       performFaceRecognition(lastDetectionForRecognition);
       setLastDetectionForRecognition(null); // Clear after processing
     }

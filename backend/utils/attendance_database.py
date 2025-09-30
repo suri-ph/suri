@@ -120,9 +120,17 @@ class AttendanceDatabaseManager:
                         enable_break_tracking BOOLEAN DEFAULT 1,
                         enable_location_tracking BOOLEAN DEFAULT 0,
                         confidence_threshold REAL DEFAULT 0.7,
+                        attendance_cooldown_seconds INTEGER DEFAULT 10,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                
+                # Migration: Add attendance_cooldown_seconds column if it doesn't exist
+                try:
+                    cursor.execute("ALTER TABLE attendance_settings ADD COLUMN attendance_cooldown_seconds INTEGER DEFAULT 10")
+                except sqlite3.OperationalError:
+                    # Column already exists, ignore the error
+                    pass
                 
                 # Create indexes for better performance
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_members_group_id ON attendance_members(group_id)")
@@ -605,7 +613,8 @@ class AttendanceDatabaseManager:
                     'require_manual_checkout': False,
                     'enable_break_tracking': True,
                     'enable_location_tracking': False,
-                    'confidence_threshold': 0.7
+                    'confidence_threshold': 0.7,
+                    'attendance_cooldown_seconds': 10
                 }
                 
         except Exception as e:
