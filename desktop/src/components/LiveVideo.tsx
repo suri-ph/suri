@@ -116,7 +116,7 @@ export default function LiveVideo() {
   // ACCURATE FPS tracking with rolling average
   const fpsTrackingRef = useRef({
     timestamps: [] as number[],
-    maxSamples: 10, // Track last 10 detections for smooth average
+    maxSamples: 5, // Track last 5 detections for real-time average
     lastUpdateTime: Date.now()
   });
 
@@ -148,8 +148,7 @@ export default function LiveVideo() {
   // Recognition is enabled when backend is ready (removed group dependency for instant recognition)
   const recognitionEnabled = true;
   
-  // Store last detection result for delayed recognition
-  const [lastDetectionForRecognition, setLastDetectionForRecognition] = useState<any>(null);
+  // Removed delayed recognition logic for real-time performance
   
   // Elite Tracking System States
   const [trackingMode, setTrackingMode] = useState<'auto' | 'manual'>('auto');
@@ -192,7 +191,7 @@ export default function LiveVideo() {
   
   // Attendance cooldown tracking
   const [attendanceCooldowns, setAttendanceCooldowns] = useState<Map<string, number>>(new Map());
-  const [attendanceCooldownSeconds] = useState(10); // Default 10 seconds cooldown
+  const [attendanceCooldownSeconds] = useState(3); // Reduced to 3 seconds for real-time testing
   
   // Persistent cooldown tracking (for recognized faces)
   const [persistentCooldowns, setPersistentCooldowns] = useState<Map<string, {
@@ -702,7 +701,7 @@ export default function LiveVideo() {
       // Check backend readiness before connecting WebSocket with retry logic
       console.log('🔍 Checking backend readiness before WebSocket connection...');
       
-      const waitForBackendReady = async (maxAttempts = 5, baseDelay = 300) => {
+      const waitForBackendReady = async (maxAttempts = 5, baseDelay = 100) => {
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           console.log(`🔍 WebSocket backend readiness check attempt ${attempt}/${maxAttempts}`);
           
@@ -713,7 +712,7 @@ export default function LiveVideo() {
           }
           
           if (attempt < maxAttempts) {
-            const delay = baseDelay * Math.pow(1.3, attempt - 1); // Smaller exponential backoff for WebSocket
+            const delay = baseDelay * Math.pow(1.2, attempt - 1); // Faster exponential backoff for WebSocket
             console.log(`⏳ Backend not ready for WebSocket (${readinessCheck?.error || 'models loading'}), retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
@@ -754,8 +753,8 @@ export default function LiveVideo() {
           fpsTracking.timestamps.shift();
         }
         
-        // Calculate FPS every 500ms for smooth updates
-        if (now - fpsTracking.lastUpdateTime >= 500 && fpsTracking.timestamps.length >= 2) {
+        // Calculate FPS every 100ms for real-time updates
+        if (now - fpsTracking.lastUpdateTime >= 100 && fpsTracking.timestamps.length >= 2) {
           const timeSpan = fpsTracking.timestamps[fpsTracking.timestamps.length - 1] - fpsTracking.timestamps[0];
           const frameCount = fpsTracking.timestamps.length - 1;
           
@@ -828,12 +827,6 @@ export default function LiveVideo() {
             performFaceRecognition(detectionResult).catch(error => {
               console.error('Face recognition failed:', error);
             });
-          } else {
-            if (!recognitionEnabled && detectionResult.faces.length > 0) {
-              // Store detection result for delayed recognition when recognition becomes enabled
-              setLastDetectionForRecognition(detectionResult);
-            }
-            // Backend controls the adaptive processing flow
           }
         } else {
           // No faces detected, reset processing flag - backend will request next frame
@@ -1034,7 +1027,7 @@ export default function LiveVideo() {
         
         try {
           // Wait for backend to be ready with retry logic
-          const waitForBackendReady = async (maxAttempts = 10, baseDelay = 500) => {
+          const waitForBackendReady = async (maxAttempts = 10, baseDelay = 200) => {
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {       
               const readinessCheck = await window.electronAPI?.backend.checkReadiness();
             
@@ -1043,7 +1036,7 @@ export default function LiveVideo() {
               }
               
               if (attempt < maxAttempts) {
-                const delay = baseDelay * Math.pow(1.5, attempt - 1); // Exponential backoff
+                const delay = baseDelay * Math.pow(1.3, attempt - 1); // Faster exponential backoff
                 await new Promise(resolve => setTimeout(resolve, delay));
               }
             }
@@ -2025,7 +2018,7 @@ export default function LiveVideo() {
           startDetectionInterval();
         } else if (attempts < maxAttempts) {
           attempts++;
-          const delay = Math.min(100 * Math.pow(1.5, attempts), 1000); // Exponential backoff, max 1s
+          const delay = Math.min(50 * Math.pow(1.2, attempts), 500); // Faster exponential backoff, max 500ms
           timeoutId = setTimeout(checkReadiness, delay);
         } else {
           console.warn('⚠️ WebSocket readiness check timed out after', maxAttempts, 'attempts');
@@ -2068,8 +2061,7 @@ export default function LiveVideo() {
     setSelectedTrackingTarget(null);
     setPendingAttendance([]);
     
-    // Clear delayed recognition state to prevent cross-group recognition
-    setLastDetectionForRecognition(null);
+    // Removed delayed recognition clearing for real-time performance
     
     // Clear registered persons to force reload for new group context
     setRegisteredPersons([]);
@@ -2134,13 +2126,7 @@ export default function LiveVideo() {
     });
   }, [handleSelectGroup]); // Include handleSelectGroup dependency
 
-  // Handle delayed recognition when recognitionEnabled becomes true
-  useEffect(() => {
-    if (recognitionEnabled && lastDetectionForRecognition && lastDetectionForRecognition.faces.length > 0) {
-      performFaceRecognition(lastDetectionForRecognition);
-      setLastDetectionForRecognition(null); // Clear after processing
-    }
-  }, [recognitionEnabled, lastDetectionForRecognition, performFaceRecognition]);
+  // Removed delayed recognition useEffect for real-time performance
 
   return (
     <div className="pt-8 h-screen bg-black text-white flex flex-col overflow-hidden">

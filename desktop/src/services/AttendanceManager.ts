@@ -103,7 +103,7 @@ export class AttendanceManager {
       require_manual_checkout: false,
       enable_break_tracking: true,
       enable_location_tracking: false,
-      attendance_cooldown_seconds: 10
+      attendance_cooldown_seconds: 3
     };
   }
 
