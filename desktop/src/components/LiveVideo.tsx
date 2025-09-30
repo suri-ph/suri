@@ -29,6 +29,7 @@ interface DetectionResult {
       right_mouth_corner: { x: number; y: number };
       left_mouth_corner: { x: number; y: number };
     };
+    landmarks_468?: Array<{ x: number; y: number }>; // FaceMesh 468 landmarks for visualization
     antispoofing?: {
       is_real: boolean | null;
       confidence: number;
@@ -43,6 +44,7 @@ interface WebSocketFaceData {
   bbox?: number[];
   confidence?: number;
   landmarks?: number[][];
+  landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
   antispoofing?: {
     is_real?: boolean | null;
     confidence?: number;
@@ -810,6 +812,10 @@ export default function LiveVideo() {
                     y: (landmarks[4] && landmarks[4][1]) || 0 
                   }
                 },
+                landmarks_468: face.landmarks_468 ? face.landmarks_468.map(point => ({
+                  x: point[0] || 0,
+                  y: point[1] || 0
+                })) : undefined,
                 antispoofing: face.antispoofing ? {
                   is_real: face.antispoofing.is_real ?? null,
                   confidence: face.antispoofing.confidence || 0,
@@ -1333,7 +1339,7 @@ export default function LiveVideo() {
     ctx.lineJoin = 'round';
   };
 
-  // Helper function to draw facial landmarks
+  // Helper function to draw facial landmarks (5-point YuNet landmarks)
   const drawLandmarks = (
     ctx: CanvasRenderingContext2D, 
     landmarks: {
@@ -1372,6 +1378,40 @@ export default function LiveVideo() {
 
       ctx.restore();
     });
+  };
+
+  // Helper function to draw FaceMesh 468 landmarks
+  const drawFaceMeshLandmarks = (
+    ctx: CanvasRenderingContext2D,
+    landmarks: Array<{ x: number; y: number }>,
+    scaleX: number,
+    scaleY: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
+    // Use a more subtle color for the dense landmark mesh
+    const landmarkColor = '#00D4FF'; // Modern cyan that matches the UI theme
+    const landmarkSize = 1; // Smaller size for dense landmarks
+
+    ctx.save();
+    
+    // Set up styling for FaceMesh landmarks
+    ctx.fillStyle = landmarkColor;
+    ctx.shadowColor = landmarkColor;
+    ctx.shadowBlur = 2;
+
+    // Draw each landmark point
+    landmarks.forEach(point => {
+      const x = point.x * scaleX + offsetX;
+      const y = point.y * scaleY + offsetY;
+
+      // Draw landmark as a small circle
+      ctx.beginPath();
+      ctx.arc(x, y, landmarkSize, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+
+    ctx.restore();
   };
 
   const drawOverlays = useCallback(() => {
@@ -1503,8 +1543,11 @@ export default function LiveVideo() {
         ctx.fillText("RECOGNIZED", x1 + 10, y2 + 15);
       }
 
-      // Draw facial landmarks
-      if (face.landmarks) {
+      // Draw facial landmarks - prefer FaceMesh 468 landmarks for better visualization
+      if (face.landmarks_468 && face.landmarks_468.length > 0) {
+        drawFaceMeshLandmarks(ctx, face.landmarks_468, scaleX, scaleY, offsetX, offsetY);
+      } else if (face.landmarks) {
+        // Fallback to YuNet 5-point landmarks if FaceMesh not available
         drawLandmarks(ctx, face.landmarks, scaleX, scaleY, offsetX, offsetY);
       }
 

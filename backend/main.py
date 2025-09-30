@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from models.yunet_detector import YuNetDetector
 from models.antispoofing_detector import OptimizedAntiSpoofingDetector
 from models.edgeface_detector import EdgeFaceDetector
+from models.facemesh_detector import FaceMeshDetector
 from utils.image_utils import decode_base64_image, encode_image_to_base64
 from utils.websocket_manager import manager, handle_websocket_message
 from utils.attendance_database import AttendanceDatabaseManager
@@ -54,6 +55,7 @@ app.add_middleware(
 yunet_detector = None
 optimized_antispoofing_detector = None
 edgeface_detector = None
+facemesh_detector = None
 
 # Initialize attendance database
 attendance_database = None
@@ -120,7 +122,7 @@ class PersonUpdateRequest(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, attendance_database
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, attendance_database
     try:
         yunet_detector = YuNetDetector(
             model_path=str(YUNET_MODEL_PATH),
@@ -157,6 +159,16 @@ async def startup_event():
             facemesh_alignment=EDGEFACE_CONFIG.get("facemesh_alignment", False),
             facemesh_model_path=str(MODEL_CONFIGS.get("facemesh", {}).get("model_path", "")) if EDGEFACE_CONFIG.get("facemesh_alignment") else None,
             facemesh_config=MODEL_CONFIGS.get("facemesh", {}) if EDGEFACE_CONFIG.get("facemesh_alignment") else None
+        )
+        
+        # Initialize standalone FaceMesh detector for /detect endpoint
+        facemesh_detector = FaceMeshDetector(
+            model_path=str(MODEL_CONFIGS["facemesh"]["model_path"]),
+            input_size=MODEL_CONFIGS["facemesh"]["input_size"],
+            score_threshold=MODEL_CONFIGS["facemesh"]["score_threshold"],
+            margin_ratio=MODEL_CONFIGS["facemesh"]["margin_ratio"],
+            providers=MODEL_CONFIGS["facemesh"]["providers"],
+            session_options=MODEL_CONFIGS["facemesh"]["session_options"]
         )
         
         # Initialize attendance database
@@ -303,6 +315,33 @@ async def detect_faces(request: DetectionRequest):
                     # Just return the original face detections without anti-spoofing
                     logger.warning("Anti-spoofing failed - returning faces without anti-spoofing data to prevent accumulation")
             
+            # Add FaceMesh 468 landmarks for frontend visualization
+            if faces and facemesh_detector:
+                try:
+                    for face in faces:
+                        bbox = face['bbox']  # [x, y, width, height]
+                        
+                        # Convert bbox to format expected by FaceMesh: [x1, y1, x2, y2]
+                        x, y, w, h = bbox
+                        face_bbox = [x, y, x + w, y + h]
+                        
+                        # Detect FaceMesh landmarks for this face (run in executor for async)
+                        loop = asyncio.get_event_loop()
+                        facemesh_result = await loop.run_in_executor(None, facemesh_detector.detect_landmarks, image, face_bbox)
+                        
+                        if facemesh_result and 'landmarks_468' in facemesh_result:
+                            # Add 468-point landmarks for frontend visualization
+                            face['landmarks_468'] = facemesh_result['landmarks_468']
+                        else:
+                            # If FaceMesh fails, set empty landmarks array
+                            face['landmarks_468'] = []
+                            
+                except Exception as e:
+                    logger.error(f"FaceMesh processing failed: {e}")
+                    # If FaceMesh fails, add empty landmarks arrays to all faces
+                    for face in faces:
+                        face['landmarks_468'] = []
+            
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported model type: {request.model_type}")
         
@@ -387,6 +426,28 @@ async def detect_faces_upload(
                     logger.warning(f"Anti-spoofing failed for all faces: {e}")
                     # Don't add anti-spoofing data when processing fails
                     # Just return the original face detections without anti-spoofing
+            
+            # Add FaceMesh 468 landmarks for frontend visualization
+            if facemesh_detector and faces:
+                for face in faces:
+                    try:
+                        # Convert YuNet bbox format to FaceMesh expected format
+                        bbox = face.get('bbox', [])
+                        if len(bbox) >= 4:
+                            x, y, w, h = bbox
+                            face_bbox = [x, y, x + w, y + h]
+                            
+                            # Detect FaceMesh landmarks for this face (run in executor for async)
+                            loop = asyncio.get_event_loop()
+                            facemesh_result = await loop.run_in_executor(None, facemesh_detector.detect_landmarks, image, face_bbox)
+                            
+                            if facemesh_result and 'landmarks_468' in facemesh_result:
+                                face['landmarks_468'] = facemesh_result['landmarks_468']
+                            else:
+                                face['landmarks_468'] = []  # Empty array if detection failed
+                    except Exception as e:
+                        logger.warning(f"FaceMesh detection failed for face: {e}")
+                        face['landmarks_468'] = []  # Empty array on error
             
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported model type: {model_type}")
@@ -757,6 +818,32 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                             logger.warning(f"Anti-spoofing failed for all faces: {e}")
                             # Don't add anti-spoofing data when processing fails
                             # Just return the original face detections without anti-spoofing
+                    
+                    # Add FaceMesh 468-landmark detection for each face
+                    if faces and facemesh_detector:
+                        loop = asyncio.get_event_loop()
+                        for face in faces:
+                            try:
+                                # Convert YuNet bbox format to FaceMesh format
+                                bbox = face.get('bbox', [0, 0, 0, 0])
+                                facemesh_bbox = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
+                                
+                                # Run FaceMesh detection in executor to avoid blocking
+                                landmarks_result = await loop.run_in_executor(
+                                    None, 
+                                    facemesh_detector.detect_landmarks, 
+                                    image, 
+                                    facemesh_bbox
+                                )
+                                
+                                if landmarks_result and landmarks_result.get('landmarks_468'):
+                                    face['landmarks_468'] = landmarks_result['landmarks_468']
+                                else:
+                                    face['landmarks_468'] = []
+                                    
+                            except Exception as e:
+                                logger.warning(f"FaceMesh detection failed for face: {e}")
+                                face['landmarks_468'] = []
                     
                     # Calculate processing time
                     processing_time = time.time() - start_time

@@ -74,6 +74,7 @@ export interface DetectionResponse {
     bbox: [number, number, number, number];
     confidence: number;
     landmarks: number[][];
+    landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
   }>;
   model_used: string;
   processing_time: number;
