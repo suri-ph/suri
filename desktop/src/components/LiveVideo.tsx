@@ -369,8 +369,13 @@ export default function LiveVideo() {
           }
           
           // Use track_id as stable identifier (from SORT tracker)
-          // Backend always provides track_id (confirmed SORT tracks or temporary negative IDs)
-          const trackId = face.track_id!; // Non-null assertion: backend guarantees track_id
+          // Backend should always provide track_id after restart
+          // Temporary fallback to index until backend is restarted with track_id support
+          const trackId = face.track_id ?? index;
+          if (face.track_id === undefined) {
+            console.warn(`⚠️ Backend not sending track_id! Face keys:`, Object.keys(face));
+            console.warn(`Full face object:`, face);
+          }
           
           // Convert bbox to array format [x, y, width, height]
           const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
@@ -783,6 +788,7 @@ export default function LiveVideo() {
                   height: bbox[3] || 0
                 },
                 confidence: face.confidence || 0,
+                track_id: face.track_id, // CRITICAL: Include track_id from SORT tracker
                 landmarks: {
                   // Backend landmarks are in face perspective order: [right_eye, left_eye, nose_tip, right_mouth, left_mouth]
                   right_eye: { 

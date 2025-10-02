@@ -303,7 +303,25 @@ export class BackendService {
 
       this.websocket.onmessage = (event) => {
         try {
+          // Debug: Log raw message before parsing
+          const rawData = event.data;
+          if (rawData.includes('track_id')) {
+            console.log('[WS DEBUG] Raw message contains track_id!');
+            // Show a snippet of the raw JSON
+            const snippet = rawData.substring(0, Math.min(500, rawData.length));
+            console.log('[WS DEBUG] Message snippet:', snippet);
+          } else {
+            console.warn('[WS DEBUG] Raw message does NOT contain track_id string!');
+          }
+          
           const data = JSON.parse(event.data);
+          
+          // Debug: Check if track_id exists after parsing
+          if (data.type === 'detection_response' && data.faces && data.faces.length > 0) {
+            console.log('[WS DEBUG] After JSON.parse - Face 0 keys:', Object.keys(data.faces[0]));
+            console.log('[WS DEBUG] After JSON.parse - Face 0 track_id:', data.faces[0].track_id);
+          }
+          
           this.handleWebSocketMessage(data);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
