@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from datetime import datetime, date
 from typing import List, Optional
 import uuid
@@ -568,6 +569,9 @@ async def process_attendance_event(
 ):
     """Process an attendance event (face recognition trigger)"""
     try:
+        # Import websocket manager
+        from utils.websocket_manager import manager as ws_manager
+        
         # Check if member exists
         member = db.get_member(event_data.person_id)
         if not member:
@@ -649,6 +653,24 @@ async def process_attendance_event(
         success = db.upsert_session(updated_session)
         if not success:
             logger.warning(f"Failed to update session for {event_data.person_id}")
+        
+        # Broadcast attendance event to all connected WebSocket clients
+        broadcast_message = {
+            "type": "attendance_event",
+            "data": {
+                "id": record_id,
+                "person_id": event_data.person_id,
+                "group_id": member["group_id"],
+                "attendance_type": attendance_type.value,
+                "timestamp": timestamp.isoformat(),
+                "confidence": event_data.confidence,
+                "location": event_data.location,
+                "member_name": member.get("name", event_data.person_id)
+            }
+        }
+        
+        # Broadcast asynchronously without blocking the response
+        asyncio.create_task(ws_manager.broadcast(broadcast_message))
         
         return AttendanceEventResponse(
             id=record_id,
