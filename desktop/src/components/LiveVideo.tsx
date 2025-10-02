@@ -194,7 +194,10 @@ export default function LiveVideo() {
   
   // Attendance cooldown tracking
   const [attendanceCooldowns, setAttendanceCooldowns] = useState<Map<string, number>>(new Map());
-  const [attendanceCooldownSeconds] = useState(3); // Reduced to 3 seconds for real-time testing
+  const [attendanceCooldownSeconds] = useState(10); // 10 seconds cooldown
+  
+  // CRITICAL: Synchronous cooldown ref to prevent race conditions from async setState
+  const cooldownTimestampsRef = useRef<Map<string, number>>(new Map());
   
   // Persistent cooldown tracking (for recognized faces)
   const [persistentCooldowns, setPersistentCooldowns] = useState<Map<string, {
@@ -263,7 +266,7 @@ export default function LiveVideo() {
         return hasChanges ? newPersistent : prev;
       });
       
-      // Clean up expired cooldowns
+      // Clean up expired cooldowns in both ref and state
       setAttendanceCooldowns(prev => {
         const newCooldowns = new Map(prev);
         let hasExpired = false;
@@ -274,6 +277,7 @@ export default function LiveVideo() {
           
           if (timeSinceLastAttendance >= cooldownMs) {
             newCooldowns.delete(personId);
+            cooldownTimestampsRef.current.delete(personId); // Also clean from ref
             hasExpired = true;
           }
         }
@@ -513,16 +517,15 @@ export default function LiveVideo() {
               // Use person_id as key so cooldown persists across track_id changes
               const currentTime = Date.now();
               const cooldownKey = response.person_id;
-              const existingCooldown = persistentCooldowns.get(cooldownKey);
-              const lastAttendanceTime = existingCooldown?.startTime || 0;
-              const timeSinceLastAttendance = currentTime - lastAttendanceTime;
               const cooldownMs = attendanceCooldownSeconds * 1000;
               
-              console.log(`🔍 Cooldown check for ${memberName} (person_id: ${cooldownKey}): lastTime=${lastAttendanceTime}, currentTime=${currentTime}, timeSince=${timeSinceLastAttendance}, cooldownMs=${cooldownMs}`);
+              // CRITICAL: Use ref for synchronous check to avoid race conditions
+              const lastAttendanceTime = cooldownTimestampsRef.current.get(cooldownKey) || 0;
+              const timeSinceLastAttendance = currentTime - lastAttendanceTime;
               
               if (timeSinceLastAttendance < cooldownMs) {
                 const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
-                console.log(`⏳ Attendance cooldown active for ${memberName} (person_id: ${cooldownKey}): ${remainingCooldown}s remaining`);
+                console.log(`⏳ Attendance cooldown BLOCKED for ${memberName} (person_id: ${cooldownKey}): ${remainingCooldown}s remaining (last: ${lastAttendanceTime}, now: ${currentTime}, diff: ${timeSinceLastAttendance}ms)`);
                 
                 // Update lastKnownBbox in persistentCooldowns for display even when face disappears
                 setPersistentCooldowns(prev => {
@@ -555,6 +558,32 @@ export default function LiveVideo() {
                 return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
               }
               
+              console.log(`✅ Cooldown check passed for ${memberName} (person_id: ${cooldownKey})! Proceeding to log attendance...`);
+              
+              // CRITICAL FIX: Set cooldown SYNCHRONOUSLY in ref FIRST to block immediate subsequent frames
+              // Then update state for visual display
+              const logTime = Date.now();
+              cooldownTimestampsRef.current.set(cooldownKey, logTime); // SYNC update - immediate effect!
+              console.log(`🔄 Setting new cooldown for ${memberName} (person_id: ${cooldownKey}) at ${logTime}`);
+              
+              setAttendanceCooldowns(prev => {
+                const newCooldowns = new Map(prev);
+                newCooldowns.set(cooldownKey, logTime);
+                return newCooldowns;
+              });
+              
+              // Add persistent cooldown for visual display using person_id as key
+              setPersistentCooldowns(prev => {
+                const newPersistent = new Map(prev);
+                newPersistent.set(cooldownKey, {
+                  personId: response.person_id!,
+                  startTime: logTime,
+                  memberName: memberName,
+                  lastKnownBbox: face.bbox
+                });
+                return newPersistent;
+              });
+              
               try {
                 // Note: Group validation is now done at recognition level
                 // Backend handles all confidence thresholding - frontend processes all valid responses
@@ -576,40 +605,6 @@ export default function LiveVideo() {
                     
                     if (attendanceEvent) {
                       console.log(`📋 ✅ Attendance automatically recorded: ${response.person_id} - ${attendanceEvent.type} at ${attendanceEvent.timestamp}`);
-                    }
-                    
-                    // Set cooldown to prevent duplicate logging using track_id as key
-                    const logTime = Date.now();
-                    const cooldownKey = response.person_id; // Use person_id as cooldown key
-                    {
-                      console.log(`🔄 Setting new cooldown for ${memberName} (person_id: ${cooldownKey}) at ${logTime}`);
-                      setAttendanceCooldowns(prev => {
-                        const newCooldowns = new Map(prev);
-                        newCooldowns.set(cooldownKey, logTime);
-                        return newCooldowns;
-                      });
-                      
-                      // Add persistent cooldown for visual display using person_id as key
-                      setPersistentCooldowns(prev => {
-                        const newPersistent = new Map(prev);
-                        const existingCooldown = newPersistent.get(cooldownKey);
-                        if (existingCooldown) {
-                          console.log(`⚠️ WARNING: Attempted to overwrite existing cooldown for ${memberName} (person_id: ${cooldownKey})! Keeping existing startTime: ${existingCooldown.startTime}`);
-                          // Update lastKnownBbox even if cooldown exists
-                          newPersistent.set(cooldownKey, {
-                            ...existingCooldown,
-                            lastKnownBbox: face.bbox
-                          });
-                          return newPersistent;
-                        }
-                        newPersistent.set(cooldownKey, {
-                          personId: response.person_id!,
-                          startTime: logTime,
-                          memberName: memberName,
-                          lastKnownBbox: face.bbox
-                        });
-                        return newPersistent;
-                      });
                     }
                     
                     // Refresh attendance data only if we have a current group
@@ -1600,90 +1595,7 @@ export default function LiveVideo() {
       ctx.shadowBlur = 0;
     });
 
-    // Draw cooldowns for persons NOT currently in detections (face temporarily disappeared)
-    const currentTime = Date.now();
-    const detectedPersonIds = new Set(
-      currentDetections.faces
-        .map(face => {
-          const trackId = face.track_id!;
-          const recognitionResult = currentRecognitionResults.get(trackId);
-          return recognitionResult?.person_id;
-        })
-        .filter(Boolean)
-    );
-
-    // Draw cooldowns for persons with lastKnownBbox who aren't currently detected
-    for (const [personId, cooldownInfo] of persistentCooldowns) {
-      // Skip if this person is already detected and drawn above
-      if (detectedPersonIds.has(personId)) continue;
-      
-      // Check if cooldown is still active
-      const timeSinceStart = currentTime - cooldownInfo.startTime;
-      const cooldownMs = attendanceCooldownSeconds * 1000;
-      if (timeSinceStart >= cooldownMs) continue; // Cooldown expired
-      
-      // Skip if no lastKnownBbox
-      if (!cooldownInfo.lastKnownBbox) continue;
-      
-      // Calculate remaining time
-      const remainingSeconds = Math.ceil((cooldownMs - timeSinceStart) / 1000);
-      
-      // Draw cooldown at last known position
-      const bbox = cooldownInfo.lastKnownBbox;
-      const x1 = bbox.x * scaleX + offsetX;
-      const y1 = bbox.y * scaleY + offsetY;
-      const x2 = (bbox.x + bbox.width) * scaleX + offsetX;
-      const y2 = (bbox.y + bbox.height) * scaleY + offsetY;
-      
-      // Validate coordinates
-      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) continue;
-      
-      ctx.save();
-      
-      // Draw semi-transparent bounding box to show where person was
-      ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]); // Dashed line
-      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-      ctx.setLineDash([]); // Reset dash
-      
-      // Draw cooldown indicator
-      const centerX = (x1 + x2) / 2;
-      const centerY = (y1 + y2) / 2;
-      
-      // Modern pill-shaped background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-      ctx.lineWidth = 1;
-      
-      const pillWidth = 100;
-      const pillHeight = 32;
-      const pillRadius = 16;
-      
-      // Draw pill background
-      ctx.beginPath();
-      ctx.roundRect(centerX - pillWidth/2, centerY - pillHeight/2, pillWidth, pillHeight, pillRadius);
-      ctx.fill();
-      ctx.stroke();
-      
-      // Draw text with countdown
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '500 14px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${remainingSeconds}s`, centerX, centerY);
-      
-      // Draw name above bbox
-      if (cooldownInfo.memberName) {
-        ctx.font = 'bold 14px "Courier New", monospace';
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(cooldownInfo.memberName, x1, y1 - 10);
-      }
-      
-      ctx.restore();
-    }
+    // Cooldown for persons not currently detected is handled in sidebar only (no canvas drawing)
   }, [currentDetections, isStreaming, getVideoRect, calculateScaleFactors, currentRecognitionResults, recognitionEnabled, persistentCooldowns, attendanceCooldownSeconds]);
 
   // OPTIMIZED animation loop with better performance
