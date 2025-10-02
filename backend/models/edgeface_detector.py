@@ -31,10 +31,6 @@ class EdgeFaceDetector:
         providers: Optional[List[str]] = None,
         database_path: Optional[str] = None,
         session_options: Optional[Dict[str, Any]] = None,
-        enable_temporal_smoothing: bool = True,  # Enabled by default for stability
-        recognition_smoothing_factor: float = 0.3,  # Reduced for faster response
-        recognition_hysteresis_margin: float = 0.05,  # Reduced for less strict switching
-        min_consecutive_recognitions: int = 1,  # Reduced to 1 for immediate recognition
         facemesh_alignment: bool = False,  # Enable FaceMesh-based alignment
         facemesh_detector: Optional['FaceMeshDetector'] = None,  # External FaceMesh detector instance
         facemesh_model_path: Optional[str] = None,  # DEPRECATED: Path to FaceMesh ONNX model
@@ -50,10 +46,6 @@ class EdgeFaceDetector:
             providers: ONNX runtime providers
             database_path: Path to face database JSON file
             session_options: ONNX runtime session options for optimization
-            enable_temporal_smoothing: Enable temporal smoothing for recognition stability
-            recognition_smoothing_factor: Smoothing factor for recognition results
-            recognition_hysteresis_margin: Margin for recognition stability
-            min_consecutive_recognitions: Minimum consecutive recognitions for new person
             facemesh_alignment: Enable FaceMesh-based alignment instead of simple similarity transform
             facemesh_detector: External FaceMesh detector instance (recommended for performance)
             facemesh_model_path: DEPRECATED - Path to FaceMesh ONNX model file
@@ -65,12 +57,6 @@ class EdgeFaceDetector:
         self.providers = providers or ['CPUExecutionProvider']
         self.database_path = database_path
         self.session_options = session_options
-        
-        # Temporal smoothing parameters
-        self.enable_temporal_smoothing = enable_temporal_smoothing
-        self.recognition_smoothing_factor = recognition_smoothing_factor
-        self.recognition_hysteresis_margin = recognition_hysteresis_margin
-        self.min_consecutive_recognitions = min_consecutive_recognitions
         
         # FaceMesh alignment parameters
         self.facemesh_alignment = facemesh_alignment
@@ -85,12 +71,6 @@ class EdgeFaceDetector:
         
         # Model components
         self.session = None
-        
-        # Temporal smoothing tracking (only if enabled)
-        if self.enable_temporal_smoothing:
-            self.recognition_history = {}  # face_id -> list of recent recognition results
-            self.max_history = 3  # Reduced from 5 to 3 for faster response
-            self.consecutive_recognitions = {}  # face_id -> count of consecutive recognitions
         
         # Initialize SQLite database manager
         if self.database_path:
@@ -402,14 +382,6 @@ class EdgeFaceDetector:
             # Find best match
             person_id, similarity = self._find_best_match(embedding)
             
-            # Apply temporal smoothing if enabled
-            if self.enable_temporal_smoothing:
-                # Generate stable face ID from bbox for temporal smoothing
-                stable_face_id = f"bbox_{bbox[0]:.1f}_{bbox[1]:.1f}_{bbox[2]:.1f}_{bbox[3]:.1f}"
-                person_id, similarity = self._apply_recognition_temporal_smoothing(
-                    stable_face_id, person_id, similarity
-                )
-            
             return {
                 "person_id": person_id,
                 "similarity": similarity,
@@ -636,126 +608,6 @@ class EdgeFaceDetector:
                 "error": str(e)
             }
     
-    def _generate_stable_face_id(self, landmarks: np.ndarray) -> str:
-        """Generate a stable face ID based on landmark positions for temporal tracking"""
-        try:
-            if landmarks is not None and len(landmarks) >= 2:
-                # Use eye positions for stable tracking (most reliable landmarks)
-                left_eye = landmarks[0]
-                right_eye = landmarks[1]
-                
-                # Calculate center point and eye distance for stable tracking
-                center_x = (left_eye[0] + right_eye[0]) / 2
-                center_y = (left_eye[1] + right_eye[1]) / 2
-                eye_distance = np.linalg.norm(right_eye - left_eye)
-                
-                # Use grid-based approach for stable ID generation
-                grid_size = 20  # Grid size for position quantization
-                size_grid = 10  # Grid size for scale quantization
-                
-                # Create a hash based on center position and scale
-                grid_x = int(center_x // grid_size)
-                grid_y = int(center_y // grid_size)
-                grid_scale = int(eye_distance // size_grid)
-                
-                return f"face_{grid_x}_{grid_y}_{grid_scale}"
-            else:
-                # Fallback for invalid landmarks
-                return f"face_unknown_{hash(str(landmarks)) % 10000}"
-        except Exception as e:
-            logger.warning(f"Error generating stable face ID: {e}")
-            return f"face_error_{hash(str(landmarks)) % 10000}"
-
-    def _apply_recognition_temporal_smoothing(self, face_id: str, person_id: Optional[str], similarity: float) -> Tuple[Optional[str], float]:
-        """Apply temporal smoothing to recognition results for stability"""
-        if not self.enable_temporal_smoothing:
-            return person_id, similarity
-        
-        try:
-            # Initialize history if not exists
-            if face_id not in self.recognition_history:
-                self.recognition_history[face_id] = []
-                self.consecutive_recognitions[face_id] = {}
-            
-            # Add current result to history
-            self.recognition_history[face_id].append({
-                'person_id': person_id,
-                'similarity': similarity,
-                'timestamp': time.time()
-            })
-            
-            # Keep only recent history
-            if len(self.recognition_history[face_id]) > self.max_history:
-                self.recognition_history[face_id] = self.recognition_history[face_id][-self.max_history:]
-            
-            # Apply smoothing if we have previous results
-            if len(self.recognition_history[face_id]) > 1:
-                # Count consecutive recognitions for each person
-                recent_results = self.recognition_history[face_id]
-                person_counts = {}
-                
-                for result in recent_results:
-                    pid = result['person_id']
-                    if pid is not None:
-                        person_counts[pid] = person_counts.get(pid, 0) + 1
-                
-                # Find most frequent person in recent history
-                if person_counts:
-                    most_frequent_person = max(person_counts.items(), key=lambda x: x[1])
-                    most_frequent_id, count = most_frequent_person
-                    
-                    # Simple majority voting with immediate response (min_consecutive = 1)
-                    if person_id == most_frequent_id and count >= self.min_consecutive_recognitions:
-                        # Current recognition matches most frequent, apply similarity smoothing
-                        similarities = [r['similarity'] for r in recent_results if r['person_id'] == person_id]
-                        if len(similarities) > 1:
-                            # Weighted average with more weight on recent results
-                            weights = np.linspace(0.5, 1.0, len(similarities))
-                            smoothed_similarity = np.average(similarities, weights=weights)
-                            
-                            # Blend current with smoothed (less aggressive smoothing)
-                            final_similarity = (
-                                similarity * (1 - self.recognition_smoothing_factor) +
-                                smoothed_similarity * self.recognition_smoothing_factor
-                            )
-                            
-                            logger.debug(f"Face {face_id}: Similarity smoothed {similarity:.3f} -> {final_similarity:.3f}")
-                            return person_id, final_similarity
-                    
-                    # Handle switching between persons with hysteresis
-                    elif person_id is not None and most_frequent_id != person_id:
-                        # Only apply hysteresis if we have enough history
-                        if len(recent_results) >= 2:
-                            prev_result = recent_results[-2]
-                            # If switching from a recognized person, require higher confidence
-                            if prev_result['person_id'] is not None:
-                                required_similarity = self.similarity_threshold + self.recognition_hysteresis_margin
-                                if similarity >= required_similarity:
-                                    return person_id, similarity  # Allow switch with high confidence
-                                else:
-                                    # Stay with most frequent if current confidence is low
-                                    return most_frequent_id, np.mean([r['similarity'] for r in recent_results if r['person_id'] == most_frequent_id])
-                    
-                    # Default: use most frequent person if it has enough occurrences
-                    elif most_frequent_id is not None and count >= self.min_consecutive_recognitions:
-                        similarities = [r['similarity'] for r in recent_results if r['person_id'] == most_frequent_id]
-                        avg_similarity = np.mean(similarities) if similarities else similarity
-                        return most_frequent_id, avg_similarity
-            
-            # Return original result if no smoothing applied
-            return person_id, similarity
-            
-        except Exception as e:
-            logger.error(f"Error applying recognition temporal smoothing: {e}")
-            return person_id, similarity
-    
-    def clear_temporal_cache(self):
-        """Clear all temporal smoothing cache"""
-        if self.enable_temporal_smoothing:
-            self.recognition_history.clear()
-            self.consecutive_recognitions.clear()
-            logger.info("Recognition temporal cache cleared")
-
     def get_model_info(self) -> Dict:
         """Get model information"""
         return {

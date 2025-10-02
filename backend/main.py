@@ -23,6 +23,7 @@ from models.yunet_detector import YuNetDetector
 from models.antispoofing_detector import OptimizedAntiSpoofingDetector
 from models.edgeface_detector import EdgeFaceDetector
 from models.facemesh_detector import FaceMeshDetector
+from models.sort_tracker import FaceTracker
 from utils.image_utils import decode_base64_image, encode_image_to_base64
 from utils.websocket_manager import manager, handle_websocket_message
 from utils.attendance_database import AttendanceDatabaseManager
@@ -56,6 +57,7 @@ yunet_detector = None
 optimized_antispoofing_detector = None
 edgeface_detector = None
 facemesh_detector = None
+face_tracker = None
 
 # Initialize attendance database
 attendance_database = None
@@ -120,7 +122,7 @@ class PersonUpdateRequest(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, attendance_database
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, face_tracker, attendance_database
     try:
         yunet_detector = YuNetDetector(
             model_path=str(YUNET_MODEL_PATH),
@@ -137,10 +139,7 @@ async def startup_event():
             providers=ANTISPOOFING_CONFIG["providers"],
             max_batch_size=ANTISPOOFING_CONFIG.get("max_batch_size", 1),
             cache_duration=1.0,
-            session_options=ANTISPOOFING_CONFIG.get("session_options"),
-            enable_temporal_smoothing=ANTISPOOFING_CONFIG.get("enable_temporal_smoothing", False),
-            smoothing_factor=ANTISPOOFING_CONFIG.get("smoothing_factor", 0.0),
-            hysteresis_margin=ANTISPOOFING_CONFIG.get("hysteresis_margin", 0.1)
+            session_options=ANTISPOOFING_CONFIG.get("session_options")
         )
         
         # Initialize shared FaceMesh detector first
@@ -161,16 +160,20 @@ async def startup_event():
             providers=EDGEFACE_CONFIG["providers"],
             database_path=str(EDGEFACE_CONFIG["database_path"]),
             session_options=EDGEFACE_CONFIG.get("session_options"),
-            enable_temporal_smoothing=EDGEFACE_CONFIG.get("enable_temporal_smoothing", True),
-            recognition_smoothing_factor=EDGEFACE_CONFIG.get("recognition_smoothing_factor", 0.3),
-            recognition_hysteresis_margin=EDGEFACE_CONFIG.get("recognition_hysteresis_margin", 0.05),
-            min_consecutive_recognitions=EDGEFACE_CONFIG.get("min_consecutive_recognitions", 2),
             facemesh_alignment=EDGEFACE_CONFIG.get("facemesh_alignment", False),
             facemesh_detector=facemesh_detector if EDGEFACE_CONFIG.get("facemesh_alignment", False) else None,
             # DEPRECATED parameters - kept for backward compatibility
             facemesh_model_path=str(MODEL_CONFIGS.get("facemesh", {}).get("model_path", "")) if EDGEFACE_CONFIG.get("facemesh_alignment") else None,
             facemesh_config=MODEL_CONFIGS.get("facemesh", {}) if EDGEFACE_CONFIG.get("facemesh_alignment") else None
         )
+        
+        # Initialize SORT face tracker
+        face_tracker = FaceTracker(
+            max_age=30,  # Keep tracks alive for 30 frames without detection
+            min_hits=3,  # Require 3 consecutive detections before reporting track
+            iou_threshold=0.3  # IOU threshold for matching faces to tracks
+        )
+        logger.info("Face tracker initialized successfully")
         
         # Initialize attendance database
         attendance_database = AttendanceDatabaseManager("data/attendance.db")
@@ -781,6 +784,17 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                         faces = await yunet_detector.detect_async(image)
                     else:
                         faces = []
+                    
+                    # Apply face tracking to assign consistent track IDs
+                    if faces and face_tracker:
+                        try:
+                            # Update tracker with detected faces
+                            loop = asyncio.get_event_loop()
+                            faces = await loop.run_in_executor(None, face_tracker.update, faces)
+                            logger.debug(f"Assigned track IDs to {len(faces)} faces")
+                        except Exception as e:
+                            logger.warning(f"Face tracking failed: {e}")
+                            # Continue without tracking on error
                     
                     # Apply anti-spoofing detection if enabled and faces detected
                     enable_antispoofing = message.get("enable_antispoofing", True)

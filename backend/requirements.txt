@@ -28,3 +28,8 @@ structlog==23.2.0
 # ONNX runtime for anti-spoofing models
 onnxruntime==1.16.3  # For anti-spoofing model inference
 # onnxruntime-gpu==1.16.3  # Uncomment for GPU support
+
+# SORT tracker dependencies
+filterpy==1.4.5  # Kalman filtering for object tracking
+scipy==1.10.1  # Linear assignment for Hungarian algorithm
+# lap==0.4.0  # Optional: Faster linear assignment (uncomment for better performance)

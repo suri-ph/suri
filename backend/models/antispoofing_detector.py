@@ -26,10 +26,7 @@ class OptimizedAntiSpoofingDetector:
         providers: Optional[List[str]] = None,
         max_batch_size: int = 1,
         cache_duration: float = 0.0,  # No caching
-        session_options: Optional[Dict] = None,
-        smoothing_factor: float = 0.0,  # Disabled by default to prevent cross-contamination
-        enable_temporal_smoothing: bool = False,  # Explicit control
-        hysteresis_margin: float = 0.1  # Stability margin to reduce flickering
+        session_options: Optional[Dict] = None
     ):
         self.model_path = model_path
         self.input_size = input_size
@@ -37,18 +34,9 @@ class OptimizedAntiSpoofingDetector:
         self.providers = providers or ['CPUExecutionProvider']
         self.max_batch_size = max_batch_size
         self.session_options = session_options
-        self.smoothing_factor = smoothing_factor
-        self.enable_temporal_smoothing = enable_temporal_smoothing
-        self.hysteresis_margin = hysteresis_margin
         
         # Model components
         self.session = None
-        
-        # Temporal consistency tracking (only if enabled)
-        self.previous_results = {}  # face_id -> previous result
-        self.result_history = {}    # face_id -> list of recent results
-        self.max_history = 5        # Keep last 5 results for smoothing
-        self.last_decisions = {}    # Store last decisions for hysteresis
         
         # Initialize model
         self._initialize_model()
@@ -212,33 +200,21 @@ class OptimizedAntiSpoofingDetector:
         # Process each face individually to prevent cross-contamination
         start_time = time.time()
         
-        # Combine results with face data and apply temporal smoothing if enabled
+        # Combine results with face data
         for (face_id, face), face_crop in zip(valid_faces, face_crops):
-            # Generate a stable face identifier based on bbox position
-            bbox = face.get('bbox', face.get('box', {}))
-            stable_face_id = self._generate_stable_face_id(bbox)
-            
-            # Process this face individually with hysteresis
-            antispoofing_result = self._process_single_face(face_crop, stable_face_id)
-            
-            # Apply temporal smoothing only if enabled
-            if self.enable_temporal_smoothing:
-                smoothed_result = self._apply_temporal_smoothing(stable_face_id, antispoofing_result)
-                logger.debug(f"Face {face_id} (stable_id: {stable_face_id}): Raw result = {antispoofing_result}")
-                logger.debug(f"Face {face_id} (stable_id: {stable_face_id}): Smoothed result = {smoothed_result}")
-            else:
-                smoothed_result = antispoofing_result
-                logger.debug(f"Face {face_id}: Result = {antispoofing_result} (no smoothing)")
+            # Process this face individually
+            antispoofing_result = self._process_single_face(face_crop)
+            logger.debug(f"Face {face_id}: Result = {antispoofing_result}")
             
             # Add processing time to result
             processing_time = time.time() - start_time
-            smoothed_result['processing_time'] = processing_time
-            smoothed_result['cached'] = False
+            antispoofing_result['processing_time'] = processing_time
+            antispoofing_result['cached'] = False
             
             result = {
                 "face_id": face_id,
                 "bbox": face.get('bbox', face.get('box', {})),
-                "antispoofing": smoothed_result
+                "antispoofing": antispoofing_result
             }
             
             # Copy over original face detection data
@@ -316,7 +292,7 @@ class OptimizedAntiSpoofingDetector:
                 "error": str(e)
             } for _ in face_crops]
 
-    def _process_single_face(self, face_crop: np.ndarray, face_id: str = None) -> Dict:
+    def _process_single_face(self, face_crop: np.ndarray) -> Dict:
         """Process a single face crop individually"""
         try:
             # Preprocess the face
@@ -327,8 +303,8 @@ class OptimizedAntiSpoofingDetector:
             outputs = self.session.run(None, {input_name: input_tensor})
             prediction = outputs[0][0]  # Get first (and only) prediction
             
-            # Process the prediction with hysteresis
-            result = self._process_single_prediction(prediction, face_id)
+            # Process the prediction
+            result = self._process_single_prediction(prediction)
             return result
             
         except Exception as e:
@@ -343,7 +319,7 @@ class OptimizedAntiSpoofingDetector:
                 "error": str(e)
             }
     
-    def _process_single_prediction(self, prediction: np.ndarray, face_id: str = None) -> Dict:
+    def _process_single_prediction(self, prediction: np.ndarray) -> Dict:
         """
         Process model prediction to determine if face is real or fake with hysteresis
         Model output format: [real_logit, fake_logit]
@@ -356,8 +332,8 @@ class OptimizedAntiSpoofingDetector:
             real_score = float(softmax_probs[0])  # First element is real
             fake_score = float(softmax_probs[1])  # Second element is fake
             
-            # Apply hysteresis to reduce flickering
-            is_real = self._apply_hysteresis(real_score, face_id)
+            # Simple threshold classification
+            is_real = real_score > self.threshold
             confidence = real_score if is_real else fake_score
             
             return {
@@ -387,165 +363,6 @@ class OptimizedAntiSpoofingDetector:
         """Update the threshold for real/fake classification"""
         self.threshold = threshold
         logger.info(f"Updated threshold to {threshold}")
-    
-    def _apply_hysteresis(self, real_score: float, face_id: str = None) -> bool:
-        """
-        Apply hysteresis to reduce flickering by requiring a confidence margin
-        before changing the decision. Optimized for performance.
-        """
-        # Fast path: no face ID provided, use simple threshold
-        if face_id is None:
-            return real_score > self.threshold
-        
-        # Fast path: check if we have a previous decision
-        last_decision = self.last_decisions.get(face_id)
-        
-        if last_decision is None:
-            # First time seeing this face, use simple threshold
-            decision = real_score > self.threshold
-            self.last_decisions[face_id] = decision
-            return decision
-        
-        # Optimized hysteresis: pre-calculate thresholds
-        if last_decision:  # Last decision was "real"
-            # Use lower threshold to prevent flickering to "fake"
-            threshold = self.threshold - self.hysteresis_margin
-        else:  # Last decision was "fake"
-            # Use higher threshold to prevent flickering to "real"
-            threshold = self.threshold + self.hysteresis_margin
-        
-        decision = real_score > threshold
-        
-        # Only update if decision changed (reduces dictionary writes)
-        if decision != last_decision:
-            self.last_decisions[face_id] = decision
-        
-        return decision
-    
-    def _generate_stable_face_id(self, bbox) -> str:
-        """Generate a stable face ID based on bbox position to prevent cross-contamination"""
-        try:
-            if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
-                x, y, w, h = bbox[:4]
-                # Use finer grid for better tracking of multiple faces
-                # Calculate center point for more stable tracking
-                center_x = x + w / 2
-                center_y = y + h / 2
-                
-                # Use smaller grid size for better discrimination between close faces
-                grid_size = 25  # Reduced from 50 for finer tracking
-                size_grid = 15  # Reduced from 20 for better size discrimination
-                
-                # Create a hash based on center position and size
-                grid_x = int(center_x // grid_size)
-                grid_y = int(center_y // grid_size)
-                grid_w = int(w // size_grid)
-                grid_h = int(h // size_grid)
-                
-                # Include aspect ratio for better face discrimination
-                aspect_ratio = int((w / h) * 10) if h > 0 else 10
-                
-                return f"face_{grid_x}_{grid_y}_{grid_w}_{grid_h}_{aspect_ratio}"
-            else:
-                # Fallback for invalid bbox
-                return f"face_unknown_{hash(str(bbox)) % 10000}"
-        except Exception as e:
-            logger.warning(f"Error generating stable face ID: {e}")
-            return f"face_error_{hash(str(bbox)) % 10000}"
-
-    def _apply_temporal_smoothing(self, face_id: str, current_result: Dict) -> Dict:
-        """Apply temporal smoothing to reduce flickering"""
-        try:
-            # Use the stable face ID directly as the key
-            face_key = face_id
-            
-            # Get current scores
-            current_real_score = current_result.get('real_score', 0.5)
-            current_fake_score = current_result.get('fake_score', 0.5)
-            
-            # Initialize history if not exists
-            if face_key not in self.result_history:
-                self.result_history[face_key] = []
-            
-            # Add current result to history
-            self.result_history[face_key].append({
-                'real_score': current_real_score,
-                'fake_score': current_fake_score,
-                'timestamp': time.time()
-            })
-            
-            # Keep only recent history
-            if len(self.result_history[face_key]) > self.max_history:
-                self.result_history[face_key] = self.result_history[face_key][-self.max_history:]
-            
-            # Apply smoothing if we have previous results
-            if len(self.result_history[face_key]) > 1:
-                # Calculate weighted average with more weight on recent results
-                total_weight = 0
-                weighted_real_score = 0
-                weighted_fake_score = 0
-                
-                for i, hist_result in enumerate(self.result_history[face_key]):
-                    # More recent results get higher weight
-                    weight = (i + 1) / len(self.result_history[face_key])
-                    weighted_real_score += hist_result['real_score'] * weight
-                    weighted_fake_score += hist_result['fake_score'] * weight
-                    total_weight += weight
-                
-                # Normalize
-                if total_weight > 0:
-                    smoothed_real_score = weighted_real_score / total_weight
-                    smoothed_fake_score = weighted_fake_score / total_weight
-                    
-                    # Apply smoothing factor (blend current with smoothed)
-                    final_real_score = (
-                        current_real_score * self.smoothing_factor + 
-                        smoothed_real_score * (1 - self.smoothing_factor)
-                    )
-                    final_fake_score = (
-                        current_fake_score * self.smoothing_factor + 
-                        smoothed_fake_score * (1 - self.smoothing_factor)
-                    )
-                    
-                    # Ensure scores sum to 1
-                    total_score = final_real_score + final_fake_score
-                    if total_score > 0:
-                        final_real_score /= total_score
-                        final_fake_score /= total_score
-                    
-                    # Determine final classification
-                    is_real = final_real_score > self.threshold
-                    confidence = final_real_score if is_real else final_fake_score
-                    
-                    return {
-                        "is_real": is_real,
-                        "real_score": final_real_score,
-                        "fake_score": final_fake_score,
-                        "confidence": confidence,
-                        "threshold": self.threshold,
-                        "smoothed": True
-                    }
-            
-            # Return original result if no smoothing applied
-            return {
-                **current_result,
-                "smoothed": False
-            }
-            
-        except Exception as e:
-            logger.error(f"Error applying temporal smoothing: {e}")
-            return {
-                **current_result,
-                "smoothed": False,
-                "error": str(e)
-            }
-
-    def clear_cache(self):
-        """Clear all cached results, temporal history, and hysteresis decisions"""
-        self.previous_results.clear()
-        self.result_history.clear()
-        self.last_decisions.clear()
-        logger.info("Cache, temporal history, and hysteresis decisions cleared")
     
     def get_model_info(self) -> Dict:
         """Get model information"""
