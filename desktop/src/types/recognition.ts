@@ -77,6 +77,7 @@ export interface FaceWithRecognition {
     height: number;
   };
   confidence: number;
+  track_id?: number; // SORT tracker ID for consistent face tracking across frames
   landmarks: {
     right_eye: { x: number; y: number };
     left_eye: { x: number; y: number };

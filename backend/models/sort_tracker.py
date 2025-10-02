@@ -485,8 +485,10 @@ class FaceTracker:
         tracks = self.tracker.update(dets_array)
         
         # Map track IDs back to face detections
-        # Use IOU to match tracks to original detections
+        # IMPORTANT: Return ALL face detections, not just tracked ones
+        # This prevents faces from disappearing during initial tracking phase
         result = []
+        matched_detection_indices = set()
         
         if len(tracks) > 0:
             track_bboxes = tracks[:, :4]
@@ -507,9 +509,19 @@ class FaceTracker:
                     face_result = face_detections[best_det_idx].copy()
                     face_result['track_id'] = int(track[4])  # Last column is track ID
                     result.append(face_result)
+                    matched_detection_indices.add(best_det_idx)
                     
                     # Mark this detection as used
                     iou_matrix[:, best_det_idx] = 0
+        
+        # Add unmatched detections WITHOUT track_id (new faces being tracked)
+        # This ensures all detected faces are returned, even during initial tracking
+        for det_idx, face in enumerate(face_detections):
+            if det_idx not in matched_detection_indices:
+                # Face doesn't have track_id yet (still building confidence)
+                face_result = face.copy()
+                # Don't set track_id - frontend will use fallback tracking
+                result.append(face_result)
         
         return result
     

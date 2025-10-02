@@ -42,6 +42,7 @@ interface DetectionResult {
 interface WebSocketFaceData {
   bbox?: number[];
   confidence?: number;
+  track_id?: number; // SORT tracker ID for consistent face tracking
   landmarks?: number[][];
   landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
   antispoofing?: {
@@ -367,6 +368,10 @@ export default function LiveVideo() {
             return null;
           }
           
+          // Use track_id as stable identifier (from SORT tracker)
+          // Fallback to index-based ID only if track_id not available
+          const trackId = face.track_id ?? index;
+          
           // Convert bbox to array format [x, y, width, height]
           const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
           
@@ -434,7 +439,8 @@ export default function LiveVideo() {
             }
             
             // Elite Tracking System - Update tracked face with recognition data
-            const faceId = `face_${index}_${Date.now()}`;
+            // Use track_id from SORT tracker as the stable identifier
+            const trackId = face.track_id ? `track_${face.track_id}` : `face_${index}_${Date.now()}`;
             const currentTime = Date.now();
             
             // Update tracking data
@@ -442,12 +448,13 @@ export default function LiveVideo() {
               const newTracked = new Map(prev);
               const currentAntispoofingStatus = face.antispoofing?.status;
               
-              // Find existing track with simple matching logic
-              const existingTrack = Array.from(newTracked.values()).find(
-                track => track.personId === response.person_id && 
-                Math.abs(track.bbox.x - face.bbox.x) < 100 && 
-                Math.abs(track.bbox.y - face.bbox.y) < 100
-              );
+              // Find existing track using track_id (from SORT) for consistent identity
+              const existingTrack = face.track_id ? newTracked.get(trackId) : 
+                Array.from(newTracked.values()).find(
+                  track => track.personId === response.person_id && 
+                  Math.abs(track.bbox.x - face.bbox.x) < 100 && 
+                  Math.abs(track.bbox.y - face.bbox.y) < 100
+                );
               
               if (existingTrack) {
                 // Update existing track
@@ -470,9 +477,9 @@ export default function LiveVideo() {
                 
                 newTracked.set(existingTrack.id, existingTrack);
               } else {
-                // Create new track
-                newTracked.set(faceId, {
-                  id: faceId,
+                // Create new track using track_id as the key
+                newTracked.set(trackId, {
+                  id: trackId,
                   bbox: face.bbox,
                   confidence: face.confidence,
                   lastSeen: currentTime,
@@ -500,33 +507,35 @@ export default function LiveVideo() {
               });
               
               // Check cooldown to prevent duplicate attendance logging
+              // Use track_id as key to ensure each tracked face has its own cooldown
               const currentTime = Date.now();
-              const existingCooldown = persistentCooldowns.get(response.person_id);
+              const cooldownKey = face.track_id ? `track_${face.track_id}` : response.person_id;
+              const existingCooldown = persistentCooldowns.get(cooldownKey);
               const lastAttendanceTime = existingCooldown?.startTime || 0;
               const timeSinceLastAttendance = currentTime - lastAttendanceTime;
               const cooldownMs = attendanceCooldownSeconds * 1000;
               
-              console.log(`🔍 Cooldown check for ${response.person_id}: lastTime=${lastAttendanceTime}, currentTime=${currentTime}, timeSince=${timeSinceLastAttendance}, cooldownMs=${cooldownMs}`);
+              console.log(`🔍 Cooldown check for ${memberName} (key: ${cooldownKey}): lastTime=${lastAttendanceTime}, currentTime=${currentTime}, timeSince=${timeSinceLastAttendance}, cooldownMs=${cooldownMs}`);
               
               if (timeSinceLastAttendance < cooldownMs) {
                 const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
-                console.log(`⏳ Attendance cooldown active for ${response.person_id}: ${remainingCooldown}s remaining`);
+                console.log(`⏳ Attendance cooldown active for ${memberName} (key: ${cooldownKey}): ${remainingCooldown}s remaining`);
                 
-                // Update the tracked face with cooldown info for overlay display
+                // Update the tracked face with cooldown info for overlay display using track_id
                 setTrackedFaces(prev => {
                   const newTracked = new Map(prev);
-                  for (const [trackId, track] of newTracked) {
-                    if (track.personId === response.person_id) {
-                      newTracked.set(trackId, {
-                        ...track,
-                        cooldownRemaining: remainingCooldown
-                      });
-                    }
+                  const trackKey = face.track_id ? `track_${face.track_id}` : null;
+                  if (trackKey && newTracked.has(trackKey)) {
+                    newTracked.set(trackKey, {
+                      ...newTracked.get(trackKey)!,
+                      cooldownRemaining: remainingCooldown
+                    });
                   }
                   return newTracked;
                 });
                 
-                return { index, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
+                // Use trackId instead of index for stable mapping
+                return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
               }
               
               try {
@@ -552,27 +561,27 @@ export default function LiveVideo() {
                       console.log(`📋 ✅ Attendance automatically recorded: ${response.person_id} - ${attendanceEvent.type} at ${attendanceEvent.timestamp}`);
                     }
                     
-                    // Set cooldown to prevent duplicate logging (only if not already active)
+                    // Set cooldown to prevent duplicate logging using track_id as key
                     const logTime = Date.now();
-                    const personId = response.person_id;
-                    if (personId) {
-                      console.log(`🔄 Setting new cooldown for ${personId} at ${logTime}`);
+                    const cooldownKey = face.track_id ? `track_${face.track_id}` : response.person_id;
+                    if (cooldownKey) {
+                      console.log(`🔄 Setting new cooldown for ${memberName} (key: ${cooldownKey}) at ${logTime}`);
                       setAttendanceCooldowns(prev => {
                         const newCooldowns = new Map(prev);
-                        newCooldowns.set(personId, logTime);
+                        newCooldowns.set(cooldownKey, logTime);
                         return newCooldowns;
                       });
                       
-                      // Add persistent cooldown for visual display (only if not already active)
+                      // Add persistent cooldown for visual display using track_id as key
                       setPersistentCooldowns(prev => {
                         const newPersistent = new Map(prev);
-                        const existingCooldown = newPersistent.get(personId);
+                        const existingCooldown = newPersistent.get(cooldownKey);
                         if (existingCooldown) {
-                          console.log(`⚠️ WARNING: Attempted to overwrite existing cooldown for ${personId}! Keeping existing startTime: ${existingCooldown.startTime}`);
+                          console.log(`⚠️ WARNING: Attempted to overwrite existing cooldown for ${memberName} (key: ${cooldownKey})! Keeping existing startTime: ${existingCooldown.startTime}`);
                           return prev; // Don't update if cooldown already exists
                         }
-                        newPersistent.set(personId, {
-                          personId: personId,
+                        newPersistent.set(cooldownKey, {
+                          personId: response.person_id,
                           startTime: logTime,
                           memberName: memberName
                         });
@@ -631,7 +640,8 @@ export default function LiveVideo() {
             }
             
             // Store name in response for overlay display
-            return { index, result: { ...response, name: memberName, memberName } };
+            // Use trackId instead of index for stable mapping
+            return { trackId, result: { ...response, name: memberName, memberName } };
           } else if (response.success) {
             console.log(`👤 Face ${index} not recognized (similarity: ${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
@@ -671,10 +681,11 @@ export default function LiveVideo() {
       }
       
       // Update recognition results map - start fresh to avoid persisting old group results
+      // Use trackId as key (not array index) to handle filtered faces correctly
       const newRecognitionResults = new Map<number, FaceRecognitionResponse>();
       recognitionResults.forEach((result) => {
         if (result) {
-          newRecognitionResults.set(result.index, result.result);
+          newRecognitionResults.set(result.trackId, result.result);
         }
       });
       
@@ -1479,7 +1490,9 @@ export default function LiveVideo() {
       // Validate scaled coordinates
       if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;
 
-      const recognitionResult = currentRecognitionResults.get(index);
+      // Look up recognition by track_id (from SORT), fallback to index
+      const trackId = face.track_id ?? index;
+      const recognitionResult = currentRecognitionResults.get(trackId);
       const color = getFaceColor(recognitionResult || null, recognitionEnabled);
 
       // Setup context and draw bounding box
@@ -1502,7 +1515,9 @@ export default function LiveVideo() {
 
       // Show modern logged indicator if person is in cooldown
       if (isRecognized && recognitionResult?.person_id) {
-        const cooldownInfo = persistentCooldowns.get(recognitionResult.person_id);
+        // Use same cooldown key format as in performFaceRecognition
+        const cooldownKey = face.track_id ? `track_${face.track_id}` : recognitionResult.person_id;
+        const cooldownInfo = persistentCooldowns.get(cooldownKey);
         if (cooldownInfo) {
           const currentTime = Date.now();
           const timeSinceStart = currentTime - cooldownInfo.startTime;
@@ -2345,7 +2360,9 @@ export default function LiveVideo() {
                   </div>
                 ) : (
                   currentDetections.faces.map((face, index) => {
-                    const recognitionResult = currentRecognitionResults.get(index);
+                    // Look up recognition by track_id (from SORT), fallback to index
+                    const trackId = face.track_id ?? index;
+                    const recognitionResult = currentRecognitionResults.get(trackId);
                     const isRecognized = recognitionEnabled && recognitionResult?.person_id;
   
                     // Find corresponding tracked face
