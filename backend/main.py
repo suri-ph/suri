@@ -216,33 +216,39 @@ async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: boo
                 f"Anti-spoofing result count mismatch: {len(faces)} faces, "
                 f"{len(antispoofing_results)} results. Marking unprocessed as FAKE."
             )
-            # Create a mapping of face_id to result
-            result_map = {r.get('face_id', i): r for i, r in enumerate(antispoofing_results)}
-            
-            # Ensure every face has antispoofing data
-            for i, face in enumerate(faces):
-                if i in result_map:
-                    result = result_map[i]
-                else:
-                    # Face was skipped - mark as FAKE for security
-                    logger.warning(f"Face {i} missing antispoofing result, marking as FAKE")
-                    result = {
-                        'face_id': i,
-                        'antispoofing': {
-                            'status': 'processing_failed',
-                            'label': 'Processing Failed',
-                            'is_real': False,
-                            'confidence': 0.0,
-                            'real_score': 0.0,
-                            'fake_score': 1.0,
-                            'message': 'Anti-spoofing processing failed for this face'
-                        }
-                    }
-                
+        
+        # CRITICAL FIX: Use face_id mapping with robust error handling
+        # Build lookup map: face_id -> antispoofing result
+        result_map: Dict[int, Dict] = {}
+        for result in antispoofing_results:
+            face_id = result.get('face_id')
+            if face_id is not None:
+                result_map[face_id] = result
+            else:
+                logger.warning(f"Antispoofing result missing face_id: {result}")
+        
+        # Apply antispoofing data to each face (GUARANTEED to process ALL faces)
+        for i, face in enumerate(faces):
+            # Try to get result by face index
+            if i in result_map:
+                result = result_map[i]
                 antispoofing_data = result.get('antispoofing', {})
-                is_real_value = antispoofing_data.get('is_real', None)
-                if is_real_value is not None:
-                    is_real_value = bool(is_real_value)
+            else:
+                # Face missing from results - create error antispoofing data
+                logger.warning(f"Face {i} missing antispoofing result, marking as PROCESSING_FAILED")
+                antispoofing_data = {
+                    'status': 'processing_failed',
+                    'label': 'Processing Failed',
+                    'is_real': False,
+                    'confidence': 0.0,
+                    'real_score': 0.0,
+                    'fake_score': 1.0,
+                    'message': f'Anti-spoofing result missing for face {i}'
+                }
+            
+            is_real_value = antispoofing_data.get('is_real', None)
+            if is_real_value is not None:
+                is_real_value = bool(is_real_value)
                 
                 # Check if detector already set a specific status (e.g., 'too_small', 'error', 'out_of_frame')
                 detector_status = antispoofing_data.get('status')
