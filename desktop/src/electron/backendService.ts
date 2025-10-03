@@ -151,8 +151,7 @@ export class BackendService {
       }
       
       return isHealthy;
-    } catch (error) {
-      console.warn('[Backend Health Check] Failed:', error);
+    } catch {
       return false;
     }
   }
@@ -171,15 +170,12 @@ export class BackendService {
 
   private async _start(): Promise<void> {
     if (this.status.isRunning) {
-      console.log('[Backend Service] Already running');
       return;
     }
 
-    console.log('[Backend Service] Starting backend...');
 
     try {
       const executablePath = this.getBackendExecutablePath();
-      console.log('[Backend Service] Executable path:', executablePath);
 
       // Prepare command and arguments
       let command: string;
@@ -216,7 +212,6 @@ export class BackendService {
       // Start health monitoring
       this.startHealthMonitoring();
 
-      console.log(`[Backend Service] Started successfully on ${this.config.host}:${this.config.port} (PID: ${this.process.pid})`);
 
     } catch (error) {
       this.status.error = error instanceof Error ? error.message : String(error);
@@ -233,28 +228,20 @@ export class BackendService {
   private setupProcessHandlers(): void {
     if (!this.process) return;
 
-    this.process.stdout?.on('data', (data) => {
-      const output = data.toString().trim();
-      if (output) {
-        console.log('[Backend stdout]:', output);
-      }
+    this.process.stdout?.on('data', () => {
+      // Backend stdout output ignored
     });
 
-    this.process.stderr?.on('data', (data) => {
-      const output = data.toString().trim();
-      if (output) {
-        console.error('[Backend stderr]:', output);
-      }
+    this.process.stderr?.on('data', () => {
+      // Backend stderr output ignored
     });
 
     this.process.on('error', (error) => {
-      console.error('[Backend Process Error]:', error);
       this.status.error = error.message;
       this.status.isRunning = false;
     });
 
-    this.process.on('exit', (code, signal) => {
-      console.log(`[Backend Process] Exited with code ${code}, signal ${signal}`);
+    this.process.on('exit', () => {
       this.status.isRunning = false;
       this.cleanup();
     });
@@ -289,7 +276,6 @@ export class BackendService {
       if (this.status.isRunning) {
         const isHealthy = await this.healthCheck();
         if (!isHealthy) {
-          console.warn('[Backend Service] Health check failed');
           this.status.isRunning = false;
         }
       }
@@ -300,7 +286,6 @@ export class BackendService {
    * Stop the backend process
    */
   async stop(): Promise<void> {
-    console.log('[Backend Service] Stopping backend...');
 
     this.cleanup();
 
@@ -323,14 +308,12 @@ export class BackendService {
     this.status.pid = undefined;
     this.status.error = undefined;
 
-    console.log('[Backend Service] Stopped');
   }
 
   /**
    * Restart the backend process
    */
   async restart(): Promise<void> {
-    console.log('[Backend Service] Restarting backend...');
     await this.stop();
     await sleep(1000);
     await this.start();

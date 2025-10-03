@@ -73,11 +73,6 @@ interface WebSocketErrorMessage {
   error?: string;
 }
 
-interface WebSocketPongMessage {
-  timestamp?: number;
-  message?: string;
-}
-
 export default function LiveVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -137,18 +132,14 @@ export default function LiveVideo() {
   
   // Debug wrapper for setCurrentGroup with localStorage persistence
   const setCurrentGroup = useCallback((group: AttendanceGroup | null) => {
-    console.log('🔄 setCurrentGroup called with:', group?.name || 'null');
-    console.log('🔍 Stack trace for setCurrentGroup:', new Error().stack);
     setCurrentGroupInternal(group);
     currentGroupRef.current = group; // Keep ref in sync
     
     // Save group selection to localStorage for persistence
     if (group) {
       localStorage.setItem('suri_selected_group_id', group.id);
-      console.log('💾 Saved group selection to localStorage:', group.name);
     } else {
       localStorage.removeItem('suri_selected_group_id');
-      console.log('💾 Cleared group selection from localStorage');
     }
   }, []);
   
@@ -302,16 +293,12 @@ export default function LiveVideo() {
     const canvas = canvasRef.current;
     
     if (!video || !canvas) {
-      if (process.env.NODE_ENV === 'development') {
         console.warn('⚠️ captureFrame: Missing video or canvas element');
-      }
       return null;
     }
     
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      if (process.env.NODE_ENV === 'development') {
         console.warn('⚠️ captureFrame: Video dimensions not ready:', video.videoWidth, 'x', video.videoHeight);
-      }
       return null;
     }
 
@@ -350,10 +337,6 @@ export default function LiveVideo() {
       // Only perform recognition when a group is selected
       const currentGroupValue = currentGroupRef.current;
       if (!currentGroupValue) {
-        console.log('ℹ️ No group selected - skipping face recognition, faces will show as Unknown');
-        console.log('🔍 currentGroup ref:', currentGroupValue, 'type:', typeof currentGroupValue);
-        console.log('🔍 currentGroup state:', currentGroup, 'type:', typeof currentGroup);
-        console.log('🔍 Stack trace for null currentGroup:', new Error().stack);
         setCurrentRecognitionResults(new Map());
         return;
       }
@@ -367,9 +350,6 @@ export default function LiveVideo() {
       // Capture current group at start of processing to validate later
       const processingGroup = currentGroupValue;
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🎯 Starting face recognition for group: ${processingGroup?.name || 'null'} (ID: ${processingGroup?.id || 'null'})`);
-      }
 
       // Process each detected face for recognition
       const recognitionPromises = detectionResult.faces.map(async (face, index) => {
@@ -398,17 +378,14 @@ export default function LiveVideo() {
           );
 
           if (response.success && response.person_id) {
-            console.log(`🎯 Face ${index} recognized as: ${response.person_id} (${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
             // Anti-spoofing validation: Reject spoofed faces before processing
             if (face.antispoofing?.status === 'fake') {
-              console.log(`🚫 Face ${index} rejected: Spoofed face detected for ${response.person_id}`);
               return null; // Filter out spoofed faces completely
             }
             
             // Also reject faces with anti-spoofing errors for safety
             if (face.antispoofing?.status === 'error') {
-              console.log(`🚫 Face ${index} rejected: Anti-spoofing error for ${response.person_id}`);
               return null; // Filter out faces with anti-spoofing errors
             }
             
@@ -418,7 +395,6 @@ export default function LiveVideo() {
               try {
                 const member = await attendanceManager.getMember(response.person_id);
                 if (!member) {
-                  console.log(`🚫 Face ${index} filtered out: ${response.person_id} not registered as a member`);
                   return null; // Filter out this face completely
                 }
                 
@@ -429,15 +405,12 @@ export default function LiveVideo() {
                 if (member.group_id !== currentGroupValue.id) {
                   // Get the member's group information for logging purposes
                   try {
-                    const memberGroup = await attendanceManager.getGroup(member.group_id);
-                    const memberGroupName = memberGroup ? memberGroup.name : 'unknown group';
-                    console.log(`🚫 Face ${index} filtered out: ${memberName} belongs to group "${memberGroupName}" (ID: ${member.group_id}), not current group "${currentGroupValue.name}" (ID: ${currentGroupValue.id})`);
+                    await attendanceManager.getGroup(member.group_id);
                   } catch (groupError) {
                     console.warn(groupError)
                   }
                   return null; // Filter out this face completely
                 }
-                console.log(`✅ Face ${index} belongs to current group "${currentGroupValue.name}" (ID: ${currentGroupValue.id}): ${memberName}`);
               } catch (error) {
                 console.warn(`⚠️ Error validating group membership for ${response.person_id}:`, error);
                 return null; // Filter out on error
@@ -508,14 +481,6 @@ export default function LiveVideo() {
             
             // Enhanced Attendance Processing with comprehensive error handling
             if (attendanceEnabled && currentGroupValue && response.person_id) {
-              console.log(`🔍 Processing attendance for ${memberName} in group ${currentGroupValue.name}`);
-              console.log(`📊 Recognition details:`, {
-                person_id: response.person_id,
-                similarity: response.similarity,
-                confidence: face.confidence,
-                antispoofing: face.antispoofing,
-                trackingMode: trackingMode
-              });
               
               // Check cooldown to prevent duplicate attendance logging
               // Use person_id as key so cooldown persists across track_id changes
@@ -529,7 +494,6 @@ export default function LiveVideo() {
               
               if (timeSinceLastAttendance < cooldownMs) {
                 const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
-                console.log(`⏳ Attendance cooldown BLOCKED for ${memberName} (person_id: ${cooldownKey}): ${remainingCooldown}s remaining (last: ${lastAttendanceTime}, now: ${currentTime}, diff: ${timeSinceLastAttendance}ms)`);
                 
                 // Update lastKnownBbox in persistentCooldowns for display even when face disappears
                 setPersistentCooldowns(prev => {
@@ -562,13 +526,11 @@ export default function LiveVideo() {
                 return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
               }
               
-              console.log(`✅ Cooldown check passed for ${memberName} (person_id: ${cooldownKey})! Proceeding to log attendance...`);
               
               // CRITICAL FIX: Set cooldown SYNCHRONOUSLY in ref FIRST to block immediate subsequent frames
               // Then update state for visual display
               const logTime = Date.now();
               cooldownTimestampsRef.current.set(cooldownKey, logTime); // SYNC update - immediate effect!
-              console.log(`🔄 Setting new cooldown for ${memberName} (person_id: ${cooldownKey}) at ${logTime}`);
               
               setAttendanceCooldowns(prev => {
                 const newCooldowns = new Map(prev);
@@ -594,7 +556,6 @@ export default function LiveVideo() {
                 const actualConfidence = response.similarity || 0;
                 
                 // Anti-spoofing validation is handled by optimized backend
-                console.log(`✅ Processing attendance event (backend handles anti-spoofing validation)...`);
                 
                 if (trackingMode === 'auto') {
                   // AUTO MODE: Process attendance event immediately
@@ -608,7 +569,6 @@ export default function LiveVideo() {
                     );
                     
                     if (attendanceEvent) {
-                      console.log(`📋 ✅ Attendance automatically recorded: ${response.person_id} - ${attendanceEvent.type} at ${attendanceEvent.timestamp}`);
                       
                       // Force immediate refresh of attendance data
                       // Use a small delay to ensure backend has committed the transaction
@@ -649,7 +609,6 @@ export default function LiveVideo() {
                     }
                   });
                   
-                  console.log(`⏳ Manual mode: Added ${response.person_id} to pending attendance queue`);
                 }
                 
               } catch (error) {
@@ -666,7 +625,6 @@ export default function LiveVideo() {
             // Use trackId instead of index for stable mapping
             return { trackId, result: { ...response, name: memberName, memberName } };
           } else if (response.success) {
-            console.log(`👤 Face ${index} not recognized (similarity: ${((response.similarity || 0) * 100).toFixed(1)}%)`);
             
             // Track unrecognized faces for potential manual registration
             const faceId = `unknown_track_${face.track_id}`;
@@ -699,7 +657,6 @@ export default function LiveVideo() {
       
       // Validate that group hasn't changed during processing
       if (processingGroup?.id !== currentGroupRef.current?.id) {
-        console.log(`🚫 Discarding recognition results - group changed during processing (was: ${processingGroup?.name}, now: ${currentGroupRef.current?.name})`);
         return;
       }
       
@@ -728,11 +685,9 @@ export default function LiveVideo() {
       }
 
       // Check backend readiness before connecting WebSocket with retry logic
-      console.log('🔍 Checking backend readiness before WebSocket connection...');
       
       const waitForBackendReady = async (maxAttempts = 5, baseDelay = 100) => {
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          console.log(`🔍 WebSocket backend readiness check attempt ${attempt}/${maxAttempts}`);
           
           const readinessCheck = await window.electronAPI?.backend.checkReadiness();
           
@@ -742,7 +697,6 @@ export default function LiveVideo() {
           
           if (attempt < maxAttempts) {
             const delay = baseDelay * Math.pow(1.2, attempt - 1); // Faster exponential backoff for WebSocket
-            console.log(`⏳ Backend not ready for WebSocket (${readinessCheck?.error || 'models loading'}), retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
@@ -766,9 +720,6 @@ export default function LiveVideo() {
         // Register message handler for detection responses
         backendServiceRef.current.onMessage('detection_response', (data: WebSocketDetectionResponse) => {
         // Reduced logging for performance
-        if (process.env.NODE_ENV === 'development') {
-          console.log('📨 Detection response received');
-        }
         
         // ACCURATE FPS calculation with rolling average
         const now = Date.now();
@@ -872,14 +823,10 @@ export default function LiveVideo() {
 
       // Handle connection messages
       backendServiceRef.current.onMessage('connection', (data: WebSocketConnectionMessage) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔗 WebSocket connection message:', data);
-        }
         // Set backend service as ready when connection is confirmed
         if (data.status === 'connected') {
           setBackendServiceReady(true);
           backendServiceReadyRef.current = true;
-          console.log('✅ Backend service marked as ready after connection confirmation');
         }
       });
 
@@ -893,10 +840,7 @@ export default function LiveVideo() {
       });
 
       // Handle pong messages
-      backendServiceRef.current.onMessage('pong', (data: WebSocketPongMessage) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🏓 WebSocket pong received:', data);
-        }
+      backendServiceRef.current.onMessage('pong', () => {
       });
 
       // Handle attendance event broadcasts
@@ -910,7 +854,6 @@ export default function LiveVideo() {
         } | undefined;
         
         if (attendanceData) {
-          console.log('📋 Attendance event received:', attendanceData);
           // Force immediate reload of attendance data to update sidebar
           // Use small delay to ensure backend transaction is committed
           setTimeout(() => {
@@ -923,31 +866,18 @@ export default function LiveVideo() {
 
       // Handle next frame requests from adaptive backend
       backendServiceRef.current.onMessage('request_next_frame', () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🎯 Backend requesting next frame for adaptive processing', {
-            detectionEnabled: detectionEnabledRef.current,
-            websocketReady: backendServiceRef.current?.isWebSocketReady(),
-            isProcessing: isProcessingRef.current,
-            isStreaming: isStreamingRef.current
-          });
-        }
         // Backend is ready for next frame - send it immediately
         if (detectionEnabledRef.current && backendServiceRef.current?.isWebSocketReady()) {
           processFrameForDetection();
         } else {
-          if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ Cannot process next frame:', {
               detectionEnabled: detectionEnabledRef.current,
               websocketReady: backendServiceRef.current?.isWebSocketReady()
             });
-          }
         }
       });
 
       // Status will be managed by polling the actual WebSocket state
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ WebSocket initialized');
-      }
       
     } catch (error) {
       console.error('❌ WebSocket initialization failed:', error);
@@ -971,9 +901,7 @@ export default function LiveVideo() {
     try {
       const frameData = captureFrame();
       if (!frameData || !backendServiceRef.current) {
-        if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ processCurrentFrame: No frame data or backend service');
-        }
         return;
       }
 
@@ -1129,7 +1057,6 @@ export default function LiveVideo() {
                 return new Promise<void>((resolve, reject) => {
                   const checkReady = () => {
                     if (backendServiceRef.current?.isWebSocketReady()) {
-                      console.log('✅ WebSocket is ready, starting detection interval');
                       startDetectionInterval();
                       resolve();
                     } else if (attempts < maxAttempts) {
@@ -1170,9 +1097,6 @@ export default function LiveVideo() {
 
   // Stop camera stream
   const stopCamera = useCallback(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🛑 stopCamera called - cleaning up all resources');
-    }
     
     // Stop media stream
     if (streamRef.current) {
@@ -1243,9 +1167,6 @@ export default function LiveVideo() {
       }
     }
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Camera stopped successfully');
-    }
   }, []);
 
   // Cache video rect to avoid repeated getBoundingClientRect calls
@@ -1666,23 +1587,18 @@ export default function LiveVideo() {
     try {
       // Use ref to get the latest currentGroup value to avoid stale closure
       const currentGroupValue = currentGroupRef.current;
-      console.log('🔍 loadAttendanceData called. currentGroup:', currentGroupValue?.name || 'null');
       
       // Always load groups list first
       const groups = await attendanceManager.getGroups();
-      console.log('🔍 Available groups:', groups.map(g => g.name));
       setAttendanceGroups(groups);
       
       // Early return if no current group - nothing more to load
       if (!currentGroupValue) {
-        console.log('🔍 No current group, only loaded groups list');
         return;
       }
       
       // Validate that currentGroup still exists in the available groups
-      console.log('🔍 Validating currentGroup:', currentGroupValue.name, 'ID:', currentGroupValue.id);
       const groupStillExists = groups.some(group => group.id === currentGroupValue.id);
-      console.log('🔍 Group still exists:', groupStillExists);
       if (!groupStillExists) {
         // Only clear currentGroup if it was explicitly deleted, not during normal operations
         console.warn(`⚠️ Current group "${currentGroupValue.name}" no longer exists. This might be due to deletion.`);
@@ -1703,7 +1619,6 @@ export default function LiveVideo() {
         return;
       }
 
-      console.log('🔄 Loading attendance data for group:', currentGroupValue.name);
       const [members, , records] = await Promise.all([
         attendanceManager.getGroupMembers(currentGroupValue.id),
         attendanceManager.getGroupStats(currentGroupValue.id),
@@ -1713,7 +1628,6 @@ export default function LiveVideo() {
         })
       ]);
       
-      console.log(`📊 Loaded ${records.length} attendance records for ${currentGroupValue.name}`);
       setGroupMembers(members);
       setRecentAttendance(records);
       
@@ -1764,7 +1678,6 @@ export default function LiveVideo() {
 
       const frameData = canvas.toDataURL('image/jpeg', 0.95);
 
-      console.log(`🎯 Registering elite face for ${selectedPersonForRegistration} in group ${currentGroup.name}`);
 
       // Convert bbox from object format to array format [x, y, width, height]
       const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
@@ -1777,7 +1690,6 @@ export default function LiveVideo() {
       );
 
       if (result.success) {
-        console.log('✅ Elite face registration successful:', result.message);
         setError(null);
         
         // Refresh data
@@ -1807,7 +1719,6 @@ export default function LiveVideo() {
       const result = await attendanceManager.removeFaceDataForGroupPerson(currentGroup.id, personId);
       
       if (result.success) {
-        console.log('✅ Face data removed successfully:', result.message);
         setError(null);
         
         // Refresh data
@@ -1925,7 +1836,6 @@ export default function LiveVideo() {
         setCurrentGroup(group);
       }
       
-      console.log('✅ Group created successfully:', group.name);
     } catch (error) {
       console.error('❌ Failed to create group:', error);
       setError('Failed to create group');
@@ -1934,7 +1844,6 @@ export default function LiveVideo() {
   }, [newGroupName, newGroupType, currentGroup, loadAttendanceData]);
 
   const handleSelectGroup = useCallback(async (group: AttendanceGroup) => {
-    console.log('🔄 Switching to group:', group.name, 'ID:', group.id);
     setCurrentGroup(group);
     
     // Load data for the specific group to avoid race condition
@@ -1980,7 +1889,6 @@ export default function LiveVideo() {
         }
         
         await loadAttendanceData();
-        console.log('✅ Group deleted successfully:', groupToDelete.name);
       } else {
         throw new Error('Failed to delete group');
       }
@@ -2102,7 +2010,6 @@ export default function LiveVideo() {
 
   // Monitor detectionEnabled state changes
   useEffect(() => {
-    console.log('🔍 detectionEnabled state changed to:', detectionEnabled);
   }, [detectionEnabled]);
 
   // Load face recognition data when recognition is enabled and backend service is ready
@@ -2115,7 +2022,6 @@ export default function LiveVideo() {
 
   // Clear recognition state whenever group changes to prevent data mixing
   useEffect(() => {
-    console.log('🔄 Group change detected in useEffect. currentGroup:', currentGroup?.name || 'null');
     // Handle group changes (including switching to null when group is deleted)
     
     // Clear all recognition and tracking state to prevent data mixing
@@ -2132,7 +2038,6 @@ export default function LiveVideo() {
     
     // Stop detection if running (use ref for synchronous check)
     if (isStreamingRef.current) {
-      console.log(`🛑 Stopping detection due to group change`);
       stopCamera();
     }
     
@@ -2175,7 +2080,6 @@ export default function LiveVideo() {
             groupToSelect = groups[0];
           }
           
-          console.log('🔄 Initializing with group:', groupToSelect.name);
           // Use handleSelectGroup to ensure data is loaded properly
           await handleSelectGroup(groupToSelect);
         }
@@ -2529,16 +2433,12 @@ export default function LiveVideo() {
                                        onClick={async () => {
                                          // Confirm attendance
                                          try {
-                                           const attendanceEvent = await attendanceManager.processAttendanceEvent(
+                                           await attendanceManager.processAttendanceEvent(
                                              pending.personId,
                                              pending.confidence,
                                              'LiveVideo Camera'
                                            );
   
-                                           if (attendanceEvent) {
-                                             console.log(`📋 ✅ Manual confirmation: ${pending.personId} - ${attendanceEvent.type}`);
-                                           }
-
                                            // Remove from pending queue
                                            setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
   
@@ -2559,7 +2459,6 @@ export default function LiveVideo() {
                                        onClick={() => {
                                          // Reject attendance
                                          setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
-                                         console.log(`❌ Manual rejection: ${pending.personId}`);
                                        }}
                                        className="px-2 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 rounded text-xs transition-colors"
                                      >

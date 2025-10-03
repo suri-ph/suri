@@ -136,8 +136,7 @@ export class BackendService {
         signal: AbortSignal.timeout(5000)
       });
       return response.ok;
-    } catch (error) {
-      console.warn('Backend not available:', error);
+    } catch {
       return false;
     }
   }
@@ -295,7 +294,6 @@ export class BackendService {
       this.websocket = new WebSocket(wsUrl);
 
       this.websocket.onopen = () => {
-        console.log('✅ WebSocket connected to backend');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
@@ -303,25 +301,7 @@ export class BackendService {
 
       this.websocket.onmessage = (event) => {
         try {
-          // Debug: Log raw message before parsing
-          const rawData = event.data;
-          if (rawData.includes('track_id')) {
-            console.log('[WS DEBUG] Raw message contains track_id!');
-            // Show a snippet of the raw JSON
-            const snippet = rawData.substring(0, Math.min(500, rawData.length));
-            console.log('[WS DEBUG] Message snippet:', snippet);
-          } else {
-            console.warn('[WS DEBUG] Raw message does NOT contain track_id string!');
-          }
-          
           const data = JSON.parse(event.data);
-          
-          // Debug: Check if track_id exists after parsing
-          if (data.type === 'detection_response' && data.faces && data.faces.length > 0) {
-            console.log('[WS DEBUG] After JSON.parse - Face 0 keys:', Object.keys(data.faces[0]));
-            console.log('[WS DEBUG] After JSON.parse - Face 0 track_id:', data.faces[0].track_id);
-          }
-          
           this.handleWebSocketMessage(data);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
@@ -329,7 +309,6 @@ export class BackendService {
       };
 
       this.websocket.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
         this.isConnecting = false;
         this.websocket = null;
         
@@ -728,8 +707,6 @@ export class BackendService {
     const handler = this.messageHandlers.get(messageType);
     if (handler) {
       handler(data);
-    } else {
-      console.log('Unhandled WebSocket message:', messageType, data);
     }
     
     // Always invoke the generic broadcast handler if registered
@@ -741,7 +718,6 @@ export class BackendService {
 
   private scheduleReconnect(): void {
     this.reconnectAttempts++;
-    console.log(`Scheduling WebSocket reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectDelay}ms`);
     
     setTimeout(() => {
       this.connectWebSocket().catch(error => {

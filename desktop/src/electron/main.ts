@@ -44,7 +44,6 @@ const __dirname = path.dirname(__filename)
 async function startBackend(): Promise<void> {
     try {
         await backendService.start();
-        console.log('Backend service started successfully');
     } catch (error) {
         console.error('Failed to start backend service:', error);
         throw error;
@@ -318,7 +317,6 @@ app.whenReady().then(async () => {
     // Start backend service
     try {
         await startBackend();
-        console.log('[INFO] Backend service started successfully');
     } catch (error) {
         console.error('[ERROR] Failed to start backend service:', error);
     }
