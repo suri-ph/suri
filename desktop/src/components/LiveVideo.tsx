@@ -359,6 +359,18 @@ export default function LiveVideo() {
             return null;
           }
           
+          // CRITICAL: Anti-spoofing validation FIRST - Reject spoofed faces BEFORE recognition
+          if (face.antispoofing?.status === 'fake') {
+            console.log(`🚫 Spoofed face detected and blocked (track ${face.track_id})`);
+            return null; // Filter out spoofed faces completely - NO recognition for spoofed faces
+          }
+          
+          // Also reject faces with anti-spoofing errors for safety
+          if (face.antispoofing?.status === 'error') {
+            console.log(`⚠️ Anti-spoofing error, blocking face (track ${face.track_id})`);
+            return null; // Filter out faces with anti-spoofing errors
+          }
+          
           // Use track_id as stable identifier (from SORT tracker)
           // Backend should always provide track_id after restart
           // Temporary fallback to index until backend is restarted with track_id support
@@ -378,16 +390,6 @@ export default function LiveVideo() {
           );
 
           if (response.success && response.person_id) {
-            
-            // Anti-spoofing validation: Reject spoofed faces before processing
-            if (face.antispoofing?.status === 'fake') {
-              return null; // Filter out spoofed faces completely
-            }
-            
-            // Also reject faces with anti-spoofing errors for safety
-            if (face.antispoofing?.status === 'error') {
-              return null; // Filter out faces with anti-spoofing errors
-            }
             
             // Group-based filtering: Only process faces that belong to the current group (by name)
             let memberName = response.person_id; // Default to person_id if no member found
@@ -452,12 +454,9 @@ export default function LiveVideo() {
                 existingTrack.occlusionCount = 0; // Reset occlusion count
                 existingTrack.angleConsistency = calculateAngleConsistency(existingTrack.trackingHistory);
                 
-                // Update anti-spoofing status - once real, stay real
-                if (currentAntispoofingStatus === 'real') {
-                  existingTrack.antispoofingStatus = 'real';
-                } else if (!existingTrack.antispoofingStatus) {
-                  existingTrack.antispoofingStatus = currentAntispoofingStatus;
-                }
+                // CRITICAL FIX: Always use CURRENT frame's anti-spoofing status
+                // Remove "once real, stay real" logic to prevent spoofed faces from staying "live"
+                existingTrack.antispoofingStatus = currentAntispoofingStatus;
                 
                 newTracked.set(existingTrack.id, existingTrack);
               } else {

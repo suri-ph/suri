@@ -427,6 +427,7 @@ class FaceTracker:
             min_hits=min_hits,
             iou_threshold=iou_threshold
         )
+        self.iou_threshold = iou_threshold  # Store for use in track-to-detection matching
     
     def update(self, face_detections: List[Dict]) -> List[Dict]:
         """
@@ -495,8 +496,8 @@ class FaceTracker:
                 best_det_idx = np.argmax(iou_matrix[track_idx])
                 best_iou = iou_matrix[track_idx, best_det_idx]
                 
-                # Only assign if IOU is above threshold
-                if best_iou > 0.3:
+                # Only assign if IOU is above threshold (use configured threshold)
+                if best_iou > self.iou_threshold:
                     # Create result with track ID
                     face_result = face_detections[best_det_idx].copy()
                     face_result['track_id'] = int(track[4])  # Last column is track ID

@@ -174,7 +174,7 @@ async def startup_event():
         face_tracker = FaceTracker(
             max_age=30,  # Keep tracks alive for 30 frames without detection
             min_hits=1,  # Require only 1 detection for immediate tracking (faster, more responsive)
-            iou_threshold=0.3  # IOU threshold for matching faces to tracks
+            iou_threshold=0.2  # Lower IOU threshold for better separation of nearby faces (was 0.3)
         )
         
         # Initialize attendance database
