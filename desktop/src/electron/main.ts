@@ -117,8 +117,8 @@ ipcMain.handle('window:close', () => {
 // Pre-load all models during app startup
 async function preloadModels(): Promise<void> {
   const modelNames = [
-    'det_500m_kps_640.onnx',
-    'edgeface-recognition.onnx', 
+    'face_detection_yunet_2023mar.onnx',
+    'edgeface-recognition-xs.onnx', 
     'MiniFASNetV2_80x80.onnx',
     'MiniFASNetV1SE_80x80.onnx'
   ];
