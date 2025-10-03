@@ -178,10 +178,12 @@ class DualMiniFASNetDetector:
         bbox: Optional[Union[Dict, List]],
         antispoofing_data: Dict[str, Any]
     ) -> Dict[str, Any]:
+        # CRITICAL FIX: Deep copy antispoofing_data to prevent contamination
+        # Multiple faces MUST have isolated result dicts!
         result = {
             "face_id": face_index,
             "bbox": self._clone_bbox(bbox),
-            "antispoofing": antispoofing_data
+            "antispoofing": dict(antispoofing_data)  # Create NEW dict copy
         }
 
         for key, value in face.items():
@@ -632,14 +634,18 @@ class DualMiniFASNetDetector:
         except Exception as e:
             logger.error(f"Error in batch model prediction: {e}")
             # Return default results for all faces
+            # CRITICAL FIX: Create SEPARATE dict for each face (NOT shared reference!)
             num_faces = len(input_tensors) if isinstance(input_tensors, np.ndarray) else 1
-            return [{
-                "real_score": 0.5,
-                "fake_score": 0.5,
-                "background_score": 0.0,
-                "confidence": 0.5,
-                "error": str(e)
-            }] * num_faces
+            return [
+                {
+                    "real_score": 0.5,
+                    "fake_score": 0.5,
+                    "background_score": 0.0,
+                    "confidence": 0.5,
+                    "error": str(e)
+                }
+                for _ in range(num_faces)  # List comprehension creates NEW dict each iteration
+            ]
     
     def _ensemble_prediction(self, v2_result: Dict, v1se_result: Dict, track_id: Optional[int] = None) -> Dict:
         """
@@ -783,11 +789,27 @@ class DualMiniFASNetDetector:
             v2_results = self._predict_single_model_batch(self.session_v2, batch_v2)
             v1se_results = self._predict_single_model_batch(self.session_v1se, batch_v1se)
             
-            # Combine predictions using simple APK-style ensemble (no temporal filtering)
+            # CRITICAL FIX: Combine predictions with ISOLATED dict copies to prevent contamination
+            # When multiple faces are processed, dicts MUST be independent!
             ensemble_results = []
             for v2_result, v1se_result in zip(v2_results, v1se_results):
-                ensemble_result = self._ensemble_prediction(v2_result, v1se_result)
-                ensemble_results.append(ensemble_result)
+                # Create DEEP COPY of input results to prevent mutation contamination
+                v2_copy = {
+                    "real_score": float(v2_result["real_score"]),
+                    "fake_score": float(v2_result["fake_score"]),
+                    "background_score": float(v2_result.get("background_score", 0.0)),
+                    "confidence": float(v2_result["confidence"])
+                }
+                v1se_copy = {
+                    "real_score": float(v1se_result["real_score"]),
+                    "fake_score": float(v1se_result["fake_score"]),
+                    "background_score": float(v1se_result.get("background_score", 0.0)),
+                    "confidence": float(v1se_result["confidence"])
+                }
+                
+                ensemble_result = self._ensemble_prediction(v2_copy, v1se_copy)
+                # Ensure result is a NEW dict (not reference)
+                ensemble_results.append(dict(ensemble_result))
             
             return ensemble_results
             
@@ -937,19 +959,46 @@ class DualMiniFASNetDetector:
                     )
                     continue
 
+                # CRITICAL FIX: Create ISOLATED copy for EACH face to prevent contamination
                 for entry, antispoofing_result in zip(batch, antispoofing_results):
-                    antispoofing_result.setdefault("cached", False)
-                    antispoofing_result.setdefault("model_type", "dual_minifasnet")
-                    antispoofing_result.setdefault("threshold", self.threshold)
+                    # Create DEEP COPY to ensure complete isolation between faces
+                    isolated_result = {
+                        "is_real": bool(antispoofing_result.get("is_real", False)),
+                        "real_score": float(antispoofing_result.get("real_score", 0.0)),
+                        "fake_score": float(antispoofing_result.get("fake_score", 1.0)),
+                        "background_score": float(antispoofing_result.get("background_score", 0.0)),
+                        "confidence": float(antispoofing_result.get("confidence", 0.0)),
+                        "threshold": float(self.threshold),
+                        "background_threshold": float(self.background_threshold),
+                        "status": str(antispoofing_result.get("status", "unknown")),
+                        "label": str(antispoofing_result.get("label", "Unknown")),
+                        "message": str(antispoofing_result.get("message", "")),
+                        "v2_real_score": float(antispoofing_result.get("v2_real_score", 0.0)),
+                        "v2_fake_score": float(antispoofing_result.get("v2_fake_score", 0.0)),
+                        "v2_background_score": float(antispoofing_result.get("v2_background_score", 0.0)),
+                        "v1se_real_score": float(antispoofing_result.get("v1se_real_score", 0.0)),
+                        "v1se_fake_score": float(antispoofing_result.get("v1se_fake_score", 0.0)),
+                        "v1se_background_score": float(antispoofing_result.get("v1se_background_score", 0.0)),
+                        "ensemble_method": str(antispoofing_result.get("ensemble_method", "weighted_average_apk_replica")),
+                        "cached": False,
+                        "model_type": "dual_minifasnet"
+                    }
+                    
+                    # Add error field if present
+                    if "error" in antispoofing_result:
+                        isolated_result["error"] = str(antispoofing_result["error"])
 
                     results[entry["index"]] = self._format_result(
                         entry["index"],
                         entry["face"],
                         entry["bbox"],
-                        antispoofing_result
+                        isolated_result
                     )
 
-                    self._store_cache_entry(entry.get("cache_key"), antispoofing_result)
+                    # Store cache with isolated copy (not the same reference!)
+                    cache_copy = dict(isolated_result)
+                    cache_copy.pop("cached", None)  # Don't cache the 'cached' flag
+                    self._store_cache_entry(entry.get("cache_key"), cache_copy)
 
         final_results: List[Dict] = []
         for index, result in enumerate(results):
