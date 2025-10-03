@@ -166,7 +166,7 @@ export default function LiveVideo() {
     occlusionCount: number;
     angleConsistency: number;
     cooldownRemaining?: number;
-    antispoofingStatus?: 'real' | 'fake' | 'error';
+    antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small';
   }>>(new Map());
   const [selectedTrackingTarget, setSelectedTrackingTarget] = useState<string | null>(null);
 
@@ -180,7 +180,7 @@ export default function LiveVideo() {
       confidence: number;
       track_id?: number;
       landmarks?: { right_eye: { x: number; y: number }; left_eye: { x: number; y: number }; nose_tip: { x: number; y: number }; right_mouth_corner: { x: number; y: number }; left_mouth_corner: { x: number; y: number } };
-      antispoofing?: { is_real: boolean | null; confidence: number; status: 'real' | 'fake' | 'error' };
+      antispoofing?: { is_real: boolean | null; confidence: number; status: 'real' | 'fake' | 'error' | 'too_small'; label?: string; message?: string };
     };
   }>>([]);
   const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
@@ -2431,10 +2431,12 @@ export default function LiveVideo() {
                               <div className={`text-xs px-2 py-1 rounded mt-1 ${
                                 face.antispoofing.status === 'real' ? 'bg-green-900 text-green-300' :
                                 face.antispoofing.status === 'fake' ? 'bg-red-900 text-red-300' :
+                                face.antispoofing.status === 'too_small' ? 'bg-blue-900 text-blue-300' :
                                 'bg-yellow-900 text-yellow-300'
                               }`}>
                                 {face.antispoofing.status === 'real' ? '✓ Live' :
-                                 face.antispoofing.status === 'fake' ? '⚠ Spoof' : '? Unknown'}
+                                 face.antispoofing.status === 'fake' ? '⚠ Spoof' :
+                                 face.antispoofing.status === 'too_small' ? '📏 Move Closer' : '? Unknown'}
                               </div>
                             )}                {/* Manual Tracking Controls */}
                             {trackingMode === 'manual' && trackedFace && (

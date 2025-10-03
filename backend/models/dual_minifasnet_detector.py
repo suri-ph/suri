@@ -524,6 +524,38 @@ class DualMiniFASNetDetector:
                 logger.debug(f"Face {i}: No bbox found")
                 continue
             
+            # Check face size before extraction
+            if isinstance(bbox, dict):
+                face_width = float(bbox.get('width', 0))
+                face_height = float(bbox.get('height', 0))
+            elif isinstance(bbox, list) and len(bbox) >= 4:
+                face_width = float(bbox[2] if len(bbox) > 2 else 0)
+                face_height = float(bbox[3] if len(bbox) > 3 else 0)
+            else:
+                face_width = face_height = 0
+            
+            min_size = 32
+            if face_width < min_size or face_height < min_size:
+                logger.debug(f"Face {i} too small: {face_width:.1f}x{face_height:.1f}, minimum: {min_size}x{min_size}")
+                # Return result with "too small" status instead of skipping
+                result = {
+                    "face_id": i,
+                    "bbox": bbox,
+                    "antispoofing": {
+                        "status": "too_small",
+                        "label": "Move Closer",
+                        "confidence": 0.0,
+                        "message": f"Face too small ({face_width:.1f}x{face_height:.1f}px). Minimum: {min_size}x{min_size}px",
+                        "cached": False,
+                        "model_type": "dual_minifasnet"
+                    }
+                }
+                for key, value in face.items():
+                    if key not in result:
+                        result[key] = value
+                results.append(result)
+                continue
+            
             # Extract face crop for V2 with scale=2.7 (270% of face bbox)
             face_crop_v2 = self._extract_face_crop(image, bbox, scale=2.7, shift_x=0.0, shift_y=0.0)
             if face_crop_v2 is None:
