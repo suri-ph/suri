@@ -168,13 +168,13 @@ MODEL_CONFIGS = {
         "alignment_method": "facemesh_dense",  # Dense mesh alignment method
     },
     "edgeface": {
-        "name": "EdgeFace",
-        "model_path": WEIGHTS_DIR / "edgeface-recognition.onnx",
+        "name": "EdgeFace-XS",
+        "model_path": WEIGHTS_DIR / "edgeface-recognition-xs.onnx",
         "input_size": (112, 112),  # EdgeFace standard input size
         "similarity_threshold": 0.45,  # Reduced threshold for better movement tolerance
         "providers": OPTIMIZED_PROVIDERS,  # Use optimized providers
         "session_options": OPTIMIZED_SESSION_OPTIONS,
-        "description": "EdgeFace recognition model for face identification - OPTIMIZED",
+        "description": "EdgeFace-XS Gamma 0.6 - Fast & Accurate Face Recognition - OPTIMIZED",
         "version": "production",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "embedding_dimension": 512,  # Face embedding dimension
