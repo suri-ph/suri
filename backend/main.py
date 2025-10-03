@@ -198,8 +198,7 @@ async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: boo
     if not (enable and faces and optimized_antispoofing_detector):
         return faces
     
-    optimized_antispoofing_detector.set_threshold(ANTISPOOFING_CONFIG['threshold'])
-    
+    # Threshold is already set during initialization (line 140) - no need to set on every request
     try:
         antispoofing_results = await optimized_antispoofing_detector.detect_faces_async(image, faces)
         

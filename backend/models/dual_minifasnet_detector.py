@@ -1,20 +1,6 @@
 """
 Dual MiniFASNet Anti-Spoofing Detector
-Ensemble approach using both MiniFASNetV2 and MiniFASNe            # Resize crop to model input size
-            resized = cv2.resize(face_crop, self.input_size, interpolation=cv2.INTER_LINEAR)
-            
-            # CRITICAL: Keep BGR format and raw pixel values [0-255]
-            # Original C++ uses: ncnn::Mat::from_pixels(..., ncnn::Mat::PIXEL_BGR, ...)
-            # PyTorch training code: img.float() returns raw [0-255] values in RGB
-            # But ncnn PIXEL_BGR means B,G,R channel order!
-            
-            # Convert BGR (OpenCV) to RGB (PyTorch training format)
-            rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-            input_tensor = rgb_image.astype(np.float32)  # Raw [0-255] values
-            
-            # Add batch dimension and transpose to NCHW format
-            input_tensor = np.transpose(input_tensor, (2, 0, 1))  # HWC to CHW
-            input_tensor = np.expand_dims(input_tensor, axis=0)  # Add batch dimensionimilar to the implementation in Silent-Face-Anti-Spoofing APK
+Ensemble approach using both MiniFASNetV2 and MiniFASNetV1SE
 """
 
 import logging
