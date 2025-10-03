@@ -365,6 +365,12 @@ export default function LiveVideo() {
             return null; // Filter out spoofed faces completely - NO recognition for spoofed faces
           }
           
+          // SECURITY FIX: Block "too_small" faces - prevents tilted/compressed spoof bypass
+          if (face.antispoofing?.status === 'too_small') {
+            console.log(`🚫 Face too small, blocking recognition (track ${face.track_id})`);
+            return null; // Prevent recognition of compressed/tilted spoofed faces
+          }
+          
           // Also reject faces with anti-spoofing errors for safety
           if (face.antispoofing?.status === 'error') {
             console.log(`⚠️ Anti-spoofing error, blocking face (track ${face.track_id})`);

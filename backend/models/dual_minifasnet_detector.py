@@ -1,6 +1,7 @@
 """
 Dual MiniFASNet Anti-Spoofing Detector
 Ensemble approach using both MiniFASNetV2 and MiniFASNetV1SE
+APK-REPLICA: Simple, fast, zero-latency implementation
 """
 
 import logging
@@ -81,8 +82,101 @@ class DualMiniFASNetDetector:
             
             
         except Exception as e:
-            logger.error(f"Failed to initialize dual MiniFASNet models: {e}")
-            raise
+            logger.error(f"Ensemble prediction failed: {e}")
+            # Return safe default (FAKE)
+            return {
+                "is_real": False,
+                "real_score": 0.0,
+                "fake_score": 1.0,
+                "background_score": 0.0,
+                "confidence": 0.0,
+                "threshold": self.threshold,
+                "error": str(e)
+            }
+    
+    def _apply_temporal_filter_DEPRECATED(self, track_id: int, current_is_real: bool, current_confidence: float) -> Tuple[bool, float]:
+        """
+        Apply temporal filtering to prevent flickering between real/fake
+        
+        OPTIMIZED STRATEGY:
+        - Real faces: INSTANT recognition (don't wait for history)
+        - Spoofed faces: STRICT filtering (must stay fake if ever detected as fake)
+        
+        Args:
+            track_id: Track ID from SORT tracker
+            current_is_real: Current frame's prediction
+            current_confidence: Current frame's confidence
+            
+        Returns:
+            (filtered_is_real, filtered_confidence)
+        """
+        current_time = time.time()
+        
+        # Initialize history for new track
+        if track_id not in self.temporal_history:
+            self.temporal_history[track_id] = deque(maxlen=self.temporal_window_size)
+        
+        # Get history for this track
+        history = self.temporal_history[track_id]
+        
+        # Clean old entries (older than timeout)
+        while history and (current_time - history[0][0]) > self.temporal_timeout:
+            history.popleft()
+        
+        # Add current frame
+        history.append((current_time, current_is_real, current_confidence))
+        
+        # OPTIMIZED STRATEGY: Different rules for REAL vs FAKE
+        
+        # Count real vs fake in history
+        real_count = sum(1 for _, is_real, _ in history if is_real)
+        fake_count = len(history) - real_count
+        
+        # RULE 1: If current frame is REAL and we have enough confidence, allow it INSTANTLY
+        # This makes real face recognition fast (no waiting)
+        if current_is_real and current_confidence >= self.real_threshold:
+            # But check if there's a recent strong FAKE signal (within last 3 frames)
+            recent_strong_fake = any(
+                not is_real and conf >= 0.7  # Strong fake confidence
+                for _, is_real, conf in history
+            )
+            
+            if recent_strong_fake:
+                # Strong fake signal detected recently - stay FAKE
+                logger.info(f"[TEMPORAL FILTER] Track {track_id}: Recent strong FAKE detected - BLOCKING")
+                return False, current_confidence
+            else:
+                # No strong fake signal - allow REAL instantly
+                return True, current_confidence
+        
+        # RULE 2: If current frame is FAKE, apply majority voting from history
+        # This prevents temporary fluctuations from blocking real faces
+        if not current_is_real:
+            # Check if majority of history is FAKE
+            if fake_count > real_count:
+                # Majority is fake - definitely FAKE
+                avg_confidence = sum(conf for _, _, conf in history) / len(history)
+                logger.info(f"[TEMPORAL FILTER] Track {track_id}: {fake_count}/{len(history)} fake frames - BLOCKING as SPOOF")
+                return False, avg_confidence
+            else:
+                # Majority is real but current is fake - might be temporary blur
+                # Only block if current fake confidence is strong
+                if current_confidence >= 0.6:
+                    # Strong fake signal - block it
+                    logger.info(f"[TEMPORAL FILTER] Track {track_id}: Strong FAKE signal ({current_confidence:.2f}) - BLOCKING")
+                    return False, current_confidence
+                else:
+                    # Weak fake signal, majority is real - allow as real
+                    avg_confidence = sum(conf for _, is_real, conf in history if is_real) / max(real_count, 1)
+                    return True, avg_confidence
+        
+        # RULE 3: For ambiguous cases, use majority voting
+        if real_count > fake_count:
+            avg_confidence = sum(conf for _, is_real, conf in history if is_real) / real_count
+            return True, avg_confidence
+        else:
+            avg_confidence = sum(conf for _, is_real, conf in history if not is_real) / max(fake_count, 1)
+            return False, avg_confidence
     
     def _preprocess_single_face(self, face_image: np.ndarray) -> np.ndarray:
         """
@@ -425,13 +519,13 @@ class DualMiniFASNetDetector:
                 "error": str(e)
             }] * num_faces
     
-    def _ensemble_prediction(self, v2_result: Dict, v1se_result: Dict) -> Dict:
+    def _ensemble_prediction(self, v2_result: Dict, v1se_result: Dict, track_id: Optional[int] = None) -> Dict:
         """
         Combine predictions from both models using weighted average
-        Similar to the APK implementation
+        PURE APK REPLICA - Simple, fast, zero latency
         """
         try:
-            # Weighted average of real scores
+            # Weighted average of real scores (exactly like APK)
             ensemble_real_score = (
                 v2_result["real_score"] * self.v2_weight +
                 v1se_result["real_score"] * self.v1se_weight
@@ -442,53 +536,16 @@ class DualMiniFASNetDetector:
                 v1se_result["fake_score"] * self.v1se_weight
             )
             
-            # Average background scores (not weighted, just for monitoring)
+            # Average background scores (monitoring only)
             ensemble_background_score = (
                 v2_result.get("background_score", 0.0) * self.v2_weight +
                 v1se_result.get("background_score", 0.0) * self.v1se_weight
             )
             
-            # CRITICAL FIX: Strict anti-spoofing checks for replay attacks
-            
-            # 1. Check if background score is too high (poor face crop/quality)
-            BACKGROUND_THRESHOLD = 0.65  # Reject if background > 65% (stricter)
-            if ensemble_background_score > BACKGROUND_THRESHOLD:
-                # High background score = poor detection, classify as FAKE for safety
-                is_real = False
-                confidence = ensemble_background_score
-                logger.warning(
-                    f"[ANTISPOOFING REJECT] High background score ({ensemble_background_score:.3f} > {BACKGROUND_THRESHOLD}), "
-                    f"classifying as FAKE (poor quality/replay)"
-                )
-            else:
-                # 2. Both models must agree it's real (prevent single-model bypass)
-                MIN_REAL_AGREEMENT = 0.45  # Each model's real score must be > 45%
-                MAX_FAKE_TOLERANCE = 0.45  # Each model's fake score must be < 45%
-                
-                v2_real_agrees = v2_result["real_score"] > MIN_REAL_AGREEMENT
-                v2_fake_agrees = v2_result["fake_score"] < MAX_FAKE_TOLERANCE
-                v1se_real_agrees = v1se_result["real_score"] > MIN_REAL_AGREEMENT
-                v1se_fake_agrees = v1se_result["fake_score"] < MAX_FAKE_TOLERANCE
-                
-                # 3. STRICT: Ensemble real score must exceed threshold AND fake score must be low
-                #    AND both models must agree on BOTH real AND fake scores
-                is_real = (
-                    ensemble_real_score > self.threshold and 
-                    ensemble_fake_score < MAX_FAKE_TOLERANCE and
-                    v2_real_agrees and v2_fake_agrees and
-                    v1se_real_agrees and v1se_fake_agrees
-                )
-                confidence = ensemble_real_score if is_real else ensemble_fake_score
-                
-                # Log decision reasoning
-                if is_real:
-                    pass
-                else:
-                    logger.warning(
-                        f"[ANTISPOOFING REJECT] Spoof detected: ensemble_real={ensemble_real_score:.3f} (need > {self.threshold:.3f}), ensemble_fake={ensemble_fake_score:.3f} (need < {MAX_FAKE_TOLERANCE}), "
-                        f"V2 real={v2_result['real_score']:.3f} (need > {MIN_REAL_AGREEMENT}), V2 fake={v2_result['fake_score']:.3f} (need < {MAX_FAKE_TOLERANCE}), "
-                        f"V1SE real={v1se_result['real_score']:.3f} (need > {MIN_REAL_AGREEMENT}), V1SE fake={v1se_result['fake_score']:.3f} (need < {MAX_FAKE_TOLERANCE})"
-                    )
+            # APK-STYLE DECISION: Simple threshold check, no complex rules
+            # The original APK uses 0.5 threshold and it works perfectly
+            is_real = ensemble_real_score > self.threshold
+            confidence = ensemble_real_score if is_real else ensemble_fake_score
             
             return {
                 "is_real": is_real,
@@ -503,7 +560,7 @@ class DualMiniFASNetDetector:
                 "v1se_real_score": v1se_result["real_score"],
                 "v1se_fake_score": v1se_result["fake_score"],
                 "v1se_background_score": v1se_result.get("background_score", 0.0),
-                "ensemble_method": "weighted_average"
+                "ensemble_method": "weighted_average_apk_replica"
             }
             
         except Exception as e:
@@ -518,7 +575,7 @@ class DualMiniFASNetDetector:
                 "error": str(e)
             }
     
-    def _process_single_face(self, face_crop_v2: np.ndarray, face_crop_v1se: np.ndarray) -> Dict:
+    def _process_single_face(self, face_crop_v2: np.ndarray, face_crop_v1se: np.ndarray, track_id: Optional[int] = None) -> Dict:
         """Process face crops with both models and ensemble"""
         try:
             # Preprocess both face crops
@@ -529,7 +586,7 @@ class DualMiniFASNetDetector:
             v2_result = self._predict_single_model(self.session_v2, input_tensor_v2)
             v1se_result = self._predict_single_model(self.session_v1se, input_tensor_v1se)
             
-            # Combine predictions using ensemble
+            # Combine predictions using simple APK-style ensemble (no temporal filtering)
             ensemble_result = self._ensemble_prediction(v2_result, v1se_result)
             
             return ensemble_result
@@ -537,17 +594,18 @@ class DualMiniFASNetDetector:
         except Exception as e:
             logger.error(f"Error processing face: {e}")
             return {
-                "is_real": True,
-                "real_score": 0.5,
-                "fake_score": 0.5,
-                "confidence": 0.5,
-                "threshold": self.threshold,
+                "is_real": False,  # SECURITY: Default to FAKE on error
+                "real_score": 0.0,
+                "fake_score": 1.0,
+                "confidence": 0.0,
+                "threshold": self.real_threshold,
                 "error": str(e)
             }
     
     def _process_faces_batch(self, face_crops_v2: List[np.ndarray], face_crops_v1se: List[np.ndarray]) -> List[Dict]:
         """
         BATCH PROCESSING: Process multiple faces with both models and ensemble
+        APK-STYLE: Simple, fast, no temporal filtering
         
         Args:
             face_crops_v2: List of face crops for V2 model (2.7x scale)
@@ -578,7 +636,7 @@ class DualMiniFASNetDetector:
             v2_results = self._predict_single_model_batch(self.session_v2, batch_v2)
             v1se_results = self._predict_single_model_batch(self.session_v1se, batch_v1se)
             
-            # Combine predictions using ensemble for each face
+            # Combine predictions using simple APK-style ensemble (no temporal filtering)
             ensemble_results = []
             for v2_result, v1se_result in zip(v2_results, v1se_results):
                 ensemble_result = self._ensemble_prediction(v2_result, v1se_result)
@@ -628,16 +686,22 @@ class DualMiniFASNetDetector:
             else:
                 face_width = face_height = 0
             
-            min_size = 32
+            # SECURITY: Lowered from 32 to 24 to reduce false positives on tilted real faces
+            # But still high enough to reject compressed spoofed faces
+            min_size = 24
             if face_width < min_size or face_height < min_size:
-                # Return result with "too small" status instead of skipping
+                # CRITICAL SECURITY FIX: Mark too_small faces as FAKE (is_real: False)
+                # This prevents spoofed faces from being recognized when tilted/compressed
                 result = {
                     "face_id": i,
                     "bbox": bbox,
                     "antispoofing": {
                         "status": "too_small",
                         "label": "Move Closer",
+                        "is_real": False,  # SECURITY: Treat as FAKE to prevent bypass
                         "confidence": 0.0,
+                        "real_score": 0.0,
+                        "fake_score": 1.0,
                         "message": f"Face too small ({face_width:.1f}x{face_height:.1f}px). Minimum: {min_size}x{min_size}px",
                         "cached": False,
                         "model_type": "dual_minifasnet"
@@ -702,7 +766,7 @@ class DualMiniFASNetDetector:
         crops_v2 = [pair[0] for pair in face_crop_pairs]
         crops_v1se = [pair[1] for pair in face_crop_pairs]
         
-        # Batch process all faces
+        # Batch process all faces (APK-style, no temporal filtering)
         antispoofing_results = self._process_faces_batch(crops_v2, crops_v1se)
         
         processing_time = time.time() - start_time
