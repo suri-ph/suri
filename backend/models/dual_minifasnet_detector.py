@@ -4,9 +4,13 @@ Ensemble approach using both MiniFASNetV2 and MiniFASNetV1SE
 APK-REPLICA: Simple, fast, zero-latency implementation
 """
 
+import copy
+import hashlib
 import logging
+import os
 import time
-from typing import List, Dict, Tuple, Optional
+from collections import deque
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -30,17 +34,27 @@ class DualMiniFASNetDetector:
         max_batch_size: int = 8,
         session_options: Optional[Dict] = None,
         v2_weight: float = 0.6,
-        v1se_weight: float = 0.4
+        v1se_weight: float = 0.4,
+        background_threshold: float = 0.85,
+        cache_confidence_floor: float = 0.98
     ):
         self.model_v2_path = model_v2_path
         self.model_v1se_path = model_v1se_path
         self.input_size = input_size
         self.threshold = threshold
-        self.providers = providers or ['CPUExecutionProvider']
-        self.max_batch_size = max_batch_size
+        self.providers = list(providers) if providers else ['CPUExecutionProvider']
+        self.max_batch_size = max(1, int(max_batch_size))
         self.session_options = session_options
         self.v2_weight = v2_weight
         self.v1se_weight = v1se_weight
+        self.background_threshold = background_threshold
+        self.cache_confidence_floor = cache_confidence_floor
+        self.cache_duration = 0.0  # seconds, configurable at runtime
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self.temporal_history: Dict[int, deque] = {}
+        self.temporal_window_size = 5
+        self.temporal_timeout = 1.0
+        self.real_threshold = threshold  # legacy compatibility for deprecated filters
         
         # Normalize weights
         total_weight = v2_weight + v1se_weight
@@ -53,10 +67,15 @@ class DualMiniFASNetDetector:
         
         # Initialize both models
         self._initialize_models()
+        self._ensure_sessions_ready()
     
     def _initialize_models(self):
         """Initialize both ONNX models with optimized session options"""
         try:
+            for model_path in (self.model_v2_path, self.model_v1se_path):
+                if not os.path.exists(model_path):
+                    raise FileNotFoundError(f"Model file not found: {model_path}")
+
             # Create optimized session options
             session_opts = ort.SessionOptions()
             
@@ -82,17 +101,120 @@ class DualMiniFASNetDetector:
             
             
         except Exception as e:
-            logger.error(f"Ensemble prediction failed: {e}")
-            # Return safe default (FAKE)
-            return {
-                "is_real": False,
-                "real_score": 0.0,
-                "fake_score": 1.0,
-                "background_score": 0.0,
-                "confidence": 0.0,
-                "threshold": self.threshold,
-                "error": str(e)
-            }
+            logger.error(f"Failed to initialize MiniFASNet ONNX sessions: {e}")
+            raise
+
+    def _ensure_sessions_ready(self):
+        if self.session_v2 is None or self.session_v1se is None:
+            raise RuntimeError("DualMiniFASNetDetector sessions failed to initialize")
+
+    def clear_cache(self):
+        """Explicitly clear cached anti-spoofing decisions."""
+        self._cache.clear()
+
+    def _make_cache_key(self, face_crop_v2: np.ndarray, face_crop_v1se: np.ndarray) -> Optional[str]:
+        if self.cache_duration <= 0:
+            return None
+
+        hasher = hashlib.sha1()
+        hasher.update(face_crop_v2.tobytes())
+        hasher.update(face_crop_v1se.tobytes())
+        return hasher.hexdigest()
+
+    def _get_cached_result(self, cache_key: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not cache_key or self.cache_duration <= 0:
+            return None
+
+        entry = self._cache.get(cache_key)
+        if not entry:
+            return None
+
+        if (time.time() - entry["timestamp"]) > self.cache_duration:
+            self._cache.pop(cache_key, None)
+            return None
+
+        cached = copy.deepcopy(entry["antispoofing"])
+        if cached.get("status") in {"processing_failed", "error"}:
+            return None
+
+        if cached.get("is_real", False) and cached.get("confidence", 0.0) < self.cache_confidence_floor:
+            return None
+
+        cached["cached"] = True
+        cached.setdefault("processing_time", 0.0)
+        cached.setdefault("model_type", "dual_minifasnet")
+        return cached
+
+    def _store_cache_entry(self, cache_key: Optional[str], antispoofing_result: Dict[str, Any]):
+        if not cache_key or self.cache_duration <= 0:
+            return
+
+        sanitized = {k: v for k, v in antispoofing_result.items() if k not in {"processing_time", "cached"}}
+        if sanitized.get("status") in {"processing_failed", "error"}:
+            return
+
+        if sanitized.get("is_real", False) and sanitized.get("confidence", 0.0) < self.cache_confidence_floor:
+            return
+
+        self._cache[cache_key] = {
+            "timestamp": time.time(),
+            "antispoofing": sanitized
+        }
+
+    @staticmethod
+    def _clone_bbox(bbox: Optional[Union[Dict, List]]) -> Optional[Union[Dict, List]]:
+        if bbox is None:
+            return None
+        if isinstance(bbox, dict):
+            return dict(bbox)
+        if isinstance(bbox, list):
+            return list(bbox)
+        return bbox
+
+    def _format_result(
+        self,
+        face_index: int,
+        face: Dict,
+        bbox: Optional[Union[Dict, List]],
+        antispoofing_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        result = {
+            "face_id": face_index,
+            "bbox": self._clone_bbox(bbox),
+            "antispoofing": antispoofing_data
+        }
+
+        for key, value in face.items():
+            if key not in result:
+                result[key] = value
+
+        return result
+
+    def _build_error_result(
+        self,
+        face_index: int,
+        face: Dict,
+        bbox: Optional[Union[Dict, List]],
+        status: str,
+        message: str,
+        label: str = "Spoof Suspected"
+    ) -> Dict[str, Any]:
+        antispoofing_data = {
+            "status": status,
+            "label": label,
+            "message": message,
+            "is_real": False,
+            "confidence": 0.0,
+            "real_score": 0.0,
+            "fake_score": 1.0,
+            "background_score": 0.0,
+            "threshold": self.threshold,
+            "processing_time": 0.0,
+            "cached": False,
+            "model_type": "dual_minifasnet"
+        }
+
+        return self._format_result(face_index, face, bbox, antispoofing_data)
     
     def _apply_temporal_filter_DEPRECATED(self, track_id: int, current_is_real: bool, current_confidence: float) -> Tuple[bool, float]:
         """
@@ -542,11 +664,25 @@ class DualMiniFASNetDetector:
                 v1se_result.get("background_score", 0.0) * self.v1se_weight
             )
             
-            # APK-STYLE DECISION: Simple threshold check, no complex rules
-            # The original APK uses 0.5 threshold and it works perfectly
-            is_real = ensemble_real_score > self.threshold
-            confidence = ensemble_real_score if is_real else ensemble_fake_score
-            
+            background_flag = ensemble_background_score >= self.background_threshold
+            is_real = ensemble_real_score > self.threshold and not background_flag
+
+            if is_real:
+                confidence = ensemble_real_score
+                status = "real"
+                label = "Live Face"
+                message = "Live face verified by dual MiniFASNet ensemble."
+            else:
+                confidence = max(ensemble_fake_score, ensemble_background_score)
+                if background_flag:
+                    status = "background"
+                    label = "Reposition Face"
+                    message = "Face crop dominated by background pixels; adjust framing."
+                else:
+                    status = "fake"
+                    label = "Spoof Detected"
+                    message = "Spoof attempt detected by dual MiniFASNet ensemble."
+
             return {
                 "is_real": is_real,
                 "real_score": ensemble_real_score,
@@ -554,6 +690,10 @@ class DualMiniFASNetDetector:
                 "background_score": ensemble_background_score,
                 "confidence": confidence,
                 "threshold": self.threshold,
+                "background_threshold": self.background_threshold,
+                "status": status,
+                "label": label,
+                "message": message,
                 "v2_real_score": v2_result["real_score"],
                 "v2_fake_score": v2_result["fake_score"],
                 "v2_background_score": v2_result.get("background_score", 0.0),
@@ -572,6 +712,9 @@ class DualMiniFASNetDetector:
                 "background_score": 0.0,
                 "confidence": 0.5,
                 "threshold": self.threshold,
+                "status": "error",
+                "label": "Error",
+                "message": str(e),
                 "error": str(e)
             }
     
@@ -597,8 +740,12 @@ class DualMiniFASNetDetector:
                 "is_real": False,  # SECURITY: Default to FAKE on error
                 "real_score": 0.0,
                 "fake_score": 1.0,
+                "background_score": 0.0,
                 "confidence": 0.0,
-                "threshold": self.real_threshold,
+                "threshold": self.threshold,
+                "status": "error",
+                "label": "Error",
+                "message": str(e),
                 "error": str(e)
             }
     
@@ -657,141 +804,171 @@ class DualMiniFASNetDetector:
         """
         Process multiple faces with dual-model ensemble prediction
         """
-        results = []
-        
         if not face_detections:
-            return results
-        
-        # CRITICAL FIX: Ensure faces are small relative to image for proper scale separation
-        # When faces are large (>20% of image), both 2.7x and 4.0x scales hit the same
-        # boundary limit, making crops identical and causing 96% background scores.
-        image, face_detections = self._ensure_scale_separation(image, face_detections)
-        
-        # Extract all face crops (different scales for each model)
-        face_crop_pairs = []  # List of (v2_crop, v1se_crop) tuples
-        valid_faces = []
-        
-        for i, face in enumerate(face_detections):
-            bbox = face.get('bbox', face.get('box', {}))
+            return []
+
+        self._ensure_sessions_ready()
+
+        image, scaled_faces = self._ensure_scale_separation(image, face_detections)
+        results: List[Optional[Dict]] = [None] * len(scaled_faces)
+        pending: List[Dict[str, Any]] = []
+
+        for index, face in enumerate(scaled_faces):
+            bbox = face.get("bbox", face.get("box"))
             if not bbox:
+                results[index] = self._build_error_result(
+                    index,
+                    face,
+                    bbox,
+                    status="invalid_bbox",
+                    message="Missing bounding box for face detection."
+                )
                 continue
-            
-            # Check face size before extraction
+
             if isinstance(bbox, dict):
-                face_width = float(bbox.get('width', 0))
-                face_height = float(bbox.get('height', 0))
+                face_width = float(bbox.get("width", 0))
+                face_height = float(bbox.get("height", 0))
             elif isinstance(bbox, list) and len(bbox) >= 4:
-                face_width = float(bbox[2] if len(bbox) > 2 else 0)
-                face_height = float(bbox[3] if len(bbox) > 3 else 0)
+                face_width = float(bbox[2])
+                face_height = float(bbox[3])
             else:
-                face_width = face_height = 0
-            
-            # SECURITY: Lowered from 32 to 24 to reduce false positives on tilted real faces
-            # But still high enough to reject compressed spoofed faces
+                results[index] = self._build_error_result(
+                    index,
+                    face,
+                    bbox,
+                    status="invalid_bbox",
+                    message="Unrecognized bounding box format."
+                )
+                continue
+
             min_size = 24
             if face_width < min_size or face_height < min_size:
-                # CRITICAL SECURITY FIX: Mark too_small faces as FAKE (is_real: False)
-                # This prevents spoofed faces from being recognized when tilted/compressed
-                result = {
-                    "face_id": i,
-                    "bbox": bbox,
-                    "antispoofing": {
-                        "status": "too_small",
-                        "label": "Move Closer",
-                        "is_real": False,  # SECURITY: Treat as FAKE to prevent bypass
-                        "confidence": 0.0,
-                        "real_score": 0.0,
-                        "fake_score": 1.0,
-                        "message": f"Face too small ({face_width:.1f}x{face_height:.1f}px). Minimum: {min_size}x{min_size}px",
-                        "cached": False,
-                        "model_type": "dual_minifasnet"
-                    }
-                }
-                for key, value in face.items():
-                    if key not in result:
-                        result[key] = value
-                results.append(result)
+                results[index] = self._build_error_result(
+                    index,
+                    face,
+                    bbox,
+                    status="too_small",
+                    message=f"Face too small ({face_width:.1f}x{face_height:.1f}px). Minimum: {min_size}x{min_size}px",
+                    label="Move Closer"
+                )
                 continue
-            
-            # Extract face crop for V2 with scale=2.7 (270% of face bbox)
+
             face_crop_v2 = self._extract_face_crop(image, bbox, scale=2.7, shift_x=0.0, shift_y=0.0)
-            
-            # Extract face crop for V1SE with scale=4.0 (400% of face bbox)
             face_crop_v1se = self._extract_face_crop(image, bbox, scale=4.0, shift_x=0.0, shift_y=0.0)
-            
-            # IMPROVED FIX: If crop extraction failed, use fallback smaller crop
-            # This allows detection to continue but will naturally result in SPOOF due to poor quality
+
             if face_crop_v2 is None or face_crop_v1se is None:
-                logger.warning(f"Face {i}: Crop extraction failed, using fallback bbox-only crop (will likely be SPOOF)")
-                
-                # Fallback: Extract just the bbox region without scaling
+                logger.warning(
+                    "Face %s: crop extraction failed; falling back to raw bounding box crop.",
+                    index
+                )
+
                 if isinstance(bbox, dict):
-                    x, y, w, h = int(bbox['x']), int(bbox['y']), int(bbox['width']), int(bbox['height'])
+                    x, y, w, h = int(bbox.get("x", 0)), int(bbox.get("y", 0)), int(bbox.get("width", 0)), int(bbox.get("height", 0))
                 elif isinstance(bbox, list):
-                    x, y, w, h = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+                    x, y, w, h = map(int, bbox[:4])
                 else:
-                    logger.error(f"Face {i}: Invalid bbox format, skipping")
+                    results[index] = self._build_error_result(
+                        index,
+                        face,
+                        bbox,
+                        status="processing_failed",
+                        message="Unable to compute fallback crop."
+                    )
                     continue
-                
+
                 img_h, img_w = image.shape[:2]
-                # Clamp to image boundaries
                 x1 = max(0, x)
                 y1 = max(0, y)
                 x2 = min(img_w, x + w)
                 y2 = min(img_h, y + h)
-                
+
                 if x2 <= x1 or y2 <= y1:
-                    logger.error(f"Face {i}: Invalid crop region after clamping, skipping")
+                    results[index] = self._build_error_result(
+                        index,
+                        face,
+                        bbox,
+                        status="processing_failed",
+                        message="Invalid crop region after boundary clamp."
+                    )
                     continue
-                
-                # Use basic bbox crop for both models (poor quality → high background score → SPOOF)
+
                 fallback_crop = image[y1:y2, x1:x2]
                 if fallback_crop.size == 0:
-                    logger.error(f"Face {i}: Empty fallback crop, skipping")
+                    results[index] = self._build_error_result(
+                        index,
+                        face,
+                        bbox,
+                        status="processing_failed",
+                        message="Empty fallback crop produced."
+                    )
                     continue
-                
+
                 face_crop_v2 = fallback_crop if face_crop_v2 is None else face_crop_v2
                 face_crop_v1se = fallback_crop if face_crop_v1se is None else face_crop_v1se
-            
-            face_crop_pairs.append((face_crop_v2, face_crop_v1se))
-            valid_faces.append((i, face))
-        
-        if not face_crop_pairs:
-            return results
-        
-        # BATCH PROCESSING: Process all faces at once instead of sequentially
-        start_time = time.time()
-        
-        # Separate V2 and V1SE crops
-        crops_v2 = [pair[0] for pair in face_crop_pairs]
-        crops_v1se = [pair[1] for pair in face_crop_pairs]
-        
-        # Batch process all faces (APK-style, no temporal filtering)
-        antispoofing_results = self._process_faces_batch(crops_v2, crops_v1se)
-        
-        processing_time = time.time() - start_time
-        
-        # Package results
-        for (face_id, face), antispoofing_result in zip(valid_faces, antispoofing_results):
-            # Add processing time
-            antispoofing_result['processing_time'] = processing_time / len(antispoofing_results)  # Average per face
-            antispoofing_result['cached'] = False
-            antispoofing_result['model_type'] = 'dual_minifasnet'
-            
-            result = {
-                "face_id": face_id,
-                "bbox": face.get('bbox', face.get('box', {})),
-                "antispoofing": antispoofing_result
-            }
-            
-            # Copy over original face detection data
-            for key, value in face.items():
-                if key not in result:
-                    result[key] = value
-            
-            results.append(result)
-        
-        return results
+
+            cache_key = self._make_cache_key(face_crop_v2, face_crop_v1se)
+            cached_result = self._get_cached_result(cache_key)
+            if cached_result:
+                results[index] = self._format_result(index, face, bbox, cached_result)
+                continue
+
+            pending.append({
+                "index": index,
+                "face": face,
+                "bbox": bbox,
+                "crop_v2": face_crop_v2,
+                "crop_v1se": face_crop_v1se,
+                "cache_key": cache_key
+            })
+
+        if pending:
+            for start in range(0, len(pending), self.max_batch_size):
+                batch = pending[start:start + self.max_batch_size]
+                crops_v2 = [entry["crop_v2"] for entry in batch]
+                crops_v1se = [entry["crop_v1se"] for entry in batch]
+
+                antispoofing_results = self._process_faces_batch(crops_v2, crops_v1se)
+
+                if len(antispoofing_results) != len(batch):
+                    logger.error(
+                        "Anti-spoofing batch size mismatch: expected %s results, got %s.",
+                        len(batch),
+                        len(antispoofing_results)
+                    )
+                    continue
+
+                for entry, antispoofing_result in zip(batch, antispoofing_results):
+                    antispoofing_result.setdefault("cached", False)
+                    antispoofing_result.setdefault("model_type", "dual_minifasnet")
+                    antispoofing_result.setdefault("threshold", self.threshold)
+
+                    results[entry["index"]] = self._format_result(
+                        entry["index"],
+                        entry["face"],
+                        entry["bbox"],
+                        antispoofing_result
+                    )
+
+                    self._store_cache_entry(entry.get("cache_key"), antispoofing_result)
+
+        final_results: List[Dict] = []
+        for index, result in enumerate(results):
+            if result is None:
+                face = scaled_faces[index] if index < len(scaled_faces) else {}
+                bbox = face.get("bbox", face.get("box")) if isinstance(face, dict) else None
+                final_results.append(
+                    self._build_error_result(
+                        index,
+                        face if isinstance(face, dict) else {},
+                        bbox,
+                        status="processing_failed",
+                        message="Anti-spoofing result missing; marked as spoof for safety."
+                    )
+                )
+            else:
+                final_results.append(result)
+
+        return final_results
     
     async def detect_faces_async(self, image: np.ndarray, face_detections: List[Dict]) -> List[Dict]:
         """Async wrapper for face detection"""
@@ -808,9 +985,13 @@ class DualMiniFASNetDetector:
             "model_v1se_path": self.model_v1se_path,
             "input_size": self.input_size,
             "threshold": self.threshold,
+            "background_threshold": self.background_threshold,
             "v2_weight": self.v2_weight,
             "v1se_weight": self.v1se_weight,
-            "providers": self.providers,
+            "providers": list(self.providers),
+            "max_batch_size": self.max_batch_size,
+            "cache_duration": self.cache_duration,
+            "cache_confidence_floor": self.cache_confidence_floor,
             "session_v2_providers": self.session_v2.get_providers() if self.session_v2 else [],
             "session_v1se_providers": self.session_v1se.get_providers() if self.session_v1se else []
         }

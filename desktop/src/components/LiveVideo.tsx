@@ -33,7 +33,7 @@ interface DetectionResult {
     antispoofing?: {
       is_real: boolean | null;
       confidence: number;
-      status: 'real' | 'fake' | 'error' | 'too_small';
+      status: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
       label?: string;
       message?: string;
     };
@@ -51,7 +51,7 @@ interface WebSocketFaceData {
   antispoofing?: {
     is_real?: boolean | null;
     confidence?: number;
-    status?: 'real' | 'fake' | 'error' | 'too_small';
+    status?: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
     label?: string;
     message?: string;
   };
@@ -72,6 +72,10 @@ interface WebSocketErrorMessage {
   message?: string;
   error?: string;
 }
+
+const NON_LOGGING_ANTISPOOF_STATUSES = new Set<
+  'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown'
+>(['fake', 'too_small', 'error', 'background', 'processing_failed', 'invalid_bbox', 'out_of_frame', 'unknown']);
 
 export default function LiveVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -161,7 +165,7 @@ export default function LiveVideo() {
     occlusionCount: number;
     angleConsistency: number;
     cooldownRemaining?: number;
-    antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small';
+    antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
   }>>(new Map());
   const [selectedTrackingTarget, setSelectedTrackingTarget] = useState<string | null>(null);
 
@@ -175,7 +179,7 @@ export default function LiveVideo() {
       confidence: number;
       track_id?: number;
       landmarks?: { right_eye: { x: number; y: number }; left_eye: { x: number; y: number }; nose_tip: { x: number; y: number }; right_mouth_corner: { x: number; y: number }; left_mouth_corner: { x: number; y: number } };
-      antispoofing?: { is_real: boolean | null; confidence: number; status: 'real' | 'fake' | 'error' | 'too_small'; label?: string; message?: string };
+      antispoofing?: { is_real: boolean | null; confidence: number; status: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown'; label?: string; message?: string };
     };
   }>>([]);
   const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
@@ -486,139 +490,150 @@ export default function LiveVideo() {
             
             // Enhanced Attendance Processing with comprehensive error handling
             if (attendanceEnabled && currentGroupValue && response.person_id) {
-              
-              // Check cooldown to prevent duplicate attendance logging
-              // Use person_id as key so cooldown persists across track_id changes
-              const currentTime = Date.now();
-              const cooldownKey = response.person_id;
-              const cooldownMs = attendanceCooldownSeconds * 1000;
-              
-              // CRITICAL: Use ref for synchronous check to avoid race conditions
-              const lastAttendanceTime = cooldownTimestampsRef.current.get(cooldownKey) || 0;
-              const timeSinceLastAttendance = currentTime - lastAttendanceTime;
-              
-              if (timeSinceLastAttendance < cooldownMs) {
-                const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
-                
-                // Update lastKnownBbox in persistentCooldowns for display even when face disappears
+              const antispoofStatus = face.antispoofing?.status ?? null;
+              const shouldSkipAttendanceLogging = !!face.antispoofing && (
+                face.antispoofing.is_real !== true ||
+                (antispoofStatus !== null && NON_LOGGING_ANTISPOOF_STATUSES.has(antispoofStatus))
+              );
+
+              if (!shouldSkipAttendanceLogging) {
+                // Check cooldown to prevent duplicate attendance logging
+                // Use person_id as key so cooldown persists across track_id changes
+                const currentTime = Date.now();
+                const cooldownKey = response.person_id;
+                const cooldownMs = attendanceCooldownSeconds * 1000;
+
+                // CRITICAL: Use ref for synchronous check to avoid race conditions
+                const lastAttendanceTime = cooldownTimestampsRef.current.get(cooldownKey) || 0;
+                const timeSinceLastAttendance = currentTime - lastAttendanceTime;
+
+                if (timeSinceLastAttendance < cooldownMs) {
+                  const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
+
+                  // Update lastKnownBbox in persistentCooldowns for display even when face disappears
+                  setPersistentCooldowns(prev => {
+                    const newPersistent = new Map(prev);
+                    const existing = newPersistent.get(cooldownKey);
+                    if (existing) {
+                      newPersistent.set(cooldownKey, {
+                        ...existing,
+                        lastKnownBbox: face.bbox
+                      });
+                      return newPersistent;
+                    }
+                    return prev;
+                  });
+
+                  // Update the tracked face with cooldown info for overlay display using track_id
+                  setTrackedFaces(prev => {
+                    const newTracked = new Map(prev);
+                    const trackKey = `track_${face.track_id}`;
+                    if (newTracked.has(trackKey)) {
+                      newTracked.set(trackKey, {
+                        ...newTracked.get(trackKey)!,
+                        cooldownRemaining: remainingCooldown
+                      });
+                    }
+                    return newTracked;
+                  });
+
+                  // Use trackId instead of index for stable mapping
+                  return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
+                }
+
+
+                // CRITICAL FIX: Set cooldown SYNCHRONOUSLY in ref FIRST to block immediate subsequent frames
+                // Then update state for visual display
+                const logTime = Date.now();
+                cooldownTimestampsRef.current.set(cooldownKey, logTime); // SYNC update - immediate effect!
+
+                setAttendanceCooldowns(prev => {
+                  const newCooldowns = new Map(prev);
+                  newCooldowns.set(cooldownKey, logTime);
+                  return newCooldowns;
+                });
+
+                // Add persistent cooldown for visual display using person_id as key
                 setPersistentCooldowns(prev => {
                   const newPersistent = new Map(prev);
-                  const existing = newPersistent.get(cooldownKey);
-                  if (existing) {
-                    newPersistent.set(cooldownKey, {
-                      ...existing,
-                      lastKnownBbox: face.bbox
-                    });
-                    return newPersistent;
-                  }
-                  return prev;
-                });
-                
-                // Update the tracked face with cooldown info for overlay display using track_id
-                setTrackedFaces(prev => {
-                  const newTracked = new Map(prev);
-                  const trackKey = `track_${face.track_id}`;
-                  if (newTracked.has(trackKey)) {
-                    newTracked.set(trackKey, {
-                      ...newTracked.get(trackKey)!,
-                      cooldownRemaining: remainingCooldown
-                    });
-                  }
-                  return newTracked;
-                });
-                
-                // Use trackId instead of index for stable mapping
-                return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
-              }
-              
-              
-              // CRITICAL FIX: Set cooldown SYNCHRONOUSLY in ref FIRST to block immediate subsequent frames
-              // Then update state for visual display
-              const logTime = Date.now();
-              cooldownTimestampsRef.current.set(cooldownKey, logTime); // SYNC update - immediate effect!
-              
-              setAttendanceCooldowns(prev => {
-                const newCooldowns = new Map(prev);
-                newCooldowns.set(cooldownKey, logTime);
-                return newCooldowns;
-              });
-              
-              // Add persistent cooldown for visual display using person_id as key
-              setPersistentCooldowns(prev => {
-                const newPersistent = new Map(prev);
-                newPersistent.set(cooldownKey, {
-                  personId: response.person_id!,
-                  startTime: logTime,
-                  memberName: memberName,
-                  lastKnownBbox: face.bbox
-                });
-                return newPersistent;
-              });
-              
-              try {
-                // Note: Group validation is now done at recognition level
-                // Backend handles all confidence thresholding - frontend processes all valid responses
-                const actualConfidence = response.similarity || 0;
-                
-                // Anti-spoofing validation is handled by optimized backend
-                
-                if (trackingMode === 'auto') {
-                  // AUTO MODE: Process attendance event immediately
-                  try {
-                    const attendanceEvent = await attendanceManager.processAttendanceEvent(
-                      response.person_id,
-                      actualConfidence,
-                      'LiveVideo Camera', // location
-                      face.antispoofing?.status,
-                      face.antispoofing?.confidence
-                    );
-                    
-                    if (attendanceEvent) {
-                      
-                      // Force immediate refresh of attendance data
-                      // Use a small delay to ensure backend has committed the transaction
-                      setTimeout(async () => {
-                        await loadAttendanceData();
-                      }, 100);
-                    }
-                    
-                    // Show success notification
-                    setError(null);
-                  } catch (attendanceError: unknown) {
-                     const errorMessage = attendanceError instanceof Error ? attendanceError.message : 'Unknown error';
-                     console.error(`❌ Attendance event processing failed for ${response.person_id}:`, errorMessage);
-                     setError(errorMessage || `Failed to record attendance for ${response.person_id}`);
-                  }
-                } else {
-                  // MANUAL MODE: Add to pending queue for manual confirmation
-                  const pendingId = `${response.person_id}_${Date.now()}`;
-                  const pendingItem = {
-                    id: pendingId,
-                    personId: response.person_id,
-                    confidence: actualConfidence,
-                    timestamp: Date.now(),
-                    faceData: face
-                  };
-                  
-                  setPendingAttendance(prev => {
-                    // Check if this person is already in pending queue (avoid duplicates)
-                    const existingIndex = prev.findIndex(item => item.personId === response.person_id);
-                    if (existingIndex >= 0) {
-                      // Update existing entry with latest data
-                      const updated = [...prev];
-                      updated[existingIndex] = pendingItem;
-                      return updated;
-                    } else {
-                      // Add new entry
-                      return [...prev, pendingItem];
-                    }
+                  newPersistent.set(cooldownKey, {
+                    personId: response.person_id!,
+                    startTime: logTime,
+                    memberName: memberName,
+                    lastKnownBbox: face.bbox
                   });
-                  
+                  return newPersistent;
+                });
+
+                try {
+                  // Note: Group validation is now done at recognition level
+                  // Backend handles all confidence thresholding - frontend processes all valid responses
+                  const actualConfidence = response.similarity || 0;
+
+                  // Anti-spoofing validation is handled by optimized backend
+
+                  if (trackingMode === 'auto') {
+                    // AUTO MODE: Process attendance event immediately
+                    try {
+                      const attendanceEvent = await attendanceManager.processAttendanceEvent(
+                        response.person_id,
+                        actualConfidence,
+                        'LiveVideo Camera', // location
+                        face.antispoofing?.status,
+                        face.antispoofing?.confidence
+                      );
+
+                      if (attendanceEvent) {
+
+                        // Force immediate refresh of attendance data
+                        // Use a small delay to ensure backend has committed the transaction
+                        setTimeout(async () => {
+                          await loadAttendanceData();
+                        }, 100);
+                      }
+
+                      // Show success notification
+                      setError(null);
+                    } catch (attendanceError: unknown) {
+                       const errorMessage = attendanceError instanceof Error ? attendanceError.message : 'Unknown error';
+                       console.error(`❌ Attendance event processing failed for ${response.person_id}:`, errorMessage);
+                       setError(errorMessage || `Failed to record attendance for ${response.person_id}`);
+                    }
+                  } else {
+                    // MANUAL MODE: Add to pending queue for manual confirmation
+                    const pendingId = `${response.person_id}_${Date.now()}`;
+                    const pendingItem = {
+                      id: pendingId,
+                      personId: response.person_id,
+                      confidence: actualConfidence,
+                      timestamp: Date.now(),
+                      faceData: face
+                    };
+
+                    setPendingAttendance(prev => {
+                      // Check if this person is already in pending queue (avoid duplicates)
+                      const existingIndex = prev.findIndex(item => item.personId === response.person_id);
+                      if (existingIndex >= 0) {
+                        // Update existing entry with latest data
+                        const updated = [...prev];
+                        updated[existingIndex] = pendingItem;
+                        return updated;
+                      } else {
+                        // Add new entry
+                        return [...prev, pendingItem];
+                      }
+                    });
+
+                  }
+
+                } catch (error) {
+                  console.error('❌ Attendance processing failed:', error);
+                  setError(`Attendance error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
-                
-              } catch (error) {
-                console.error('❌ Attendance processing failed:', error);
-                setError(`Attendance error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              } else if (antispoofStatus) {
+                console.debug(
+                  `ℹ️ Skipping attendance log for ${response.person_id} due to anti-spoof status: ${antispoofStatus}`
+                );
               }
             } else {
               if (!attendanceEnabled) console.log(`ℹ️ Attendance is disabled`);

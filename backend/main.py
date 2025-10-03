@@ -197,6 +197,15 @@ async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: boo
     if not (enable and faces and optimized_antispoofing_detector):
         return faces
     
+    special_statuses = {
+        'too_small',
+        'error',
+        'out_of_frame',
+        'processing_failed',
+        'background',
+        'invalid_bbox'
+    }
+
     # Threshold is already set during initialization (line 140) - no need to set on every request
     try:
         antispoofing_results = await optimized_antispoofing_detector.detect_faces_async(image, faces)
@@ -237,7 +246,7 @@ async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: boo
                 
                 # Check if detector already set a specific status (e.g., 'too_small', 'error', 'out_of_frame')
                 detector_status = antispoofing_data.get('status')
-                if detector_status in ['too_small', 'error', 'out_of_frame', 'processing_failed']:
+                if detector_status in special_statuses:
                     # Preserve special status and include label/message if present
                     face['antispoofing'] = {
                         'is_real': is_real_value,
@@ -270,7 +279,7 @@ async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: boo
                 
                 # Check if detector already set a specific status (e.g., 'too_small', 'error', 'out_of_frame')
                 detector_status = antispoofing_data.get('status')
-                if detector_status in ['too_small', 'error', 'out_of_frame', 'processing_failed']:
+                if detector_status in special_statuses:
                     # Preserve special status and include label/message if present
                     face['antispoofing'] = {
                         'is_real': is_real_value,
