@@ -145,14 +145,30 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
     loadMemberStatus();
   }, [loadMemberStatus]);
 
+  // Auto-select first member without embeddings if none selected
+  useEffect(() => {
+    if (!selectedMemberId && members.length > 0 && memberStatus.size > 0) {
+      const unregisteredMember = members.find(m => !memberStatus.get(m.person_id));
+      if (unregisteredMember) {
+        setSelectedMemberId(unregisteredMember.person_id);
+      }
+    }
+  }, [selectedMemberId, members, memberStatus]);
+
   useEffect(() => {
     if (group) {
+      // Keep selection if member still exists in the group
+      const memberExists = members.some(m => m.person_id === selectedMemberId);
+      if (!memberExists) {
+        setSelectedMemberId('');
+      }
+    } else {
       setSelectedMemberId('');
     }
     resetFrames();
     setSuccessMessage(null);
     setGlobalError(null);
-  }, [group, mode, resetFrames]);
+  }, [group, mode, resetFrames, members, selectedMemberId]);
 
   useEffect(() => {
     if (!requiredAngles.includes(activeAngle)) {
@@ -303,17 +319,29 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
 
   const handleRegister = useCallback(async () => {
     if (!group) {
-      setGlobalError('Please select a group in the Attendance Dashboard to continue.');
+      setGlobalError('No group selected. Please go to Menu and select a group first.');
       return;
     }
 
     if (!selectedMemberId) {
-      setGlobalError('Select a member to bind these embeddings to.');
+      setGlobalError('No member selected. Please select a member from the list on the left.');
+      return;
+    }
+
+    // Validate member still exists
+    const selectedMember = members.find(m => m.person_id === selectedMemberId);
+    if (!selectedMember) {
+      setGlobalError('Selected member no longer exists. Please select another member.');
+      setSelectedMemberId('');
       return;
     }
 
     if (!framesReady) {
-      setGlobalError('Capture or upload all required angles before registering.');
+      const missingAngles = requiredAngles.filter(angle => {
+        const frame = frames.find(f => f.angle === angle);
+        return !frame || (frame.status !== 'ready' && frame.status !== 'registered');
+      });
+      setGlobalError(`Missing or invalid captures for: ${missingAngles.join(', ')}. Please complete all required angles.`);
       return;
     }
 
@@ -359,7 +387,7 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
     } finally {
       setIsRegistering(false);
     }
-  }, [group, selectedMemberId, framesReady, requiredAngles, frames, mode, loadMemberStatus, onRefresh, updateFrame]);
+  }, [group, selectedMemberId, framesReady, requiredAngles, frames, mode, loadMemberStatus, onRefresh, updateFrame, members]);
 
   const handleRemoveFaceData = useCallback(async (member: AttendanceMember) => {
     if (!group) return;
@@ -417,9 +445,17 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
           />
 
           <div className="max-h-[500px] space-y-2 overflow-y-auto">
-            {filteredMembers.length === 0 && (
+            {members.length === 0 && (
+              <div className="rounded-lg border border-dashed border-white/10 bg-white/5 px-3 py-8 text-center">
+                <div className="text-2xl mb-2">👥</div>
+                <div className="text-xs text-white/60">No members in this group</div>
+                <div className="text-xs text-white/40 mt-1">Add members in the Menu</div>
+              </div>
+            )}
+
+            {members.length > 0 && filteredMembers.length === 0 && (
               <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-center text-xs text-white/60">
-                No members found
+                No members match "{memberSearch}"
               </div>
             )}
 
@@ -434,8 +470,15 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
                   }`}
                 >
                   <button onClick={() => setSelectedMemberId(member.person_id)} className="w-full text-left">
-                    <div className="text-sm font-medium text-white">{member.name}</div>
-                    <div className="text-xs text-white/50 mt-0.5">ID: {member.person_id}</div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-white">{member.name}</div>
+                        {member.role && (
+                          <div className="text-xs text-white/50 mt-0.5">{member.role}</div>
+                        )}
+                        <div className="text-xs text-white/40 mt-0.5">ID: {member.person_id}</div>
+                      </div>
+                    </div>
                     <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] uppercase ${
                       hasEmbeddings ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/40'
                     }`}>
@@ -459,8 +502,25 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
         {/* Registration Panel */}
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-white">Face Registration</h2>
-            <p className="text-xs text-white/50 mt-1">Group: {group ? group.name : 'None selected'}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Face Registration</h2>
+                <p className="text-xs text-white/50 mt-1">Group: {group ? group.name : 'None selected'}</p>
+              </div>
+              {selectedMemberId && (
+                <div className="text-right">
+                  <div className="text-xs text-white/50">Selected</div>
+                  <div className="text-sm font-medium text-cyan-200">
+                    {members.find(m => m.person_id === selectedMemberId)?.name}
+                  </div>
+                </div>
+              )}
+            </div>
+            {!selectedMemberId && members.length > 0 && (
+              <div className="mt-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2">
+                <div className="text-xs text-yellow-200">👈 Select a member from the list to begin registration</div>
+              </div>
+            )}
           </div>
 
           {/* Mode & Source */}
@@ -472,7 +532,8 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
                   <button
                     key={option}
                     onClick={() => setMode(option)}
-                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs uppercase transition ${
+                    disabled={!selectedMemberId}
+                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs uppercase transition disabled:opacity-40 disabled:cursor-not-allowed ${
                       mode === option ? 'bg-cyan-400/20 text-cyan-100 border border-cyan-400/40' : 'bg-white/5 text-white/50 border border-white/10'
                     }`}
                   >
@@ -489,7 +550,8 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
                   <button
                     key={option}
                     onClick={() => setSource(option)}
-                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs uppercase transition ${
+                    disabled={!selectedMemberId}
+                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs uppercase transition disabled:opacity-40 disabled:cursor-not-allowed ${
                       source === option ? 'bg-purple-400/20 text-purple-100 border border-purple-400/40' : 'bg-white/5 text-white/50 border border-white/10'
                     }`}
                   >
