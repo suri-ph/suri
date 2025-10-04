@@ -199,13 +199,11 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
 
     try {
       const detection = await backendService.detectFaces(toBase64Payload(dataUrl), {
-        model_type: 'yunet',
-        confidence_threshold: mode === 'quick' ? 0.5 : 0.55,
-        nms_threshold: 0.3
+        model_type: 'yunet'
       });
 
       if (!detection.faces || detection.faces.length === 0) {
-        throw new Error('No face detected. Please try again with better lighting or framing.');
+        throw new Error('No face detected. Try better lighting, remove glasses, or face the camera directly.');
       }
 
       const bestFace = detection.faces.reduce((best, current) =>
@@ -234,7 +232,7 @@ export function FaceRegistrationLab({ group, members, onRefresh }: FaceRegistrat
         bbox: undefined
       }));
     }
-  }, [mode, updateFrame]);
+  }, [updateFrame]);
 
   const captureFromCamera = useCallback(async (angle: string) => {
     if (!videoRef.current) {
