@@ -379,12 +379,9 @@ export function Menu({ onBack, initialSection }: MenuProps) {
 
   return (
     <div className="h-screen bg-black text-white flex flex-col">
-      <header className="px-8 pt-10 pb-6 border-b border-white/10 bg-black/80 backdrop-blur">
+      <header className="px-8 pt-12 pb-6 border-b border-white/10 bg-black/80 backdrop-blur">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-          <div>
             <h1 className="text-3xl md:text-4xl font-semibold">Menu</h1>
-            <p className="mt-2 text-white/60 max-w-2xl">Manage attendance groups, members, reports, and settings.</p>
-          </div>
           <div className="flex flex-wrap items-center gap-3 justify-end">
             {loading && (
               <div className="flex items-center gap-2 text-blue-300 text-sm">
