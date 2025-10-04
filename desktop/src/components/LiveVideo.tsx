@@ -167,21 +167,7 @@ export default function LiveVideo() {
     cooldownRemaining?: number;
     antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
   }>>(new Map());
-  const [selectedTrackingTarget, setSelectedTrackingTarget] = useState<string | null>(null);
-
-  const [pendingAttendance, setPendingAttendance] = useState<Array<{
-    id: string;
-    personId: string;
-    confidence: number;
-    timestamp: number;
-    faceData: {
-      bbox: { x: number; y: number; width: number; height: number };
-      confidence: number;
-      track_id?: number;
-      landmarks?: { right_eye: { x: number; y: number }; left_eye: { x: number; y: number }; nose_tip: { x: number; y: number }; right_mouth_corner: { x: number; y: number }; left_mouth_corner: { x: number; y: number } };
-      antispoofing?: { is_real: boolean | null; confidence: number; status: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown'; label?: string; message?: string };
-    };
-  }>>([]);
+  // Attendance states
   const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
   const [groupMembers, setGroupMembers] = useState<AttendanceMember[]>([]);
   const [recentAttendance, setRecentAttendance] = useState<AttendanceRecord[]>([]);
@@ -599,32 +585,8 @@ export default function LiveVideo() {
                        console.error(`❌ Attendance event processing failed for ${response.person_id}:`, errorMessage);
                        setError(errorMessage || `Failed to record attendance for ${response.person_id}`);
                     }
-                  } else {
-                    // MANUAL MODE: Add to pending queue for manual confirmation
-                    const pendingId = `${response.person_id}_${Date.now()}`;
-                    const pendingItem = {
-                      id: pendingId,
-                      personId: response.person_id,
-                      confidence: actualConfidence,
-                      timestamp: Date.now(),
-                      faceData: face
-                    };
-
-                    setPendingAttendance(prev => {
-                      // Check if this person is already in pending queue (avoid duplicates)
-                      const existingIndex = prev.findIndex(item => item.personId === response.person_id);
-                      if (existingIndex >= 0) {
-                        // Update existing entry with latest data
-                        const updated = [...prev];
-                        updated[existingIndex] = pendingItem;
-                        return updated;
-                      } else {
-                        // Add new entry
-                        return [...prev, pendingItem];
-                      }
-                    });
-
                   }
+                  // MANUAL MODE: Don't log automatically - user will click "Log" button on recognized faces
 
                 } catch (error) {
                   console.error('❌ Attendance processing failed:', error);
@@ -1804,34 +1766,6 @@ export default function LiveVideo() {
 
 
 
-  const lockTrackingTarget = useCallback((faceId: string) => {
-    setTrackedFaces(prev => {
-      const newTracked = new Map(prev);
-      const track = newTracked.get(faceId);
-      if (track) {
-        track.isLocked = true;
-        newTracked.set(faceId, track);
-      }
-      return newTracked;
-    });
-    setSelectedTrackingTarget(faceId);
-  }, []);
-
-  const unlockTrackingTarget = useCallback((faceId: string) => {
-    setTrackedFaces(prev => {
-      const newTracked = new Map(prev);
-      const track = newTracked.get(faceId);
-      if (track) {
-        track.isLocked = false;
-        newTracked.set(faceId, track);
-      }
-      return newTracked;
-    });
-    if (selectedTrackingTarget === faceId) {
-      setSelectedTrackingTarget(null);
-    }
-  }, [selectedTrackingTarget]);
-
   // Periodic cleanup of old tracks
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
@@ -2038,8 +1972,6 @@ export default function LiveVideo() {
     setCurrentRecognitionResults(new Map());
     setTrackedFaces(new Map());
     setCurrentDetections(null);
-    setSelectedTrackingTarget(null);
-    setPendingAttendance([]);
     
     // Removed delayed recognition clearing for real-time performance
     
@@ -2056,6 +1988,32 @@ export default function LiveVideo() {
       loadRegisteredPersons();
     }
   }, [currentGroup, stopCamera, loadRegisteredPersons]);
+
+  // Manual attendance logging function
+  const handleManualLog = async (personId: string, name: string, confidence: number) => {
+    try {
+      // Call backend with manual log location
+      const attendanceEvent = await attendanceManager.processAttendanceEvent(
+        personId,
+        confidence,
+        'LiveVideo Camera - Manual Log'
+      );
+
+      if (attendanceEvent) {
+        // Refresh attendance data
+        setTimeout(async () => {
+          await loadAttendanceData();
+        }, 100);
+        
+        console.log(`✓ Manual attendance logged for ${name}`);
+      }
+      setError(null);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ Manual attendance logging failed:`, errorMessage);
+      setError(errorMessage || 'Failed to log attendance manually');
+    }
+  };
 
   // Keep ref in sync with state for async callbacks
   useEffect(() => {
@@ -2357,20 +2315,19 @@ export default function LiveVideo() {
                                  face.antispoofing.status === 'fake' ? '⚠ Spoof' :
                                  face.antispoofing.status === 'too_small' ? '📏 Move Closer' : '? Unknown'}
                               </div>
-                            )}                {/* Manual Tracking Controls */}
-                            {trackingMode === 'manual' && trackedFace && (
-                              <div className="flex space-x-1 mt-2">
-                                <button
-                                  onClick={() => trackedFace.isLocked ? unlockTrackingTarget(trackedFace.id) : lockTrackingTarget(trackedFace.id)}
-                                  className={`px-2 py-1 rounded text-xs transition-colors ${
-                                    trackedFace.isLocked
-                                      ? 'bg-cyan-600 text-white hover:bg-cyan-700'
-                                      : 'bg-orange-600 text-white hover:bg-orange-700'
-                                  }`}
-                                >
-                                  {trackedFace.isLocked ? '🔒' : '🔓'}
-                                </button>
-                              </div>
+                            )}
+                            {/* Manual Log Button */}
+                            {trackingMode === 'manual' && isRecognized && recognitionResult?.person_id && (
+                              <button
+                                onClick={() => handleManualLog(
+                                  recognitionResult.person_id!,
+                                  recognitionResult.name || recognitionResult.person_id!,
+                                  face.confidence
+                                )}
+                                className="mt-2 w-full px-3 py-1 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-300 rounded text-xs transition-colors font-medium"
+                              >
+                                📝 Log Attendance
+                              </button>
                             )}
                           </div>
                         </div>
@@ -2417,76 +2374,6 @@ export default function LiveVideo() {
                    
                    {/* Scrollable Content Section */}
                    <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-                     {/* Manual Confirmation Queue */}
-                     {trackingMode === 'manual' && pendingAttendance.length > 0 && (
-                       <div>
-                         <h4 className="text-sm font-medium mb-2 text-white/80">
-                           Pending Confirmations ({pendingAttendance.length}):
-                         </h4>
-                         <div className="space-y-2 max-h-60 overflow-y-auto">
-                           {pendingAttendance.map(pending => {
-                             const member = groupMembers.find(m => m.person_id === pending.personId);
-                             return (
-                               <div key={pending.id} className="bg-yellow-600/10 border border-yellow-500/30 rounded p-3">
-                                 <div className="flex justify-between items-start">
-                                   <div className="flex-1">
-                                     <div className="font-medium text-sm text-yellow-300">
-                                       {member ? member.name : pending.personId}
-                                     </div>
-                                     <div className="text-xs text-white/60">
-                                       Confidence: {(pending.confidence * 100).toFixed(1)}%
-                                     </div>
-                                     <div className="text-xs text-white/50">
-                                       {new Date(pending.timestamp).toLocaleTimeString()}
-                                     </div>
-                                   </div>
-                                   <div className="flex space-x-2">
-                                     <button
-                                       onClick={async () => {
-                                         // Confirm attendance
-                                         try {
-                                           await attendanceManager.processAttendanceEvent(
-                                             pending.personId,
-                                             pending.confidence,
-                                             'LiveVideo Camera'
-                                           );
-  
-                                           // Remove from pending queue
-                                           setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
-  
-                                           // Refresh attendance data
-                                           await loadAttendanceData();
-                                           setError(null);
-                                         } catch (error: unknown) {
-                                            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                                            console.error('Failed to confirm attendance:', error);
-                                            setError(errorMessage || 'Failed to confirm attendance');
-                                         }
-                                       }}
-                                       className="px-2 py-1 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-300 rounded text-xs transition-colors"
-                                     >
-                                       ✓ Confirm
-                                     </button>
-                                     <button
-                                       onClick={() => {
-                                         // Reject attendance
-                                         setPendingAttendance(prev => prev.filter(p => p.id !== pending.id));
-                                       }}
-                                       className="px-2 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 rounded text-xs transition-colors"
-                                     >
-                                       ✗ Reject
-                                     </button>
-                                   </div>
-                                 </div>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       </div>
-                     )}
-  
-
-  
                      {/* Recent Attendance */}
                      {recentAttendance.length > 0 && (
                        <div>
@@ -2497,7 +2384,16 @@ export default function LiveVideo() {
                              return (
                                <div key={record.id} className="text-xs bg-white/[0.02] border border-white/[0.05] rounded p-2">
                                  <div className="flex justify-between items-center">
-                                   <span className="font-medium">{member?.name || record.person_id}</span>
+                                   <div className="flex items-center space-x-2">
+                                     <span className="font-medium">{member?.name || record.person_id}</span>
+                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                       record.is_manual 
+                                         ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
+                                         : 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
+                                     }`}>
+                                       {record.is_manual ? 'Manual' : 'Auto'}
+                                     </span>
+                                   </div>
                                    <span className="text-white/50">
                                      {record.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                    </span>
