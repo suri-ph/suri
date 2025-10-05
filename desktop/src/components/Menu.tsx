@@ -507,9 +507,7 @@ export function Menu({ onBack, initialSection }: MenuProps) {
           {!selectedGroup ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3 max-w-md">
-                <div className="text-4xl opacity-40">📊</div>
                 <h3 className="text-lg font-medium text-white/70">No group selected</h3>
-                <p className="text-sm text-white/40">Select a group from the dropdown above to view attendance data</p>
               </div>
             </div>
           ) : (
