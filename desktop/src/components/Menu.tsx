@@ -433,7 +433,7 @@ export function Menu({ onBack, initialSection }: MenuProps) {
   const selectedGroupCreatedAt = selectedGroup ? toDate(selectedGroup.created_at) : null;
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col">
+    <div className="pt-10 h-screen bg-black text-white flex flex-col">
       <header className="px-6 py-4 border-b border-white/10 bg-black/80 backdrop-blur">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
