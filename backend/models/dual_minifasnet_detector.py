@@ -94,10 +94,10 @@ class DualMiniFASNetDetector:
                 underexposure_ratio=0.30,  # RANK 1 OPTIMAL
                 enable_rescue=True
             )
-            logger.info("✅ Quality Gate ENABLED with RANK 1 optimal thresholds")
+            logger.info("[SUCCESS] Quality Gate ENABLED with RANK 1 optimal thresholds")
         else:
             self.quality_gate = None
-            logger.warning("⚠️ Quality Gate DISABLED")
+            logger.warning("[WARNING] Quality Gate DISABLED")
         
         if self.enable_temporal_analysis:
             self.temporal_analyzer = TemporalConsistencyAnalyzer(
@@ -107,10 +107,10 @@ class DualMiniFASNetDetector:
                 micro_movement_threshold=0.001,  # RANK 1 OPTIMAL
                 history_timeout=1.0
             )
-            logger.info("✅ Temporal Analysis ENABLED with RANK 1 optimal thresholds")
+            logger.info("[SUCCESS] Temporal Analysis ENABLED with RANK 1 optimal thresholds")
         else:
             self.temporal_analyzer = None
-            logger.warning("⚠️ Temporal Analysis DISABLED")
+            logger.warning("[WARNING] Temporal Analysis DISABLED")
         
         if self.enable_adaptive_threshold:
             self.adaptive_threshold_mgr = AdaptiveThresholdManager(
@@ -118,10 +118,10 @@ class DualMiniFASNetDetector:
                 min_threshold=0.40,  # RANK 1 OPTIMAL
                 max_threshold=0.85   # RANK 1 OPTIMAL
             )
-            logger.info(f"✅ Adaptive Thresholding ENABLED with base={threshold:.2f}")
+            logger.info(f"[SUCCESS] Adaptive Thresholding ENABLED with base={threshold:.2f}")
         else:
             self.adaptive_threshold_mgr = None
-            logger.warning("⚠️ Adaptive Thresholding DISABLED")
+            logger.warning("[WARNING] Adaptive Thresholding DISABLED")
         
         # Initialize both models
         self._initialize_models()
@@ -397,7 +397,7 @@ class DualMiniFASNetDetector:
         Reference: engine/src/main/cpp/live/live.cpp line 58-62
         
         ncnn::Mat::from_pixels() internally does:
-        1. BGR → RGB conversion
+        1. BGR -> RGB conversion
         2. Normalization to [0, 1] by dividing by 255.0
         
         We must replicate this behavior for ONNX!
@@ -413,7 +413,7 @@ class DualMiniFASNetDetector:
             # Convert BGR to RGB
             rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
             
-            # PITFALL VERIFICATION (Pitfall #1): Normalization matches PyTorch training ✓
+            # PITFALL VERIFICATION (Pitfall #1): Normalization matches PyTorch training [SUCCESS]
             # VERIFIED: Silent-Face-Anti-Spoofing/src/data_io/functional.py line 59:
             # "return img.float()" - the div(255) was commented out by original author!
             # Models were trained on RAW [0, 255] values, NOT [0, 1] normalized!
@@ -624,8 +624,8 @@ class DualMiniFASNetDetector:
             
             # Downsample image
             logger.info(
-                f"[SCALE-SEPARATION] Downsampling image {w}x{h} → {new_w}x{new_h} (scale={scale_factor:.3f}). "
-                f"Largest face: {max_face_dim:.0f}px ({current_ratio:.1%} of frame) → {new_face_dim:.0f}px ({target_ratio:.1%}). "
+                f"[SCALE-SEPARATION] Downsampling image {w}x{h} -> {new_w}x{new_h} (scale={scale_factor:.3f}). "
+                f"Largest face: {max_face_dim:.0f}px ({current_ratio:.1%} of frame) -> {new_face_dim:.0f}px ({target_ratio:.1%}). "
                 f"This ensures V2 (2.7x) and V1SE (4.0x) crops remain distinct."
             )
             downsampled_image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
@@ -861,7 +861,7 @@ class DualMiniFASNetDetector:
                 adjusted_threshold = threshold_info["adjusted_threshold"]
                 
                 logger.debug(
-                    f"🎯 Adaptive threshold: {self.threshold:.2f} → {adjusted_threshold:.2f} "
+                    f"[ADAPTIVE-THRESHOLD] Adaptive threshold: {self.threshold:.2f} -> {adjusted_threshold:.2f} "
                     f"(boost={threshold_info['total_boost']:+.2f}). {threshold_info['explanation']}"
                 )
             

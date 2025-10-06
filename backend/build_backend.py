@@ -51,11 +51,11 @@ def check_dependencies():
             missing_packages.append(package_name)
     
     if missing_packages:
-        print(f"❌ Missing required packages: {', '.join(missing_packages)}")
+        print(f"[ERROR] Missing required packages: {', '.join(missing_packages)}")
         print("Install them with: pip install " + " ".join(missing_packages))
         return False
     
-    print("✅ All required packages are installed")
+    print("[SUCCESS] All required packages are installed")
     return True
 
 def clean_build_dirs():
@@ -72,16 +72,16 @@ def install_pyinstaller():
     """Install PyInstaller if not available"""
     try:
         import PyInstaller
-        print("✅ PyInstaller is already installed")
+        print("[SUCCESS] PyInstaller is already installed")
         return True
     except ImportError:
         print("📦 Installing PyInstaller...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-            print("✅ PyInstaller installed successfully")
+            print("[SUCCESS] PyInstaller installed successfully")
             return True
         except subprocess.CalledProcessError:
-            print("❌ Failed to install PyInstaller")
+            print("[ERROR] Failed to install PyInstaller")
             return False
 
 def build_backend(debug=False, onefile=True, clean=True):
@@ -131,7 +131,7 @@ def build_backend(debug=False, onefile=True, clean=True):
         
         if result.returncode == 0:
             build_time = time.time() - start_time
-            print(f"✅ Build completed successfully in {build_time:.1f} seconds")
+            print(f"[SUCCESS] Build completed successfully in {build_time:.1f} seconds")
             
             # Show output information
             dist_dir = Path("dist")
@@ -148,13 +148,13 @@ def build_backend(debug=False, onefile=True, clean=True):
             
             return True
         else:
-            print("❌ Build failed!")
+            print("[ERROR] Build failed!")
             print("STDOUT:", result.stdout)
             print("STDERR:", result.stderr)
             return False
             
     except Exception as e:
-        print(f"❌ Build error: {e}")
+        print(f"[ERROR] Build error: {e}")
         return False
 
 def test_executable():
@@ -167,7 +167,7 @@ def test_executable():
         exe_path = Path("dist/suri-backend")
     
     if not exe_path.exists():
-        print("❌ Executable not found")
+        print("[ERROR] Executable not found")
         return False
     
     print("🧪 Testing executable...")
@@ -178,18 +178,18 @@ def test_executable():
                               capture_output=True, text=True, timeout=10)
         
         if result.returncode == 0:
-            print("✅ Executable test passed")
+            print("[SUCCESS] Executable test passed")
             return True
         else:
-            print("❌ Executable test failed")
+            print("[ERROR] Executable test failed")
             print("STDERR:", result.stderr)
             return False
             
     except subprocess.TimeoutExpired:
-        print("⚠️  Executable test timed out (this might be normal)")
+        print("[WARNING] Executable test timed out (this might be normal)")
         return True
     except Exception as e:
-        print(f"❌ Executable test error: {e}")
+        print(f"[ERROR] Executable test error: {e}")
         return False
 
 def main():

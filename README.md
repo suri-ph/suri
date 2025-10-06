@@ -11,7 +11,7 @@ You can find the details of the model here:
 - **[Face Detection Training](experiments/detection/README.md)** - Model training logs & datasets
 - **[Face Recognition Model](experiments/recognition/README.md)** - Encoding & matching pipeline
 
-## 🎯 Features
+##  Features
 
 - **🔍 Face Detection**: SCRFD-based detection optimized for real-time performance
 - **👤 Face Recognition**: EdgeFace embeddings for robust identity matching  

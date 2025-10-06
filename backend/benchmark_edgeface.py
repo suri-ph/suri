@@ -84,7 +84,7 @@ class EdgeFaceONNXInference:
         for _ in range(num_iterations):
             _ = self.session.run([self.output_name], {self.input_name: dummy_input})
         
-        logger.info("✓ Warmup complete")
+        logger.info("[SUCCESS] Warmup complete")
 
 
 def cosine_similarity(emb1: np.ndarray, emb2: np.ndarray) -> float:
@@ -124,7 +124,7 @@ def benchmark_inference_speed(
         'total': np.sum(times)
     }
     
-    logger.info(f"✓ Inference speed: {stats['mean']:.2f} ms/image (median: {stats['median']:.2f} ms)")
+    logger.info(f"[SUCCESS] Inference speed: {stats['mean']:.2f} ms/image (median: {stats['median']:.2f} ms)")
     
     return stats
 
@@ -183,8 +183,8 @@ def compare_accuracy(
         'num_tests': len(similarities)
     }
     
-    logger.info(f"✓ Embedding similarity: {stats['mean_similarity']:.6f} (min: {stats['min_similarity']:.6f})")
-    logger.info(f"✓ Max embedding diff: {stats['max_diff']:.6e} (mean: {stats['mean_diff']:.6e})")
+    logger.info(f"[SUCCESS] Embedding similarity: {stats['mean_similarity']:.6f} (min: {stats['min_similarity']:.6f})")
+    logger.info(f"[SUCCESS] Max embedding diff: {stats['max_diff']:.6e} (mean: {stats['mean_diff']:.6e})")
     
     return stats
 
@@ -263,7 +263,7 @@ def main():
         
         # Calculate speedup
         speedup = (original_stats['mean'] / new_stats['mean']) * 100
-        logger.info(f"\n✓ Speedup: {speedup:.1f}% faster ({original_stats['mean']:.2f} ms → {new_stats['mean']:.2f} ms)")
+        logger.info(f"\n[SUCCESS] Speedup: {speedup:.1f}% faster ({original_stats['mean']:.2f} ms -> {new_stats['mean']:.2f} ms)")
         
         # Compare accuracy
         logger.info("\n" + "="*60)
@@ -306,20 +306,20 @@ def main():
         logger.info("="*60)
         
         if accuracy_stats['mean_similarity'] > 0.99:
-            logger.info("✓ ACCURACY: Excellent (>99% similarity)")
+            logger.info("[SUCCESS] ACCURACY: Excellent (>99% similarity)")
         elif accuracy_stats['mean_similarity'] > 0.95:
-            logger.info("✓ ACCURACY: Good (>95% similarity)")
+            logger.info("[SUCCESS] ACCURACY: Good (>95% similarity)")
         else:
-            logger.warning("⚠ ACCURACY: Low similarity - review conversion")
+            logger.warning("[WARNING] ACCURACY: Low similarity - review conversion")
         
         if speedup > 120:
-            logger.info(f"✓ SPEED: Excellent ({speedup:.0f}% faster)")
+            logger.info(f"[SUCCESS] SPEED: Excellent ({speedup:.0f}% faster)")
         elif speedup > 105:
-            logger.info(f"✓ SPEED: Good ({speedup:.0f}% faster)")
+            logger.info(f"[SUCCESS] SPEED: Good ({speedup:.0f}% faster)")
         elif speedup > 100:
-            logger.info(f"✓ SPEED: Marginal improvement ({speedup:.0f}% faster)")
+            logger.info(f"[SUCCESS] SPEED: Marginal improvement ({speedup:.0f}% faster)")
         else:
-            logger.warning(f"⚠ SPEED: Slower than original ({speedup:.0f}%)")
+            logger.warning(f"[WARNING] SPEED: Slower than original ({speedup:.0f}%)")
         
         logger.info("="*60)
         
