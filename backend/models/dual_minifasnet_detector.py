@@ -46,7 +46,6 @@ class DualMiniFASNetDetector:
         session_options: Optional[Dict] = None,
         v2_weight: float = 0.6,
         v1se_weight: float = 0.4,
-        background_threshold: float = 0.85,
         cache_confidence_floor: float = 0.98,
         enable_quality_gates: bool = True,
         enable_temporal_analysis: bool = True,
@@ -61,7 +60,6 @@ class DualMiniFASNetDetector:
         self.session_options = session_options
         self.v2_weight = v2_weight
         self.v1se_weight = v1se_weight
-        self.background_threshold = background_threshold
         self.cache_confidence_floor = cache_confidence_floor
         self.cache_duration = 0.0  # seconds, configurable at runtime
         self._cache: Dict[str, Dict[str, Any]] = {}
@@ -296,7 +294,6 @@ class DualMiniFASNetDetector:
             "confidence": 0.0,
             "real_score": 0.0,
             "fake_score": 1.0,
-            "background_score": 0.0,
             "threshold": self.threshold,
             "processing_time": 0.0,
             "cached": False,
@@ -671,32 +668,41 @@ class DualMiniFASNetDetector:
             softmax_probs = exp_pred / np.sum(exp_pred)
             
             # CORRECT class indices based on Silent-Face-Anti-Spoofing training:
-            # Index 0: FAKE (spoof/attack)
+            # Index 0: 2D SPOOF (2D spoof/attack - photos, screens, etc.)
             # Index 1: REAL (live face)
-            # Index 2: UNKNOWN/BACKGROUND (poor face crop, background, etc.)
+            # Index 2: 3D SPOOF (3D spoof/attack - masks, 3D printed faces, etc.)
             #
-            # Testing showed Index 2 is ~99% for all inputs (noise, black, white),
-            # confirming it's the background/other class, NOT the real class!
-            fake_score = float(softmax_probs[0])
-            real_score = float(softmax_probs[1])  # CORRECTED: Index 1, not 2!
-            background_score = float(softmax_probs[2])
+            # Based on GitHub issue #55: 0=2D spoof, 1=real, 2=3D spoof
+            spoof_2d_score = float(softmax_probs[0])
+            real_score = float(softmax_probs[1])
+            spoof_3d_score = float(softmax_probs[2])
+            
+            # BINARY CLASSIFICATION: Combine all spoof types (2D + 3D) into single "spoof" class
+            fake_score = spoof_2d_score + spoof_3d_score
             
             # If background score is too high, it means face detection is poor
             # We'll return this info but let the ensemble decide
             return {
                 "real_score": real_score,
-                "fake_score": fake_score,
-                "background_score": background_score,
-                "confidence": max(real_score, fake_score)
+                "fake_score": fake_score,  # Combined 2D + 3D spoof scores
+                "confidence": max(real_score, fake_score),
+                # Additional detailed information for debugging (spoof type breakdown)
+                "spoof_2d_score": spoof_2d_score,
+                "spoof_3d_score": spoof_3d_score,
+                "spoof_type": "2D" if spoof_2d_score > spoof_3d_score else "3D" if spoof_3d_score > 0 else "none",
+                "is_binary": True  # Indicates this is binary classification (live vs spoof)
             }
             
         except Exception as e:
             logger.error(f"Error in single model prediction: {e}")
             return {
                 "real_score": 0.5,
-                "fake_score": 0.5,
-                "background_score": 0.0,
+                "fake_score": 0.5,  # Combined 2D + 3D spoof scores
                 "confidence": 0.5,
+                "spoof_2d_score": 0.25,
+                "spoof_3d_score": 0.25,
+                "spoof_type": "error",
+                "is_binary": True,
                 "error": str(e)
             }
     
@@ -722,15 +728,23 @@ class DualMiniFASNetDetector:
                 exp_pred = np.exp(prediction - np.max(prediction))
                 softmax_probs = exp_pred / np.sum(exp_pred)
                 
-                fake_score = float(softmax_probs[0])
+                # Apply same 3-class mapping as single model prediction
+                spoof_2d_score = float(softmax_probs[0])
                 real_score = float(softmax_probs[1])
-                background_score = float(softmax_probs[2])
+                spoof_3d_score = float(softmax_probs[2])
+                
+                # BINARY CLASSIFICATION: Combine all spoof types (2D + 3D) into single "spoof" class
+                fake_score = spoof_2d_score + spoof_3d_score
                 
                 results.append({
                     "real_score": real_score,
-                    "fake_score": fake_score,
-                    "background_score": background_score,
-                    "confidence": max(real_score, fake_score)
+                    "fake_score": fake_score,  # Combined 2D + 3D spoof scores
+                    "confidence": max(real_score, fake_score),
+                    # Additional detailed information for debugging (spoof type breakdown)
+                    "spoof_2d_score": spoof_2d_score,
+                    "spoof_3d_score": spoof_3d_score,
+                    "spoof_type": "2D" if spoof_2d_score > spoof_3d_score else "3D" if spoof_3d_score > 0 else "none",
+                    "is_binary": True  # Indicates this is binary classification (live vs spoof)
                 })
             
             return results
@@ -743,9 +757,12 @@ class DualMiniFASNetDetector:
             return [
                 {
                     "real_score": 0.5,
-                    "fake_score": 0.5,
-                    "background_score": 0.0,
+                    "fake_score": 0.5,  # Combined 2D + 3D spoof scores
                     "confidence": 0.5,
+                    "spoof_2d_score": 0.25,
+                    "spoof_3d_score": 0.25,
+                    "spoof_type": "error",
+                    "is_binary": True,
                     "error": str(e)
                 }
                 for _ in range(num_faces)  # List comprehension creates NEW dict each iteration
@@ -773,11 +790,7 @@ class DualMiniFASNetDetector:
                 v1se_result["fake_score"] * self.v1se_weight
             )
             
-            # Average background scores (monitoring only)
-            ensemble_background_score = (
-                v2_result.get("background_score", 0.0) * self.v2_weight +
-                v1se_result.get("background_score", 0.0) * self.v1se_weight
-            )
+            # No background class in 3-class model - removed background score calculation
             
             # 🏆 RANK 1 ENHANCEMENT 1: Temporal Consistency Analysis
             temporal_verdict = "UNCERTAIN"
@@ -818,20 +831,16 @@ class DualMiniFASNetDetector:
                         "is_real": False,
                         "real_score": ensemble_real_score,
                         "fake_score": ensemble_fake_score,
-                        "background_score": ensemble_background_score,
                         "confidence": temporal_confidence,
                         "threshold": self.threshold,
                         "adjusted_threshold": self.threshold,
-                        "background_threshold": self.background_threshold,
                         "status": "fake",
                         "label": "Spoof Detected (Temporal)",
                         "message": f"Temporal analysis detected spoof: {temporal_analysis.get('decision_reason', 'Unknown')}",
                         "v2_real_score": v2_result["real_score"],
                         "v2_fake_score": v2_result["fake_score"],
-                        "v2_background_score": v2_result.get("background_score", 0.0),
                         "v1se_real_score": v1se_result["real_score"],
                         "v1se_fake_score": v1se_result["fake_score"],
-                        "v1se_background_score": v1se_result.get("background_score", 0.0),
                         "ensemble_method": "rank1_temporal_override",
                         "temporal_verdict": temporal_verdict,
                         "temporal_confidence": temporal_confidence,
@@ -865,9 +874,8 @@ class DualMiniFASNetDetector:
                     f"(boost={threshold_info['total_boost']:+.2f}). {threshold_info['explanation']}"
                 )
             
-            # Make decision using adjusted threshold
-            background_flag = ensemble_background_score >= self.background_threshold
-            is_real = ensemble_real_score > adjusted_threshold and not background_flag
+            # Make decision using adjusted threshold (no background class in 3-class model)
+            is_real = ensemble_real_score > adjusted_threshold
 
             if is_real:
                 confidence = ensemble_real_score
@@ -875,37 +883,25 @@ class DualMiniFASNetDetector:
                 label = "Live Face"
                 message = "Live face verified by RANK 1 ensemble."
             else:
-                confidence = max(ensemble_fake_score, ensemble_background_score)
-                if background_flag:
-                    status = "background"
-                    label = "Reposition Face"
-                    message = "Face crop dominated by background pixels; adjust framing."
-                    logger.info(
-                        f"[BACKGROUND-THRESHOLD] Background rejection: score={ensemble_background_score:.3f} >= {self.background_threshold}"
-                    )
-                else:
-                    status = "fake"
-                    label = "Spoof Detected"
-                    message = "Spoof attempt detected by RANK 1 ensemble."
+                confidence = ensemble_fake_score
+                status = "fake"
+                label = "Spoof Detected"
+                message = "Spoof attempt detected by RANK 1 ensemble."
 
             result = {
                 "is_real": is_real,
                 "real_score": ensemble_real_score,
                 "fake_score": ensemble_fake_score,
-                "background_score": ensemble_background_score,
                 "confidence": confidence,
                 "threshold": self.threshold,
                 "adjusted_threshold": adjusted_threshold,
-                "background_threshold": self.background_threshold,
                 "status": status,
                 "label": label,
                 "message": message,
                 "v2_real_score": v2_result["real_score"],
                 "v2_fake_score": v2_result["fake_score"],
-                "v2_background_score": v2_result.get("background_score", 0.0),
                 "v1se_real_score": v1se_result["real_score"],
                 "v1se_fake_score": v1se_result["fake_score"],
-                "v1se_background_score": v1se_result.get("background_score", 0.0),
                 "ensemble_method": "rank1_adaptive_temporal"
             }
             
@@ -931,7 +927,6 @@ class DualMiniFASNetDetector:
                 "is_real": False,  # SECURITY: Default to FAKE on error
                 "real_score": 0.0,
                 "fake_score": 1.0,
-                "background_score": 0.0,
                 "confidence": 0.0,
                 "threshold": self.threshold,
                 "adjusted_threshold": self.threshold,
@@ -970,19 +965,6 @@ class DualMiniFASNetDetector:
                 "is_real": False,  # SECURITY: Default to FAKE on error
                 "real_score": 0.0,
                 "fake_score": 1.0,
-                "background_score": 0.0,
-                "confidence": 0.0,
-                "threshold": self.threshold,
-                "status": "error",
-                "label": "Error",
-                "message": str(e),
-                "error": str(e)
-            }
-            return {
-                "is_real": False,  # SECURITY: Default to FAKE on error
-                "real_score": 0.0,
-                "fake_score": 1.0,
-                "background_score": 0.0,
                 "confidence": 0.0,
                 "threshold": self.threshold,
                 "status": "error",
@@ -1033,13 +1015,11 @@ class DualMiniFASNetDetector:
                 v2_copy = {
                     "real_score": float(v2_result["real_score"]),
                     "fake_score": float(v2_result["fake_score"]),
-                    "background_score": float(v2_result.get("background_score", 0.0)),
                     "confidence": float(v2_result["confidence"])
                 }
                 v1se_copy = {
                     "real_score": float(v1se_result["real_score"]),
                     "fake_score": float(v1se_result["fake_score"]),
-                    "background_score": float(v1se_result.get("background_score", 0.0)),
                     "confidence": float(v1se_result["confidence"])
                 }
                 
@@ -1202,19 +1182,15 @@ class DualMiniFASNetDetector:
                         "is_real": bool(antispoofing_result.get("is_real", False)),
                         "real_score": float(antispoofing_result.get("real_score", 0.0)),
                         "fake_score": float(antispoofing_result.get("fake_score", 1.0)),
-                        "background_score": float(antispoofing_result.get("background_score", 0.0)),
                         "confidence": float(antispoofing_result.get("confidence", 0.0)),
                         "threshold": float(self.threshold),
-                        "background_threshold": float(self.background_threshold),
                         "status": str(antispoofing_result.get("status", "unknown")),
                         "label": str(antispoofing_result.get("label", "Unknown")),
                         "message": str(antispoofing_result.get("message", "")),
                         "v2_real_score": float(antispoofing_result.get("v2_real_score", 0.0)),
                         "v2_fake_score": float(antispoofing_result.get("v2_fake_score", 0.0)),
-                        "v2_background_score": float(antispoofing_result.get("v2_background_score", 0.0)),
                         "v1se_real_score": float(antispoofing_result.get("v1se_real_score", 0.0)),
                         "v1se_fake_score": float(antispoofing_result.get("v1se_fake_score", 0.0)),
-                        "v1se_background_score": float(antispoofing_result.get("v1se_background_score", 0.0)),
                         "ensemble_method": str(antispoofing_result.get("ensemble_method", "weighted_average_apk_replica")),
                         "cached": False,
                         "model_type": "dual_minifasnet"
@@ -1270,7 +1246,6 @@ class DualMiniFASNetDetector:
             "model_v1se_path": self.model_v1se_path,
             "input_size": self.input_size,
             "threshold": self.threshold,
-            "background_threshold": self.background_threshold,
             "v2_weight": self.v2_weight,
             "v1se_weight": self.v1se_weight,
             "providers": list(self.providers),

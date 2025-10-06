@@ -32,7 +32,7 @@ interface DetectionResult {
     antispoofing?: {
       is_real: boolean | null;
       confidence: number;
-      status: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
+      status: 'real' | 'fake' | 'error' | 'too_small' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
       label?: string;
       message?: string;
     };
@@ -50,7 +50,7 @@ interface WebSocketFaceData {
   antispoofing?: {
     is_real?: boolean | null;
     confidence?: number;
-    status?: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
+    status?: 'real' | 'fake' | 'error' | 'too_small' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
     label?: string;
     message?: string;
   };
@@ -87,8 +87,8 @@ interface WebSocketErrorMessage {
 type DashboardTab = MenuSection;
 
 const NON_LOGGING_ANTISPOOF_STATUSES = new Set<
-  'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown'
->(['fake', 'too_small', 'error', 'background', 'processing_failed', 'invalid_bbox', 'out_of_frame', 'unknown']);
+  'real' | 'fake' | 'error' | 'too_small' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown'
+>(['fake', 'too_small', 'error', 'processing_failed', 'invalid_bbox', 'out_of_frame', 'unknown']);
 
 export default function LiveVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -184,7 +184,7 @@ export default function LiveVideo() {
     occlusionCount: number;
     angleConsistency: number;
     cooldownRemaining?: number;
-    antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small' | 'background' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
+    antispoofingStatus?: 'real' | 'fake' | 'error' | 'too_small' | 'processing_failed' | 'invalid_bbox' | 'out_of_frame' | 'unknown';
   }>>(new Map());
   // Attendance states
   const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
