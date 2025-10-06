@@ -545,7 +545,7 @@ async def detect_faces_upload(
 @app.post("/face/recognize", response_model=FaceRecognitionResponse)
 async def recognize_face(request: FaceRecognitionRequest):
     """
-    Recognize a face using EdgeFace model
+    Recognize a face using EdgeFace model with antispoofing validation
     """
     import time
     start_time = time.time()
@@ -557,7 +557,53 @@ async def recognize_face(request: FaceRecognitionRequest):
         # Decode base64 image
         image = decode_base64_image(request.image)
         
-        # Perform face recognition
+        # CRITICAL SECURITY FIX: Perform antispoofing validation before recognition
+        if optimized_antispoofing_detector:
+            # Create a temporary face detection from the bbox for antispoofing
+            temp_face = {
+                'bbox': {
+                    'x': request.bbox[0],
+                    'y': request.bbox[1], 
+                    'width': request.bbox[2],
+                    'height': request.bbox[3]
+                },
+                'confidence': 1.0,  # High confidence since we're using provided bbox
+                'track_id': -1  # Temporary track ID
+            }
+            
+            # Run antispoofing detection
+            antispoofing_results = await optimized_antispoofing_detector.detect_faces_async(image, [temp_face])
+            
+            if antispoofing_results and len(antispoofing_results) > 0:
+                antispoofing_data = antispoofing_results[0].get('antispoofing', {})
+                is_real = antispoofing_data.get('is_real', False)
+                status = antispoofing_data.get('status', 'unknown')
+                
+                # Block recognition for spoofed faces
+                if not is_real or status == 'fake':
+                    processing_time = time.time() - start_time
+                    logger.warning(f"Recognition blocked for spoofed face: status={status}, is_real={is_real}")
+                    return FaceRecognitionResponse(
+                        success=False,
+                        person_id=None,
+                        similarity=0.0,
+                        processing_time=processing_time,
+                        error=f"Recognition blocked: spoofed face detected (status: {status})"
+                    )
+                
+                # Also block other problematic statuses
+                if status in ['too_small', 'error', 'processing_failed', 'invalid_bbox', 'out_of_frame']:
+                    processing_time = time.time() - start_time
+                    logger.warning(f"Recognition blocked for face with status: {status}")
+                    return FaceRecognitionResponse(
+                        success=False,
+                        person_id=None,
+                        similarity=0.0,
+                        processing_time=processing_time,
+                        error=f"Recognition blocked: face status {status}"
+                    )
+        
+        # Perform face recognition only if antispoofing passes
         result = await edgeface_detector.recognize_face_async(image, request.bbox)
         
         processing_time = time.time() - start_time
@@ -584,7 +630,7 @@ async def recognize_face(request: FaceRecognitionRequest):
 @app.post("/face/register", response_model=FaceRegistrationResponse)
 async def register_person(request: FaceRegistrationRequest):
     """
-    Register a new person in the face database
+    Register a new person in the face database with antispoofing validation
     """
     import time
     start_time = time.time()
@@ -596,7 +642,53 @@ async def register_person(request: FaceRegistrationRequest):
         # Decode base64 image
         image = decode_base64_image(request.image)
         
-        # Register person
+        # CRITICAL SECURITY FIX: Perform antispoofing validation before registration
+        if optimized_antispoofing_detector:
+            # Create a temporary face detection from the bbox for antispoofing
+            temp_face = {
+                'bbox': {
+                    'x': request.bbox[0],
+                    'y': request.bbox[1], 
+                    'width': request.bbox[2],
+                    'height': request.bbox[3]
+                },
+                'confidence': 1.0,  # High confidence since we're using provided bbox
+                'track_id': -1  # Temporary track ID
+            }
+            
+            # Run antispoofing detection
+            antispoofing_results = await optimized_antispoofing_detector.detect_faces_async(image, [temp_face])
+            
+            if antispoofing_results and len(antispoofing_results) > 0:
+                antispoofing_data = antispoofing_results[0].get('antispoofing', {})
+                is_real = antispoofing_data.get('is_real', False)
+                status = antispoofing_data.get('status', 'unknown')
+                
+                # Block registration for spoofed faces
+                if not is_real or status == 'fake':
+                    processing_time = time.time() - start_time
+                    logger.warning(f"Registration blocked for spoofed face: status={status}, is_real={is_real}")
+                    return FaceRegistrationResponse(
+                        success=False,
+                        person_id=request.person_id,
+                        total_persons=0,
+                        processing_time=processing_time,
+                        error=f"Registration blocked: spoofed face detected (status: {status})"
+                    )
+                
+                # Also block other problematic statuses
+                if status in ['too_small', 'error', 'processing_failed', 'invalid_bbox', 'out_of_frame']:
+                    processing_time = time.time() - start_time
+                    logger.warning(f"Registration blocked for face with status: {status}")
+                    return FaceRegistrationResponse(
+                        success=False,
+                        person_id=request.person_id,
+                        total_persons=0,
+                        processing_time=processing_time,
+                        error=f"Registration blocked: face status {status}"
+                    )
+        
+        # Register person only if antispoofing passes
         result = await edgeface_detector.register_person_async(
             request.person_id, 
             image, 

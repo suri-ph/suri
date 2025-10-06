@@ -528,10 +528,18 @@ export default function LiveVideo() {
             // Enhanced Attendance Processing with comprehensive error handling
             if (attendanceEnabled && currentGroupValue && response.person_id) {
               const antispoofStatus = face.antispoofing?.status ?? null;
+              
+              // CRITICAL SECURITY FIX: Double-check antispoofing status before attendance processing
               const shouldSkipAttendanceLogging = !!face.antispoofing && (
                 face.antispoofing.is_real !== true ||
                 (antispoofStatus !== null && NON_LOGGING_ANTISPOOF_STATUSES.has(antispoofStatus))
               );
+
+              // Additional safety check: explicitly block spoofed faces
+              if (face.antispoofing?.status && NON_LOGGING_ANTISPOOF_STATUSES.has(face.antispoofing.status)) {
+                console.log(`🚫 Attendance blocked for face with status: ${face.antispoofing.status} (track ${face.track_id})`);
+                return null; // Skip attendance processing for spoofed/problematic faces
+              }
 
               if (!shouldSkipAttendanceLogging) {
                 try {
