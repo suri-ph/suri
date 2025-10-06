@@ -355,8 +355,8 @@ export default function LiveVideo() {
       // Draw current video frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Use maximum quality for best anti-spoofing accuracy (1.0 = 100%)
-      const base64 = canvas.toDataURL('image/jpeg', 1.0).split(',')[1];
+      // Use optimized quality for best performance + accuracy balance (0.95 = 95%)
+      const base64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
       return base64;
     } catch (error) {
       console.error('❌ captureFrame: Failed to capture frame:', error);
