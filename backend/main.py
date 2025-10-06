@@ -866,15 +866,7 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                         else:
                             faces = yunet_detector.detect_faces(image_rgb)
                         
-                        # Ensure faces are fully processed before continuing
-                        if faces:
-                            logger.info(f"DEBUG: Face detection completed, found {len(faces)} faces")
-                            # Log first face details for debugging
-                            if len(faces) > 0:
-                                first_face = faces[0]
-                                logger.info(f"DEBUG: First face bbox: {first_face.get('bbox', 'N/A')}, confidence: {first_face.get('confidence', 'N/A')}")
-                        else:
-                            logger.info("DEBUG: Face detection completed, no faces found")
+                        pass
                     else:
                         faces = []
                     
@@ -887,54 +879,30 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
                     
                     enable_antispoofing = message.get("enable_antispoofing", True)
                     
-                    logger.info(f"DEBUG: About to process anti-spoofing for {len(faces)} faces")
-                    await asyncio.sleep(0.001)
                     faces = await process_antispoofing(faces, image_rgb, enable_antispoofing)
-                    logger.info(f"DEBUG: Anti-spoofing completed for {len(faces)} faces")
                     
-                    # DEBUG: Log anti-spoofing results before sending to frontend
-                    if faces:
-                        for i, face in enumerate(faces):
-                            if 'antispoofing' in face:
-                                logger.info(f"DEBUG Face {i} anti-spoofing data: {face['antispoofing']}")
-                    
-                    if faces and facemesh_detector:
-                        loop = asyncio.get_event_loop()
-                        for face in faces:
-                            try:
+                    # Add FaceMesh 468 landmarks for accurate face alignment
+                    if facemesh_detector and faces:
+                        try:
+                            for face in faces:
                                 bbox_orig = face.get('bbox_original', face.get('bbox', {}))
+                                x, y, w, h = bbox_orig.get('x', 0), bbox_orig.get('y', 0), bbox_orig.get('width', 0), bbox_orig.get('height', 0)
+                                face_bbox = [x, y, x + w, y + h]
                                 
-                                if isinstance(bbox_orig, dict):
-                                    x, y, w, h = bbox_orig.get('x', 0), bbox_orig.get('y', 0), bbox_orig.get('width', 0), bbox_orig.get('height', 0)
-                                else:
-                                    x, y, w, h = bbox_orig[0] if len(bbox_orig) > 0 else 0, bbox_orig[1] if len(bbox_orig) > 1 else 0, bbox_orig[2] if len(bbox_orig) > 2 else 0, bbox_orig[3] if len(bbox_orig) > 3 else 0
+                                loop = asyncio.get_event_loop()
+                                facemesh_result = await loop.run_in_executor(None, facemesh_detector.detect_landmarks, image_bgr, face_bbox)
                                 
-                                if w > 0 and h > 0:
-                                    facemesh_bbox = [x, y, x + w, y + h]
-                                    
-                                    landmarks_result = await loop.run_in_executor(
-                                        None, 
-                                        facemesh_detector.detect_landmarks, 
-                                        image_bgr, 
-                                        facemesh_bbox
-                                    )
-                                else:
-                                    landmarks_result = None
-                                
-                                if landmarks_result and landmarks_result.get('landmarks_468'):
-                                    # Store 468-point landmarks for visualization
-                                    face['landmarks_468'] = landmarks_result['landmarks_468']
-                                    # Store 5-point landmarks for EdgeFace alignment (reuse later)
-                                    face['landmarks_5'] = landmarks_result.get('landmarks_5', [])
-                                    # Store full result for EdgeFace to avoid recomputation
-                                    face['facemesh_result'] = landmarks_result
+                                if facemesh_result and 'landmarks_468' in facemesh_result:
+                                    face['landmarks_468'] = facemesh_result['landmarks_468']
+                                    face['landmarks_5'] = facemesh_result.get('landmarks_5', [])
+                                    face['facemesh_result'] = facemesh_result
                                 else:
                                     face['landmarks_468'] = []
                                     face['landmarks_5'] = []
                                     face['facemesh_result'] = None
-                                    
-                            except Exception as e:
-                                logger.warning(f"FaceMesh detection failed for face: {e}")
+                        except Exception as e:
+                            logger.warning(f"FaceMesh detection failed: {e}")
+                            for face in faces:
                                 face['landmarks_468'] = []
                                 face['landmarks_5'] = []
                                 face['facemesh_result'] = None
