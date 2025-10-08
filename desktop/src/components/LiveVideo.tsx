@@ -103,6 +103,47 @@ export default function LiveVideo() {
   const isProcessingRef = useRef<boolean>(false);
   const isStreamingRef = useRef<boolean>(false);
   
+  // Debounce refs to prevent rapid clicking issues
+  const lastStartTimeRef = useRef<number>(0);
+  const lastStopTimeRef = useRef<number>(0);
+  const isStartingRef = useRef<boolean>(false);
+  const isStoppingRef = useRef<boolean>(false);
+  
+  
+  // Emergency recovery function to reset system to known good state
+  const emergencyRecovery = useCallback(() => {
+    console.log('🚨 Emergency recovery triggered - resetting system state');
+    
+    // Reset all flags
+    isStartingRef.current = false;
+    isStoppingRef.current = false;
+    isProcessingRef.current = false;
+    
+    // Reset timestamps
+    lastStartTimeRef.current = 0;
+    lastStopTimeRef.current = 0;
+    
+    // Force stop if streaming
+    if (isStreamingRef.current) {
+      console.log('🔧 Force stopping stream during recovery');
+      setIsStreaming(false);
+      isStreamingRef.current = false;
+      setDetectionEnabled(false);
+      detectionEnabledRef.current = false;
+    }
+    
+    // Clear any pending operations
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
+    }
+    
+    // Note: We preserve cooldowns even during emergency recovery
+    // to maintain the cooldown behavior across all scenarios
+    
+    console.log('✅ Emergency recovery completed');
+  }, []);
+  
   // Performance optimization refs
   const lastCanvasSizeRef = useRef<{width: number, height: number}>({width: 0, height: 0});
   const lastVideoSizeRef = useRef<{width: number, height: number}>({width: 0, height: 0});
@@ -119,6 +160,7 @@ export default function LiveVideo() {
   const [detectionFps, setDetectionFps] = useState<number>(0);
   const [websocketStatus, setWebsocketStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const backendServiceReadyRef = useRef(false);
+  
   const lastDetectionRef = useRef<DetectionResult | null>(null);
   const lastFrameTimestampRef = useRef<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +254,68 @@ export default function LiveVideo() {
     memberName?: string;
     lastKnownBbox?: { x: number; y: number; width: number; height: number }; // For displaying cooldown when face disappears
   }>>(new Map());
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+  
+  useEffect(() => {
+    detectionEnabledRef.current = detectionEnabled;
+  }, [detectionEnabled]);
+
+  // Periodic state validation to catch issues during long delays
+  useEffect(() => {
+    const validationInterval = setInterval(() => {
+      // Only validate critical issues, not state mismatches
+      const criticalIssues = [];
+      
+      if (isStartingRef.current && isStoppingRef.current) {
+        criticalIssues.push('Both starting and stopping flags are true');
+      }
+      
+      if (criticalIssues.length > 0) {
+        console.warn('⚠️ Critical state issues detected:', criticalIssues);
+        // Auto-fix critical issues
+        if (isStartingRef.current && isStoppingRef.current) {
+          console.log('🔧 Auto-fixing: Resetting both flags');
+          isStartingRef.current = false;
+          isStoppingRef.current = false;
+        }
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(validationInterval);
+  }, []);
+  
+  // Timeout detection for stuck operations
+  useEffect(() => {
+    let startTimeout: NodeJS.Timeout | undefined;
+    let stopTimeout: NodeJS.Timeout | undefined;
+    
+    if (isStartingRef.current) {
+      startTimeout = setTimeout(() => {
+        if (isStartingRef.current) {
+          console.warn('⚠️ Start operation timed out - triggering recovery');
+          emergencyRecovery();
+        }
+      }, 10000); // 10 second timeout for start
+    }
+    
+    if (isStoppingRef.current) {
+      stopTimeout = setTimeout(() => {
+        if (isStoppingRef.current) {
+          console.warn('⚠️ Stop operation timed out - triggering recovery');
+          emergencyRecovery();
+        }
+      }, 5000); // 5 second timeout for stop
+    }
+    
+    return () => {
+      if (startTimeout) clearTimeout(startTimeout);
+      if (stopTimeout) clearTimeout(stopTimeout);
+    };
+  }, [isStartingRef.current, isStoppingRef.current, emergencyRecovery]);
 
   // Real-time countdown updater
   useEffect(() => {
@@ -1035,20 +1139,32 @@ export default function LiveVideo() {
 
   // Process current frame directly without queue (async for Binary ArrayBuffer)
   const processCurrentFrame = useCallback(async () => {
+    console.log('🎬 processCurrentFrame called:', {
+      isProcessing: isProcessingRef.current,
+      websocketReady: backendServiceRef.current?.isWebSocketReady(),
+      detectionEnabled: detectionEnabledRef.current,
+      isStreaming: isStreamingRef.current
+    });
+    
     // OPTIMIZATION: Enhanced frame skipping logic with frame ID tracking
     if (isProcessingRef.current || 
         !backendServiceRef.current?.isWebSocketReady() || 
         !detectionEnabledRef.current ||
         !isStreamingRef.current) {
+      console.log('❌ processCurrentFrame skipped - conditions not met');
       return;
     }
+    
+    console.log('✅ processCurrentFrame proceeding - all conditions met');
 
     try {
+      console.log('📸 Capturing frame...');
       const frameData = await captureFrame();
       if (!frameData || !backendServiceRef.current) {
         console.warn('⚠️ processCurrentFrame: No frame data or backend service');
         return;
       }
+      console.log('✅ Frame captured, size:', frameData.byteLength);
 
       isProcessingRef.current = true;
       
@@ -1056,6 +1172,7 @@ export default function LiveVideo() {
       const frameTimestamp = Date.now();
       
       // Backend handles all threshold configuration
+      console.log('📤 Sending detection request to backend...');
       backendServiceRef.current.sendDetectionRequest(frameData, {
         model_type: 'yunet',
         nms_threshold: 0.3,
@@ -1104,23 +1221,60 @@ export default function LiveVideo() {
 
   // Start detection interval helper - now triggers initial frame only
   const startDetectionInterval = useCallback(() => {
+    console.log('🔍 startDetectionInterval called:', {
+      detectionEnabled: detectionEnabledRef.current,
+      websocketReady: backendServiceRef.current?.isWebSocketReady(),
+      backendReady: backendServiceReadyRef.current
+    });
+    
     if (detectionEnabledRef.current && 
         backendServiceRef.current?.isWebSocketReady()) {
+      console.log('✅ Starting detection - calling processFrameForDetection');
       // Send initial frame to start the adaptive processing chain
       processFrameForDetection();
+    } else {
+      console.log('❌ Detection not started - conditions not met');
     }
   }, [processFrameForDetection]);
 
   // Start camera stream
   const startCamera = useCallback(async () => {
     try {
+      // CRITICAL: Prevent rapid clicking and ensure only one start operation at a time
+      const now = Date.now();
+      const timeSinceLastStart = now - lastStartTimeRef.current;
+      const timeSinceLastStop = now - lastStopTimeRef.current;
+      
+      // Prevent starting if already starting or recently started
+      if (isStartingRef.current || isStreamingRef.current) {
+        console.log('⚠️ Start ignored - already starting or streaming');
+        return;
+      }
+      
+      // Prevent starting too quickly after stop (minimum 100ms gap)
+      if (timeSinceLastStop < 100) {
+        console.log('⚠️ Start ignored - too soon after stop');
+        return;
+      }
+      
+      // Prevent starting too quickly after last start (minimum 500ms gap)
+      if (timeSinceLastStart < 500) {
+        console.log('⚠️ Start ignored - too soon after last start');
+        return;
+      }
+      
+      isStartingRef.current = true;
+      lastStartTimeRef.current = now;
+      
       console.log('🚀 Starting camera - Current state:', {
         isStreaming: isStreamingRef.current,
         detectionEnabled: detectionEnabledRef.current,
         websocketStatus,
         backendReady: backendServiceReadyRef.current,
         currentGroup: currentGroup?.name || 'No group selected',
-        recognitionEnabled
+        recognitionEnabled,
+        timeSinceLastStart,
+        timeSinceLastStop
       });
       setError(null);
       
@@ -1174,9 +1328,8 @@ export default function LiveVideo() {
 
         await waitForVideoReady();
         
-        // Set streaming state and refs immediately
+        // Set streaming state (ref will be synced automatically)
         setIsStreaming(true);
-        isStreamingRef.current = true; // Set ref immediately for synchronous access
         
         try {
           // Wait for backend to be ready with retry logic
@@ -1206,13 +1359,12 @@ export default function LiveVideo() {
             
             // Still allow camera to start but don't enable detection
             setDetectionEnabled(false);
-            detectionEnabledRef.current = false;
             return;
           }
                 
           // Automatically start detection when camera starts
           setDetectionEnabled(true);
-          detectionEnabledRef.current = true;
+          detectionEnabledRef.current = true; // Set ref immediately for synchronous access
           
           if (websocketStatus === 'disconnected') {
             try {
@@ -1248,7 +1400,6 @@ export default function LiveVideo() {
             } catch (error) {
               console.error('❌ Failed to initialize WebSocket or start detection:', error);
               setDetectionEnabled(false);
-              detectionEnabledRef.current = false;
               setError('Failed to connect to detection service');
             }
           } else if (websocketStatus === 'connected') {
@@ -1256,13 +1407,29 @@ export default function LiveVideo() {
             console.log('🔌 WebSocket already connected, setting backend ready');
             backendServiceReadyRef.current = true;
             console.log('✅ Backend service marked as ready (existing connection)');
+            
+            // CRITICAL: Ensure detection is enabled before starting
+            setDetectionEnabled(true);
+            detectionEnabledRef.current = true; // Set ref immediately for synchronous access
+            console.log('✅ Detection enabled for existing connection');
+            
+            // CRITICAL: Ensure streaming state is also properly set
+            if (!isStreamingRef.current) {
+              console.log('🔧 Fixing streaming state for existing connection');
+              setIsStreaming(true);
+              isStreamingRef.current = true;
+            }
+            
+            // CRITICAL: Reset processing state to ensure clean start
+            isProcessingRef.current = false;
+            console.log('🔧 Reset processing state for clean start');
+            
             startDetectionInterval();
           }
         } catch (error) {
           console.error('❌ Failed to check backend readiness:', error);
           setError('Failed to check backend readiness');
           setDetectionEnabled(false);
-          detectionEnabledRef.current = false;
         }
         // If websocketStatus is 'connecting', the useEffect will handle starting detection when connected
         // But also set backend ready for IPC mode
@@ -1270,21 +1437,60 @@ export default function LiveVideo() {
           console.log('🔌 WebSocket connecting, setting backend ready for IPC mode');
           backendServiceReadyRef.current = true;
           console.log('✅ Backend service marked as ready (connecting state)');
+          
+          // CRITICAL: Ensure detection is enabled for connecting state
+          setDetectionEnabled(true);
+          detectionEnabledRef.current = true; // Set ref immediately for synchronous access
+          console.log('✅ Detection enabled for connecting state');
+          
+          // CRITICAL: Ensure streaming state is also properly set
+          if (!isStreamingRef.current) {
+            console.log('🔧 Fixing streaming state for connecting state');
+            setIsStreaming(true);
+            isStreamingRef.current = true;
+          }
+          
+          // CRITICAL: Reset processing state to ensure clean start
+          isProcessingRef.current = false;
+          console.log('🔧 Reset processing state for clean start (connecting)');
         }
       }
     } catch (err) {
       console.error('Error starting camera:', err);
       setError('Failed to start camera. Please check permissions.');
+    } finally {
+      // CRITICAL: Always reset starting flag
+      isStartingRef.current = false;
     }
   }, [selectedCamera, websocketStatus, initializeWebSocket, startDetectionInterval, getCameraDevices]);
 
   // Stop camera stream
   const stopCamera = useCallback(() => {
+    // CRITICAL: Prevent rapid stopping and ensure only one stop operation at a time
+    const now = Date.now();
+    const timeSinceLastStop = now - lastStopTimeRef.current;
+    
+    // Prevent stopping if already stopping or not streaming
+    if (isStoppingRef.current || !isStreamingRef.current) {
+      console.log('⚠️ Stop ignored - already stopping or not streaming');
+      return;
+    }
+    
+    // Prevent stopping too quickly after last stop (minimum 100ms gap)
+    if (timeSinceLastStop < 100) {
+      console.log('⚠️ Stop ignored - too soon after last stop');
+      return;
+    }
+    
+    isStoppingRef.current = true;
+    lastStopTimeRef.current = now;
+    
     console.log('🛑 Stopping camera - Current state:', {
       isStreaming: isStreamingRef.current,
       detectionEnabled: detectionEnabledRef.current,
       websocketStatus,
-      backendReady: backendServiceReadyRef.current
+      backendReady: backendServiceReadyRef.current,
+      timeSinceLastStop
     });
     
     // Stop media stream
@@ -1302,12 +1508,11 @@ export default function LiveVideo() {
     
     // Stop detection
     setDetectionEnabled(false);
-    detectionEnabledRef.current = false;
     setIsStreaming(false);
-    isStreamingRef.current = false;
     
     // Reset processing state
     isProcessingRef.current = false;
+    console.log('🔧 Reset processing state during stop');
     
     // CRITICAL: Reset backend ready state for proper restart
     backendServiceReadyRef.current = false;
@@ -1340,14 +1545,12 @@ export default function LiveVideo() {
     // Clear tracked faces
     setTrackedFaces(new Map());
     
-    // Clear persistent cooldowns
-    setPersistentCooldowns(new Map());
+    // PRESERVE cooldowns - don't clear them so they persist across stop/start cycles
+    // This prevents duplicate detections when restarting quickly
+    console.log('🔒 Preserving cooldowns across stop/start cycles');
     
-    // Clear attendance cooldowns
-    setAttendanceCooldowns(new Map());
-    
-    // Clear cooldown timestamps ref
-    cooldownTimestampsRef.current.clear();
+    // Note: We keep persistentCooldowns, attendanceCooldowns, and cooldownTimestampsRef
+    // so that recently detected people can't be detected again immediately after restart
     
     // Reset ACCURATE FPS tracking
     setDetectionFps(0);
@@ -1374,6 +1577,9 @@ export default function LiveVideo() {
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       }
     }
+    
+    // CRITICAL: Always reset stopping flag
+    isStoppingRef.current = false;
     
   }, []);
 
