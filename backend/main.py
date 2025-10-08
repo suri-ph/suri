@@ -873,9 +873,9 @@ async def websocket_stream_endpoint(websocket: WebSocket, client_id: str):
     max_samples = 15  # Rolling window for performance tracking
     overload_counter = 0   # Track consecutive overload situations
     
-    # Queue management for overload prevention
+    # Queue management for maximum throughput
     processing_queue = []
-    max_queue_size = 10  # Increased for better burst processing
+    max_queue_size = 100  # High capacity for maximum performance (was 10)
     is_processing = False
     dropped_frames = 0
     
