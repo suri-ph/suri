@@ -399,28 +399,50 @@ ipcMain.handle('window:close', () => {
 
 // Pre-load all models during app startup
 async function preloadModels(): Promise<void> {
+  // Only preload models that are actually used in the current pipeline
+  // Based on backend/main.py startup configuration:
+  // - YuNet for face detection
+  // - AntiSpoof for liveness detection
+  // - FaceMesh for landmark detection and alignment
+  // - EdgeFace for face recognition
   const modelNames = [
     'face_detection_yunet_2023mar.onnx',
-    'edgeface-recognition-xs.onnx', 
-    'MiniFASNetV2_80x80.onnx',
-    'MiniFASNetV1SE_80x80.onnx'
+    'AntiSpoofing_print-replay_1.5_128.onnx',
+    'face_mesh_Nx3x192x192_post.onnx',
+    'edgeface-recognition-xs.onnx'
   ];
   
   try {
+    console.log('[Main] Starting model preloading...');
+    let loadedCount = 0;
+    
     for (const modelName of modelNames) {
       const modelPath = isDev()
         ? path.join(__dirname, '../../public/weights', modelName)
         : path.join(process.resourcesPath, 'weights', modelName);
       
+      console.log(`[Main] Loading model: ${modelName}`);
       const buffer = await readFile(modelPath);
       const arrayBuffer = new ArrayBuffer(buffer.byteLength);
       new Uint8Array(arrayBuffer).set(new Uint8Array(buffer));
       modelBuffers.set(modelName, arrayBuffer);
-  
+      
+      loadedCount++;
+      const progress = (loadedCount / modelNames.length) * 100;
+      console.log(`[Main] Loaded ${loadedCount}/${modelNames.length} models (${progress.toFixed(0)}%)`);
+      
+      // Notify renderer process of loading progress
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('model-loading-progress', {
+          current: loadedCount,
+          total: modelNames.length,
+          modelName,
+          progress
+        });
+      }
     }
     
-
-
+    console.log('[Main] ✅ All models preloaded successfully!');
   } catch (error) {
     console.error('❌ Failed to pre-load models:', error);
     throw error;
@@ -443,6 +465,11 @@ ipcMain.handle('models:get-all', async () => {
     result[name] = buffer;
   }
   return result;
+});
+
+// Check if models are ready
+ipcMain.handle('models:is-ready', async () => {
+  return modelBuffers.size > 0;
 });
 
 function createWindow(): void {

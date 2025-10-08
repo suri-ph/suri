@@ -138,10 +138,27 @@ declare global {
     }>
   }
 
+  interface ModelsAPI {
+    isReady: () => Promise<boolean>
+    onLoadingProgress: (callback: (data: {
+      current: number;
+      total: number;
+      modelName: string;
+      progress: number;
+    }) => void) => () => void
+  }
+
   // Backend Service API interface is now the primary interface for face recognition functionality
   interface BackendServiceAPI {
+    // Face Recognition Database API (File-based)
+    saveFaceDatabase: (databaseData: Record<string, number[]>) => Promise<unknown>
+    loadFaceDatabase: () => Promise<unknown>
+    removeFacePerson: (personId: string) => Promise<unknown>
+    getAllFacePersons: () => Promise<unknown>
     // Generic IPC invoke method
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    // Model loading API
+    models: ModelsAPI
     // Backend Service API
     backend: BackendAPI
   }
