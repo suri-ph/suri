@@ -2,19 +2,6 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 // Backend API
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Face Recognition Database API (File-based)
-    saveFaceDatabase: (databaseData: Record<string, number[]>) => {
-        return ipcRenderer.invoke('face-recognition:save-database', databaseData)
-    },
-    loadFaceDatabase: () => {
-        return ipcRenderer.invoke('face-recognition:load-database')
-    },
-    removeFacePerson: (personId: string) => {
-        return ipcRenderer.invoke('face-recognition:remove-person', personId)
-    },
-    getAllFacePersons: () => {
-        return ipcRenderer.invoke('face-recognition:get-all-persons')
-    },
     // Generic IPC invoke method
     invoke: (channel: string, ...args: unknown[]) => {
         return ipcRenderer.invoke(channel, ...args)
