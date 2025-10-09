@@ -1,4 +1,4 @@
-import type { AttendanceGroup, AttendanceMember, AttendanceRecord, GroupType } from '../types';
+import type { AttendanceGroup, AttendanceMember, AttendanceRecord } from '../types';
 import { getGroupTypeIcon } from '../utils/overlayRenderer';
 
 interface AttendancePanelProps {

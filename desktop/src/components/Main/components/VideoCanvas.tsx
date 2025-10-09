@@ -1,4 +1,4 @@
-import { RefObject } from 'react';
+import type { RefObject } from 'react';
 import type { DetectionResult } from '../types';
 import type { QuickSettings } from '../../settings';
 

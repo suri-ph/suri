@@ -1,5 +1,5 @@
 import type { DetectionResult, TrackedFace } from '../types';
-import type { FaceRecognitionResponse } from '../../types/recognition';
+import type { FaceRecognitionResponse } from '../../../types/recognition';
 
 interface DetectionPanelProps {
   currentDetections: DetectionResult | null;
