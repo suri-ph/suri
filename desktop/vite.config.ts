@@ -18,7 +18,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Split large dependencies into separate chunks for better caching
-          onnxruntime: ['onnxruntime-web'],
           vendor: ['react', 'react-dom'],
           ui: ['@fortawesome/fontawesome-free']
         }
@@ -33,9 +32,6 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp'
     }
-  },
-  optimizeDeps: {
-    exclude: ['onnxruntime-web']
   },
   define: {
     // Enable WASM threads
