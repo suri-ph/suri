@@ -10,15 +10,8 @@ import type {
   AttendanceRecord,
   GroupType
 } from '../../types/recognition';
-import { VideoCanvas } from './components/VideoCanvas';
-import { ControlBar } from './components/ControlBar';
-import { CooldownList } from './components/CooldownList';
-import { DetectionPanel } from './components/DetectionPanel';
-import { AttendancePanel } from './components/AttendancePanel';
-import { GroupManagement } from './modals/GroupManagement';
-import { DeleteConfirmation } from './modals/DeleteConfirmation';
 import { drawOverlays, getGroupTypeIcon } from './utils/overlayRenderer';
-import type { DetectionResult, TrackedFace, DashboardTab, WebSocketFaceData, WebSocketDetectionResponse, WebSocketConnectionMessage, WebSocketErrorMessage } from './types';
+import type { DetectionResult, DashboardTab, WebSocketFaceData, WebSocketDetectionResponse, WebSocketConnectionMessage, WebSocketErrorMessage } from './types';
 
 const NON_LOGGING_ANTISPOOF_STATUSES = new Set<'real' | 'fake' | 'error'>(['fake', 'error']);
 

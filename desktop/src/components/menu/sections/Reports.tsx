@@ -129,7 +129,16 @@ export function Reports({ group }: ReportsProps) {
         </div>
       )}
 
-      {report && (
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+            <span className="text-sm text-white/60">Generating report...</span>
+          </div>
+        </div>
+      )}
+
+      {!loading && report && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-transparent p-4">

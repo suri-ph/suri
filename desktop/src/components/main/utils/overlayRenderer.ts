@@ -135,13 +135,13 @@ export const drawFaceMeshLandmarks = (
 };
 
 interface DrawOverlaysParams {
-  videoRef: React.RefObject<HTMLVideoElement>;
-  overlayCanvasRef: React.RefObject<HTMLCanvasElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   currentDetections: DetectionResult | null;
   isStreaming: boolean;
   currentRecognitionResults: Map<number, FaceRecognitionResponse>;
   recognitionEnabled: boolean;
-  persistentCooldowns: Map<string, { personId: string; memberName: string; startTime: number }>;
+  persistentCooldowns: Map<string, { personId: string; memberName?: string; startTime: number; lastKnownBbox?: { x: number; y: number; width: number; height: number } }>;
   attendanceCooldownSeconds: number;
   quickSettings: QuickSettings;
   getVideoRect: () => DOMRect | null;
