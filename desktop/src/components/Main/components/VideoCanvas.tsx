@@ -1,6 +1,6 @@
 import { RefObject } from 'react';
 import type { DetectionResult } from '../types';
-import type { QuickSettings } from '../../Settings';
+import type { QuickSettings } from '../../settings';
 
 interface VideoCanvasProps {
   videoRef: RefObject<HTMLVideoElement>;

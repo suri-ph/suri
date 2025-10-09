@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { FaceRegistrationLab } from './registration/FaceRegistrationLab';
-import { BulkFaceRegistration } from '../modals/BulkFaceRegistration';
-import { AssistedCameraRegistration } from '../modals/AssistedCameraRegistration';
+import { FaceRegistrationLab } from './registration/FaceRegistrationLab.js';
+import { BulkFaceRegistration } from '../modals/BulkFaceRegistration.js';
+import { AssistedCameraRegistration } from '../modals/AssistedCameraRegistration.js';
 import type {
   AttendanceGroup,
   AttendanceMember

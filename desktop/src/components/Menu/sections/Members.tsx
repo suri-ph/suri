@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager';
+import { attendanceManager } from '../../../services/AttendanceManager.js';
 import type {
   AttendanceGroup,
   AttendanceMember,

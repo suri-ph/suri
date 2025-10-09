@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { BackendService } from '../../services/BackendService';
-import { Settings, type QuickSettings } from '../Settings';
+import { Settings, type QuickSettings } from '../settings';
 import { attendanceManager } from '../../services/AttendanceManager';
-import { Menu, type MenuSection } from '../Menu';
+import { Menu, type MenuSection } from '../menu';
 import type { 
   FaceRecognitionResponse,
   AttendanceGroup,

@@ -1,7 +1,7 @@
 // Shared types for Main component
 
 import type { AttendanceGroup, AttendanceMember, AttendanceRecord, GroupType } from '../../types/recognition';
-import type { MenuSection } from '../Menu';
+import type { MenuSection } from '../menu';
 
 export interface DetectionResult {
   faces: Array<{

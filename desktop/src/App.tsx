@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import Main from './components/Main'
-import TitleBar from './components/TitleBar.tsx'
+import Main from './components/main/index.tsx'
+import WindowBar from './components/electron/WindowBar.tsx'
 import LoadingScreen from './components/LoadingScreen.tsx'
 
 function App() {
@@ -50,8 +50,8 @@ function App() {
 
   return (
     <div className="electron-window-container">
-      {/* Custom TitleBar - Always visible */}
-      <TitleBar />
+      {/* Custom Window Bar - Always visible */}
+      <WindowBar />
       
       {/* Show loading screen or main content */}
       {isChecking || !modelsReady ? (

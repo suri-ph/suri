@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function TitleBar() {
+export default function WindowBar() {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {

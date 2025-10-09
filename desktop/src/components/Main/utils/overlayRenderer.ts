@@ -2,7 +2,7 @@
 
 import type { DetectionResult } from '../types';
 import type { FaceRecognitionResponse } from '../../../types/recognition';
-import type { QuickSettings } from '../../Settings';
+import type { QuickSettings } from '../../settings';
 
 export const getFaceColor = (
   recognitionResult: { person_id?: string; confidence?: number; name?: string } | null,

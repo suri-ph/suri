@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager';
-import { StatsCard } from '../shared/StatsCard';
+import { attendanceManager } from '../../../services/AttendanceManager.js';
+import { StatsCard } from '../shared/StatsCard.js';
 import type {
   AttendanceGroup,
   AttendanceMember,

@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { attendanceManager } from '../../services/AttendanceManager';
+import { attendanceManager } from '../../services/AttendanceManager.js';
 
 // Sections
-import { Overview } from './sections/Overview';
-import { Members } from './sections/Members';
-import { Reports } from './sections/Reports';
-import { Registration } from './sections/Registration';
-import { GroupSettings } from './sections/GroupSettings';
+import { Overview } from './sections/Overview.js';
+import { Members } from './sections/Members.js';
+import { Reports } from './sections/Reports.js';
+import { Registration } from './sections/Registration.js';
+import { GroupSettings } from './sections/GroupSettings.js';
 
 // Modals
-import { AddMember } from './modals/AddMember';
-import { EditMember } from './modals/EditMember';
-import { CreateGroup } from './modals/CreateGroup';
-import { EditGroup } from './modals/EditGroup';
+import { AddMember } from './modals/AddMember.js';
+import { EditMember } from './modals/EditMember.js';
+import { CreateGroup } from './modals/CreateGroup.js';
+import { EditGroup } from './modals/EditGroup.js';
 
 // Shared
-import { EmptyState } from './shared/EmptyState';
+import { EmptyState } from './shared/EmptyState.js';
 
 import type {
   AttendanceGroup,

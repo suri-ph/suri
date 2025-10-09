@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager';
+import { attendanceManager } from '../../../services/AttendanceManager.js';
 import type { GroupType, AttendanceGroup } from '../../../types/recognition.js';
 
 interface CreateGroupProps {
