@@ -11,7 +11,7 @@ async function beforePack(context) {
     console.log('🔧 Running before-pack script...');
     
     const platform = context.electronPlatformName;
-    const backendDir = path.join(__dirname, '..', '..', 'backend');
+    const backendDir = path.join(__dirname, '..', '..', 'server');
     const distDir = path.join(backendDir, 'dist');
     
     console.log(`📦 Building for platform: ${platform}`);

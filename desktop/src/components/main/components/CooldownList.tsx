@@ -4,14 +4,12 @@ interface CooldownListProps {
   trackingMode: 'auto' | 'manual';
   persistentCooldowns: Map<string, CooldownInfo>;
   attendanceCooldownSeconds: number;
-  currentTime: number;
 }
 
 export function CooldownList({
   trackingMode,
   persistentCooldowns,
   attendanceCooldownSeconds,
-  currentTime,
 }: CooldownListProps) {
   if (trackingMode !== 'auto' || persistentCooldowns.size === 0) {
     return null;
@@ -42,4 +40,3 @@ export function CooldownList({
     </div>
   );
 }
-
