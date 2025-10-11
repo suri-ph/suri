@@ -105,11 +105,24 @@ export class AttendanceManager {
   }
 
   private async loadSettings(): Promise<void> {
-    try {
-      this.settings = await this.httpClient.get<AttendanceSettings>(API_ENDPOINTS.settings);
-    } catch (error) {
-      console.error('Error loading settings from backend:', error);
-      // Keep default settings if backend is not available
+    // Retry logic: Wait for backend to be ready
+    const maxRetries = 10;
+    const retryDelay = 500; // 500ms between retries
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.settings = await this.httpClient.get<AttendanceSettings>(API_ENDPOINTS.settings);
+        console.log('[AttendanceManager] Settings loaded successfully');
+        return; // Success!
+      } catch (error) {
+        if (attempt < maxRetries) {
+          console.log(`[AttendanceManager] Backend not ready, retrying (${attempt}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        } else {
+          console.error('[AttendanceManager] Failed to load settings after retries, using defaults:', error);
+          // Keep default settings if backend is not available after all retries
+        }
+      }
     }
   }
 

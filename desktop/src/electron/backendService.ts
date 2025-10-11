@@ -299,15 +299,21 @@ export class BackendService {
         if (process.platform === 'win32') {
           console.log(`[BackendService] Killing backend process (PID: ${this.status.pid}) on Windows...`);
           const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
           
-          // /F = force, /T = kill child processes too, /PID = process ID
-          exec(`taskkill /F /T /PID ${this.status.pid}`, (error: Error | null) => {
-            if (error) {
+          try {
+            // /F = force, /T = kill child processes too, /PID = process ID
+            await execAsync(`taskkill /F /T /PID ${this.status.pid}`);
+            console.log('[BackendService] Backend process killed successfully');
+          } catch (error: any) {
+            // Error 128 = process already terminated, that's OK
+            if (!error.message.includes('not found') && error.code !== 128) {
               console.error(`[BackendService] Error killing process: ${error.message}`);
             } else {
-              console.log('[BackendService] Backend process killed successfully');
+              console.log('[BackendService] Process already terminated');
             }
-          });
+          }
         } else {
           // Unix-like systems: SIGTERM then SIGKILL
           console.log(`[BackendService] Stopping backend process (PID: ${this.status.pid})...`);
