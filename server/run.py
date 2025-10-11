@@ -1,6 +1,7 @@
 import argparse
 import logging
 import logging.config
+import signal
 import sys
 import traceback
 from pathlib import Path
@@ -12,6 +13,30 @@ backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
 from config import config, validate_model_paths, validate_directories
+
+# Global flag for graceful shutdown
+shutdown_flag = False
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    global shutdown_flag
+    
+    signal_name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM' if signum == signal.SIGTERM else f'Signal {signum}'
+    print(f"\n🛑 Received {signal_name} - shutting down gracefully...")
+    
+    shutdown_flag = True
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination request
+
+# Windows-specific signal handling
+if sys.platform == 'win32':
+    try:
+        signal.signal(signal.SIGBREAK, signal_handler)  # Windows Ctrl+Break
+    except AttributeError:
+        pass  # SIGBREAK not available on all platforms
 
 def setup_logging():
     """Setup logging configuration"""
@@ -63,6 +88,8 @@ def main():
         # Import the app directly for PyInstaller compatibility
         from main import app
         
+        logger.info(f"🚀 Starting server on {server_config['host']}:{server_config['port']}")
+        
         # Start the server
         uvicorn.run(
             app,
@@ -73,14 +100,27 @@ def main():
             workers=server_config["workers"],
             access_log=True,
         )
+        
+        logger.info("✅ Server stopped gracefully")
+        
     except KeyboardInterrupt:
-        pass
+        logger.info("⚠️ Received KeyboardInterrupt - exiting...")
+        print("\n⚠️ Server interrupted by user")
+        sys.exit(0)
+    except SystemExit:
+        # Allow sys.exit() to propagate cleanly
+        logger.info("✅ Server exiting...")
+        raise
     except Exception as e:
-        logger.error(f"Server error: {e}")
-        print(f"\nServer error: {e}")
+        logger.error(f"❌ Server error: {e}")
+        print(f"\n❌ Server error: {e}")
         print("Traceback:")
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        # Final cleanup
+        logger.info("🧹 Final cleanup...")
+        print("🛑 Backend server stopped")
 
 if __name__ == "__main__":
     main()

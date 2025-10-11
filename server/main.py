@@ -189,6 +189,27 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
+    logger.info("🛑 Shutting down backend server...")
+    
+    # Cleanup models and resources
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, face_tracker, attendance_database
+    
+    try:
+        # Database connections use context managers - no explicit close needed
+        logger.info("Releasing model references...")
+        
+        # Clear model references to free memory
+        yunet_detector = None
+        optimized_antispoofing_detector = None
+        edgeface_detector = None
+        facemesh_detector = None
+        face_tracker = None
+        attendance_database = None
+        
+        logger.info("✅ Cleanup complete")
+        
+    except Exception as e:
+        logger.error(f"❌ Error during shutdown cleanup: {e}")
 
 # Helper function to eliminate code duplication
 async def process_antispoofing(faces: List[Dict], image: np.ndarray, enable: bool) -> List[Dict]:

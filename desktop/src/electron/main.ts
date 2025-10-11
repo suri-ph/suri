@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, protocol } from "electron"
+import { execSync } from "child_process"
 import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
@@ -562,62 +563,53 @@ app.whenReady().then(async () => {
     })
 })
 
-// Handle app quit - ensure backend is stopped properly
-let isQuitting = false;
-let backendStopped = false;
+// =============================================================================
+// BACKEND CLEANUP MANAGEMENT
+// Simplified cleanup that matches backend signal handling
+// =============================================================================
 
-async function cleanupBackend(): Promise<void> {
-    if (backendStopped) {
-        console.log('[Main] Backend already stopped, skipping cleanup');
-        return;
-    }
+let isQuitting = false;
+
+/**
+ * Cleanup backend - synchronous kill that blocks until complete
+ * Backend handles SIGTERM gracefully now, so this is clean
+ */
+function cleanupBackend(): void {
+    if (isQuitting) return;
+    isQuitting = true;
     
-    backendStopped = true;
-    console.log('[Main] Stopping backend...');
-    
-    try {
-        await backendService.stop();
-        console.log('[Main] ✅ Backend stopped successfully');
-    } catch (error) {
-        console.error('[Main] ❌ Error stopping backend:', error);
-    }
+    console.log('[Main] 🛑 Stopping backend...');
+    backendService.killSync(); // Sends taskkill, backend handles gracefully
+    console.log('[Main] ✅ Backend stopped');
 }
 
-// Handle window close - stop backend when all windows closed
-app.on('window-all-closed', async () => {
-    console.log('[Main] All windows closed');
-    
-    // Stop backend first
-    await cleanupBackend();
-    
-    // Then quit (except on macOS)
-    if (process.platform !== 'darwin') {
-        console.log('[Main] Quitting application...');
-        app.quit();
-    }
-})
-
-// Handle app quit - final cleanup (fallback)
-app.on('before-quit', async (event) => {
+// Primary handler: Before quit (covers window close + menu quit + Alt+F4)
+app.on('before-quit', (event) => {
     if (!isQuitting) {
+        console.log('[Main] App quitting - cleanup backend...');
         event.preventDefault();
-        isQuitting = true;
         
-        console.log('[Main] Before quit event - ensuring cleanup...');
-        await cleanupBackend();
+        cleanupBackend();
         
-        console.log('[Main] Cleanup complete, quitting now');
-        app.quit();
+        // Allow quit after cleanup
+        setImmediate(() => app.exit(0));
     }
-})
+});
 
-// Handle will-quit - absolute final cleanup (no preventDefault here!)
-app.on('will-quit', () => {
-    console.log('[Main] Will quit - forcing cleanup');
-    // Synchronous cleanup as last resort
-    if (!backendStopped && backendService) {
-        backendService.stop().catch(err => {
-            console.error('[Main] Final cleanup error:', err);
-        });
+// Failsafe: Process exit (synchronous emergency cleanup)
+process.on('exit', (code) => {
+    console.log(`[Main] Process exiting (code ${code})`);
+    
+    // Emergency kill if backend still running
+    if (!isQuitting) {
+        try {
+            if (process.platform === 'win32') {
+                execSync('taskkill /F /IM suri-backend.exe /T', { stdio: 'ignore', timeout: 2000 });
+            } else {
+                execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
+            }
+        } catch {
+            // Already stopped - OK
+        }
     }
-})
+});
