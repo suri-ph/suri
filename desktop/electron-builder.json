@@ -3,13 +3,6 @@
         "dist-electron/**/*",
         "dist-react/**/*"
     ],
-    "extraResources": [
-        {
-            "from": "public/weights",
-            "to": "weights",
-            "filter": ["**/*"]
-        }
-    ],
     "appId": "com.suri.app",
     "productName": "Suri",
     "icon": "./picture.png",
