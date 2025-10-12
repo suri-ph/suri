@@ -1,15 +1,9 @@
 import { app, BrowserWindow, ipcMain, protocol } from "electron"
+import { execSync } from "child_process"
 import path from "path"
 import { fileURLToPath } from 'node:url'
 import isDev from "./util.js";
-import { readFile } from 'fs/promises';
-
-
-// Pre-loaded model buffers for better performance
-const modelBuffers: Map<string, ArrayBuffer> = new Map();
-// Legacy SCRFD service (node-onnx) is unused now; using WebWorker-based pipeline in renderer
-import { setupFaceLogIPC } from "./faceLogIPC.js";
-import { faceDatabase } from "../services/FaceDatabase.js";
+import { backendService, type DetectionOptions } from './backendService.js';
 // Set consistent app name across all platforms for userData directory
 app.setName('Suri');
 
@@ -34,17 +28,343 @@ if (process.platform === 'win32') {
   app.commandLine.appendSwitch('use-angle', 'default') // Let ANGLE choose best backend
 }
 
-// Suppress GPU process errors for old hardware (cosmetic fix)
-app.commandLine.appendSwitch('disable-logging')
-app.commandLine.appendSwitch('log-level', '3') // Only show fatal errors
+// Enable logging for debugging (commented out GPU error suppression)
+// app.commandLine.appendSwitch('disable-logging')
+// app.commandLine.appendSwitch('log-level', '3') // Only show fatal errors
 
 let mainWindowRef: BrowserWindow | null = null
 // Removed legacy scrfdService usage
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Backend Service Management
+async function startBackend(): Promise<void> {
+    try {
+        await backendService.start();
+    } catch (error) {
+        console.error('Failed to start backend service:', error);
+        throw error;
+    }
+}
+
 // Face Recognition Pipeline IPC handlers
 // Removed legacy face-recognition IPC; detection/recognition handled in renderer via Web Workers
+
+// Backend Service IPC handlers for FastAPI integration
+ipcMain.handle('backend:check-availability', async () => {
+    try {
+        return await backendService.checkAvailability();
+    } catch (error) {
+        return { available: false, error: error instanceof Error ? error.message : String(error) };
+    }
+});
+
+ipcMain.handle('backend:check-readiness', async () => {
+    try {
+        return await backendService.checkReadiness();
+    } catch (error) {
+        return { ready: false, modelsLoaded: false, error: error instanceof Error ? error.message : String(error) };
+    }
+});
+
+ipcMain.handle('backend:get-models', async () => {
+    try {
+        return await backendService.getModels();
+    } catch (error) {
+        throw new Error(`Failed to get models: ${error instanceof Error ? error.message : String(error)}`);
+    }
+});
+
+ipcMain.handle('backend:detect-faces', async (_event, imageBase64: string, options: DetectionOptions = {}) => {
+    try {
+        return await backendService.detectFaces(imageBase64, options);
+    } catch (error) {
+        throw new Error(`Face detection failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+});
+
+// Real-time detection with binary support (IPC replacement for WebSocket)
+ipcMain.handle('backend:detect-stream', async (_event, imageData: ArrayBuffer | string, options: {
+    model_type?: string;
+    nms_threshold?: number;
+    enable_antispoofing?: boolean;
+    frame_timestamp?: number;
+} = {}) => {
+    try {
+        const url = `${backendService.getUrl()}/detect`;
+        
+        let imageBase64: string;
+        if (imageData instanceof ArrayBuffer) {
+            // Convert ArrayBuffer to base64
+            const bytes = new Uint8Array(imageData);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            imageBase64 = Buffer.from(binary, 'binary').toString('base64');
+        } else {
+            imageBase64 = imageData;
+        }
+
+        const requestBody = {
+            image: imageBase64,
+            model_type: options.model_type || 'yunet',
+            confidence_threshold: 0.6,
+            nms_threshold: options.nms_threshold || 0.3,
+            enable_antispoofing: options.enable_antispoofing !== undefined ? options.enable_antispoofing : true
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(30000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        return {
+            type: 'detection_response',
+            faces: result.faces || [],
+            model_used: result.model_used || 'yunet',
+            processing_time: result.processing_time || 0,
+            timestamp: Date.now(),
+            frame_timestamp: options.frame_timestamp || Date.now(),
+            success: result.success !== undefined ? result.success : true
+        };
+    } catch (error) {
+        console.error('Stream detection failed:', error);
+        return {
+            type: 'error',
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: Date.now()
+        };
+    }
+});
+
+// Face recognition via IPC
+ipcMain.handle('backend:recognize-face', async (_event, imageData: string, bbox: number[], groupId?: string) => {
+    try {
+        const url = `${backendService.getUrl()}/face/recognize`;
+        
+        const requestBody = {
+            image: imageData,
+            bbox: bbox,
+            group_id: groupId
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(30000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Face recognition failed:', error);
+        return {
+            success: false,
+            person_id: null,
+            similarity: 0.0,
+            processing_time: 0,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+});
+
+// Face registration via IPC
+ipcMain.handle('backend:register-face', async (_event, imageData: string, personId: string, bbox: number[], groupId?: string) => {
+    try {
+        const url = `${backendService.getUrl()}/face/register`;
+        
+        const requestBody = {
+            image: imageData,
+            person_id: personId,
+            bbox: bbox,
+            group_id: groupId
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(30000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Face registration failed:', error);
+        return {
+            success: false,
+            person_id: personId,
+            total_persons: 0,
+            processing_time: 0,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+});
+
+// Get face database stats via IPC
+ipcMain.handle('backend:get-face-stats', async () => {
+    try {
+        const url = `${backendService.getUrl()}/face/stats`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Get face stats failed:', error);
+        throw error;
+    }
+});
+
+// Remove person via IPC
+ipcMain.handle('backend:remove-person', async (_event, personId: string) => {
+    try {
+        const url = `${backendService.getUrl()}/face/person/${encodeURIComponent(personId)}`;
+        
+        const response = await fetch(url, {
+            method: 'DELETE',
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Remove person failed:', error);
+        throw error;
+    }
+});
+
+// Update person via IPC
+ipcMain.handle('backend:update-person', async (_event, oldPersonId: string, newPersonId: string) => {
+    try {
+        const url = `${backendService.getUrl()}/face/person`;
+        
+        const requestBody = {
+            old_person_id: oldPersonId,
+            new_person_id: newPersonId
+        };
+
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Update person failed:', error);
+        throw error;
+    }
+});
+
+// Get all persons via IPC
+ipcMain.handle('backend:get-all-persons', async () => {
+    try {
+        const url = `${backendService.getUrl()}/face/persons`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Get all persons failed:', error);
+        throw error;
+    }
+});
+
+// Set similarity threshold via IPC
+ipcMain.handle('backend:set-threshold', async (_event, threshold: number) => {
+    try {
+        const url = `${backendService.getUrl()}/face/threshold`;
+        
+        const requestBody = {
+            threshold: threshold
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Set threshold failed:', error);
+        throw error;
+    }
+});
+
+// Clear face database via IPC
+ipcMain.handle('backend:clear-database', async () => {
+    try {
+        const url = `${backendService.getUrl()}/face/database`;
+        
+        const response = await fetch(url, {
+            method: 'DELETE',
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Clear database failed:', error);
+        throw error;
+    }
+});
 
 // Window control IPC handlers
 ipcMain.handle('window:minimize', () => {
@@ -68,51 +388,11 @@ ipcMain.handle('window:close', () => {
     return true
 })
 
-// Pre-load all models during app startup
-async function preloadModels(): Promise<void> {
-  const modelNames = [
-    'det_500m_kps_640.onnx',
-    'edgeface-recognition.onnx', 
-    'AntiSpoofing_bin_1.5_128.onnx'
-  ];
-  
-  try {
-    for (const modelName of modelNames) {
-      const modelPath = isDev()
-        ? path.join(__dirname, '../../public/weights', modelName)
-        : path.join(process.resourcesPath, 'weights', modelName);
-      
-      const buffer = await readFile(modelPath);
-      const arrayBuffer = new ArrayBuffer(buffer.byteLength);
-      new Uint8Array(arrayBuffer).set(new Uint8Array(buffer));
-      modelBuffers.set(modelName, arrayBuffer);
-  
-    }
-    
-
-
-  } catch (error) {
-    console.error('❌ Failed to pre-load models:', error);
-    throw error;
-  }
-}
-
-// Model loading IPC handlers - now returns pre-loaded buffers
-ipcMain.handle('model:load', async (_event, modelName: string) => {
-  const buffer = modelBuffers.get(modelName);
-  if (!buffer) {
-    throw new Error(`Model ${modelName} not found in pre-loaded cache`);
-  }
-  return buffer;
-});
-
-// Get all pre-loaded model buffers (for worker initialization)
-ipcMain.handle('models:get-all', async () => {
-  const result: Record<string, ArrayBuffer> = {};
-  for (const [name, buffer] of modelBuffers.entries()) {
-    result[name] = buffer;
-  }
-  return result;
+// Check if backend server is ready
+// All AI models are loaded on the server side, not in Electron
+ipcMain.handle('backend:is-ready', async () => {
+  const result = await backendService.checkReadiness();
+  return result.ready && result.modelsLoaded;
 });
 
 function createWindow(): void {
@@ -187,7 +467,7 @@ function createWindow(): void {
 
     // Load the app
     if (isDev()) {
-        mainWindow.loadURL('http://localhost:5123')
+        mainWindow.loadURL('http://localhost:3000')
     } else {
         mainWindow.loadFile(path.join(__dirname, '../../dist-react/index.html'))
     }
@@ -267,23 +547,14 @@ app.whenReady().then(async () => {
     
     createWindow()
     
-    // Pre-load models for optimal performance
+    // Start backend service (models are loaded on the server side)
+    console.log('[Main] Starting backend service...');
     try {
-        await preloadModels();
+        await startBackend();
+        console.log('[Main] Backend service started successfully!');
     } catch (error) {
-        console.error('[ERROR] Failed to pre-load models:', error);
+        console.error('[ERROR] Failed to start backend service:', error);
     }
-    
-    // Initialize SQLite database first
-    try {
-        await faceDatabase.initialize();
-    
-    } catch (error) {
-        console.error('[ERROR] Failed to initialize SQLite3 database:', error);
-    }
-    
-    // Setup database IPC handlers
-    setupFaceLogIPC()
 
     app.on('activate', function () {
         // On macOS it's common to re-create a window in the app when the
@@ -292,17 +563,53 @@ app.whenReady().then(async () => {
     })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit()
-    }
-})
+// =============================================================================
+// BACKEND CLEANUP MANAGEMENT
+// Simplified cleanup that matches backend signal handling
+// =============================================================================
 
-// Handle app quit
-app.on('before-quit', () => {
-    // Clean up resources
-    // nothing to dispose
-})
+let isQuitting = false;
+
+/**
+ * Cleanup backend - synchronous kill that blocks until complete
+ * Backend handles SIGTERM gracefully now, so this is clean
+ */
+function cleanupBackend(): void {
+    if (isQuitting) return;
+    isQuitting = true;
+    
+    console.log('[Main] 🛑 Stopping backend...');
+    backendService.killSync(); // Sends taskkill, backend handles gracefully
+    console.log('[Main] ✅ Backend stopped');
+}
+
+// Primary handler: Before quit (covers window close + menu quit + Alt+F4)
+app.on('before-quit', (event) => {
+    if (!isQuitting) {
+        console.log('[Main] App quitting - cleanup backend...');
+        event.preventDefault();
+        
+        cleanupBackend();
+        
+        // Allow quit after cleanup
+        setImmediate(() => app.exit(0));
+    }
+});
+
+// Failsafe: Process exit (synchronous emergency cleanup)
+process.on('exit', (code) => {
+    console.log(`[Main] Process exiting (code ${code})`);
+    
+    // Emergency kill if backend still running
+    if (!isQuitting) {
+        try {
+            if (process.platform === 'win32') {
+                execSync('taskkill /F /IM suri-backend.exe /T', { stdio: 'ignore', timeout: 2000 });
+            } else {
+                execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
+            }
+        } catch {
+            // Already stopped - OK
+        }
+    }
+});

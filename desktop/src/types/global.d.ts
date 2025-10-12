@@ -1,3 +1,14 @@
+import type {
+  FaceRecognitionResponse,
+  FaceRegistrationResponse,
+  PersonRemovalResponse,
+  DatabaseStatsResponse,
+  SimilarityThresholdResponse,
+  PersonUpdateResponse,
+  PersonListResponse,
+  DatabaseClearResponse
+} from './recognition.js'
+
 export {}
 
 declare global {
@@ -29,71 +40,96 @@ declare global {
     onUnmaximize: (callback: () => void) => () => void
   }
 
-  interface FaceRecognitionAPI {
-    // Face Detection & Recognition
-    initializeFaceRecognition: (options?: { similarityThreshold?: number }) => Promise<{ success: boolean; error?: string }>
-    processFrame: (imageData: ImageData) => Promise<{
-      detections: Array<{
+  interface BackendAPI {
+    checkAvailability: () => Promise<{ available: boolean; status?: number; error?: string }>
+    checkReadiness: () => Promise<{ ready: boolean; modelsLoaded: boolean; error?: string }>
+    getModels: () => Promise<Record<string, {
+      name: string;
+      type: string;
+      version: string;
+      loaded: boolean;
+      size?: number;
+      accuracy?: number;
+    }>>
+    detectFaces: (imageBase64: string, options?: {
+      model_type?: string;
+      confidence_threshold?: number;
+      nms_threshold?: number;
+    }) => Promise<{
+      faces: Array<{
         bbox: [number, number, number, number];
         confidence: number;
         landmarks: number[][];
-        recognition?: {
-          personId: string | null;
-          similarity: number;
-        };
+        landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
       }>;
-      processingTime: number;
+      model_used: string;
+      processing_time: number;
     }>
-    registerPerson: (personId: string, imageData: ImageData, landmarks: number[][]) => Promise<boolean>
-    getAllPersons: () => Promise<string[]>
-    removePerson: (personId: string) => Promise<boolean>
-    
-    // Face Log Database API (SQLite)
-    logDetection: (detection: FaceLogEntry) => Promise<string>
-    getRecentLogs: (limit?: number) => Promise<FaceLogEntry[]>
-    getTodayStats: () => Promise<{ totalDetections: number; uniquePersons: number; firstDetection: string | null; lastDetection: string | null }>
-    exportData: (filePath: string) => Promise<boolean>
-    clearOldData: (daysToKeep: number) => Promise<number>
-    
-    // Person Management API (SQLite)
-    getAllPeople: () => Promise<string[]>
-    getPersonLogs: (personId: string, limit?: number) => Promise<FaceLogEntry[]>
-    updatePersonId: (oldPersonId: string, newPersonId: string) => Promise<number>
-    deletePersonRecords: (personId: string) => Promise<number>
-    getPersonStats: (personId: string) => Promise<{ 
-      totalDetections: number; 
-      avgConfidence: number;
-      firstDetection: string | null; 
-      lastDetection: string | null;
-      autoDetections: number;
-      manualDetections: number;
+    // Real-time detection via IPC (replaces WebSocket)
+    detectStream: (imageData: ArrayBuffer | string, options?: {
+      model_type?: string;
+      nms_threshold?: number;
+      enable_antispoofing?: boolean;
+      frame_timestamp?: number;
+    }) => Promise<{
+      type: string;
+      faces: Array<{
+        bbox: number[] | { x: number; y: number; width: number; height: number };
+        confidence: number;
+        landmarks?: number[][];
+        landmarks_468?: number[][];
+        antispoofing?: {
+          is_real?: boolean | null;
+          live_score?: number;
+          spoof_score?: number;
+          confidence?: number;
+          status?: 'real' | 'fake' | 'error';
+          label?: string;
+        };
+        track_id?: number;
+      }>;
+      model_used: string;
+      processing_time: number;
+      timestamp: number;
+      frame_timestamp?: number;
+      success: boolean;
+      message?: string;
     }>
-    
-    // Face Recognition Database API (File-based JSON)
-    saveFaceDatabase: (databaseData: Record<string, number[]>) => Promise<{ success: boolean; error?: string }>
-    loadFaceDatabase: () => Promise<{ success: boolean; data: Record<string, number[]>; error?: string }>
-    removeFacePerson: (personId: string) => Promise<{ success: boolean; existed?: boolean; error?: string }>
-    getAllFacePersons: () => Promise<{ success: boolean; persons: string[]; error?: string }>
-    
-    // Generic IPC invoke method
-    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    // Face recognition APIs
+    recognizeFace: (imageData: string, bbox: number[], groupId?: string) => Promise<FaceRecognitionResponse>
+    registerFace: (imageData: string, personId: string, bbox: number[], groupId?: string) => Promise<FaceRegistrationResponse>
+    getFaceStats: () => Promise<DatabaseStatsResponse>
+    removePerson: (personId: string) => Promise<PersonRemovalResponse>
+    updatePerson: (oldPersonId: string, newPersonId: string) => Promise<PersonUpdateResponse>
+    getAllPersons: () => Promise<PersonListResponse>
+    setThreshold: (threshold: number) => Promise<SimilarityThresholdResponse>
+    clearDatabase: () => Promise<DatabaseClearResponse>
   }
 
-  interface FaceLogEntry {
-    id?: string;
-    timestamp: string;
-    personId: string | null;
-    confidence: number;
-    bbox: [number, number, number, number];
-    similarity?: number;
-    mode: 'auto' | 'manual';
+  interface BackendReadyAPI {
+    isReady: () => Promise<boolean>
+  }
+
+  // Backend Service API interface is now the primary interface for face recognition functionality
+  interface BackendServiceAPI {
+    // Face Recognition Database API (File-based)
+    saveFaceDatabase: (databaseData: Record<string, number[]>) => Promise<unknown>
+    loadFaceDatabase: () => Promise<unknown>
+    removeFacePerson: (personId: string) => Promise<unknown>
+    getAllFacePersons: () => Promise<unknown>
+    // Generic IPC invoke method
+    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    // Backend readiness check (models are loaded on server side)
+    backend_ready: BackendReadyAPI
+    // Backend Service API
+    backend: BackendAPI
   }
 
   interface Window {
     suriWS?: SuriWSClientAPI
     suriVideo?: SuriVideoAPI
     suriElectron?: SuriElectronAPI
-    electronAPI?: FaceRecognitionAPI
+    electronAPI: BackendServiceAPI  // Required for IPC mode
     __suriOffFrame?: () => void
   }
 }

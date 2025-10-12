@@ -1,65 +1,65 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-// Type definitions
-interface FaceLogEntry {
-    id?: string;
-    timestamp: string;
-    personId: string | null;
-    confidence: number;
-    bbox: [number, number, number, number];
-    similarity?: number;
-    mode: 'auto' | 'manual';
-}
-
-// Face Log Database API
+// Backend API
 contextBridge.exposeInMainWorld('electronAPI', {
-    logDetection: (detection: FaceLogEntry) => {
-        return ipcRenderer.invoke('face-db:log-detection', detection)
-    },
-    getRecentLogs: (limit?: number) => {
-        return ipcRenderer.invoke('face-db:get-recent-logs', limit)
-    },
-    getTodayStats: () => {
-        return ipcRenderer.invoke('face-db:get-today-stats')
-    },
-    exportData: (filePath: string) => {
-        return ipcRenderer.invoke('face-db:export-data', filePath)
-    },
-    clearOldData: (daysToKeep: number) => {
-        return ipcRenderer.invoke('face-db:clear-old-data', daysToKeep)
-    },
-    // Person Management API
-    getAllPeople: () => {
-        return ipcRenderer.invoke('face-db:get-all-people')
-    },
-    getPersonLogs: (personId: string, limit?: number) => {
-        return ipcRenderer.invoke('face-db:get-person-logs', personId, limit)
-    },
-    updatePersonId: (oldPersonId: string, newPersonId: string) => {
-        return ipcRenderer.invoke('face-db:update-person-id', oldPersonId, newPersonId)
-    },
-    deletePersonRecords: (personId: string) => {
-        return ipcRenderer.invoke('face-db:delete-person', personId)
-    },
-    getPersonStats: (personId: string) => {
-        return ipcRenderer.invoke('face-db:get-person-stats', personId)
-    },
-    // Face Recognition Database API (File-based)
-    saveFaceDatabase: (databaseData: Record<string, number[]>) => {
-        return ipcRenderer.invoke('face-recognition:save-database', databaseData)
-    },
-    loadFaceDatabase: () => {
-        return ipcRenderer.invoke('face-recognition:load-database')
-    },
-    removeFacePerson: (personId: string) => {
-        return ipcRenderer.invoke('face-recognition:remove-person', personId)
-    },
-    getAllFacePersons: () => {
-        return ipcRenderer.invoke('face-recognition:get-all-persons')
-    },
     // Generic IPC invoke method
     invoke: (channel: string, ...args: unknown[]) => {
         return ipcRenderer.invoke(channel, ...args)
+    },
+    // Backend readiness check (models are loaded on server side)
+    backend_ready: {
+        isReady: () => {
+            return ipcRenderer.invoke('backend:is-ready')
+        }
+    },
+    // Backend Service API
+    backend: {
+        checkAvailability: () => {
+            return ipcRenderer.invoke('backend:check-availability')
+        },
+        checkReadiness: () => {
+            return ipcRenderer.invoke('backend:check-readiness')
+        },
+        getModels: () => {
+            return ipcRenderer.invoke('backend:get-models')
+        },
+        detectFaces: (imageBase64: string, options?: { threshold?: number; max_faces?: number }) => {
+            return ipcRenderer.invoke('backend:detect-faces', imageBase64, options)
+        },
+        // Real-time detection via IPC (replaces WebSocket)
+        detectStream: (imageData: ArrayBuffer | string, options?: {
+            model_type?: string;
+            nms_threshold?: number;
+            enable_antispoofing?: boolean;
+            frame_timestamp?: number;
+        }) => {
+            return ipcRenderer.invoke('backend:detect-stream', imageData, options)
+        },
+        // Face recognition APIs
+        recognizeFace: (imageData: string, bbox: number[], groupId?: string) => {
+            return ipcRenderer.invoke('backend:recognize-face', imageData, bbox, groupId)
+        },
+        registerFace: (imageData: string, personId: string, bbox: number[], groupId?: string) => {
+            return ipcRenderer.invoke('backend:register-face', imageData, personId, bbox, groupId)
+        },
+        getFaceStats: () => {
+            return ipcRenderer.invoke('backend:get-face-stats')
+        },
+        removePerson: (personId: string) => {
+            return ipcRenderer.invoke('backend:remove-person', personId)
+        },
+        updatePerson: (oldPersonId: string, newPersonId: string) => {
+            return ipcRenderer.invoke('backend:update-person', oldPersonId, newPersonId)
+        },
+        getAllPersons: () => {
+            return ipcRenderer.invoke('backend:get-all-persons')
+        },
+        setThreshold: (threshold: number) => {
+            return ipcRenderer.invoke('backend:set-threshold', threshold)
+        },
+        clearDatabase: () => {
+            return ipcRenderer.invoke('backend:clear-database')
+        }
     }
 })
 

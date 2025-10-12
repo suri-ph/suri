@@ -18,7 +18,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Split large dependencies into separate chunks for better caching
-          onnxruntime: ['onnxruntime-web'],
           vendor: ['react', 'react-dom'],
           ui: ['@fortawesome/fontawesome-free']
         }
@@ -26,16 +25,13 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5123,
-    strictPort: true,
+    port: 3000,
+    strictPort: false,
     headers: {
       // Enable COOP/COEP for SharedArrayBuffer and threading
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp'
     }
-  },
-  optimizeDeps: {
-    exclude: ['onnxruntime-web']
   },
   define: {
     // Enable WASM threads

@@ -1,28 +1,129 @@
-# Environment files
-.env
-
-# Database files
-*.db
-face_database
-
-# Playground/testing
-playground
-
-# Node.js
+# ===================================
+# DEPENDENCIES
+# ===================================
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.pnpm-store/
+.pnpm-debug.log
 
+# ===================================
+# BUILD OUTPUTS
+# ===================================
 # Electron
 desktop/dist/
 desktop/dist-electron/
 desktop/dist-react/
+desktop/out/
 
-# IDE
+# Backend
+backend/dist/
+backend/build/
+backend/*.exe
+backend/*.pkg
+
+# ===================================
+# ENVIRONMENT & CONFIG
+# ===================================
+.env
+.env.local
+.env.*.local
+*.local
+
+# ===================================
+# DATABASE & DATA
+# ===================================
+*.db
+*.sqlite
+*.sqlite3
+face_database/
+attendance_database/
+
+# ===================================
+# LOGS
+# ===================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===================================
+# PYTHON
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.toc
+*.pyz
+*.pyo
+*.pyd
+
+# PyInstaller
+*.manifest
+*.spec.bak
+
+# ===================================
+# TYPESCRIPT
+# ===================================
+*.tsbuildinfo
+.tsbuildinfo
+
+# ===================================
+# TESTING & COVERAGE
+# ===================================
+coverage/
+*.coverage
+.nyc_output
+.cache
+
+# ===================================
+# IDE & EDITORS
+# ===================================
 .vscode/
+.cursor/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
+# ===================================
 # OS
+# ===================================
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ===================================
+# TEMPORARY & MISC
+# ===================================
+*.tmp
+*.temp
+.tmp/
+.temp/
+playground/
+
+# ===================================
+# CI/CD (optional)
+# ===================================
+.github/
+

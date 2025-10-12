@@ -3,24 +3,36 @@
         "dist-electron/**/*",
         "dist-react/**/*"
     ],
-    "extraResources": [
-    {
-      "from": "public/weights",
-      "to": "weights",
-      "filter": ["**/*"]
-    }
-  ],
     "appId": "com.suri.app",
     "productName": "Suri",
     "icon": "./picture.png",
+    "beforePack": "scripts/before-pack.cjs",
     "win": {
-        "target": ["portable", "msi"]
+        "target": ["portable", "msi"],
+        "extraResources": [
+            {
+                "from": "../server/dist/suri-backend.exe",
+                "to": "server/suri-backend.exe"
+            }
+        ]
     },
     "linux": {
         "target": "AppImage",
-        "category": "utility"
+        "category": "utility",
+        "extraResources": [
+            {
+                "from": "../server/dist/suri-backend",
+                "to": "server/suri-backend"
+            }
+        ]
     },
     "mac": {
-        "target": "dmg"
+        "target": "dmg",
+        "extraResources": [
+            {
+                "from": "../server/dist/suri-backend",
+                "to": "server/suri-backend"
+            }
+        ]
     }
 }
