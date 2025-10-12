@@ -16,16 +16,19 @@ logger = logging.getLogger(__name__)
 class AntiSpoof:
     def __init__(self,
                  model_path: str = None,
-                 model_img_size: int = 128):
+                 model_img_size: int = 128,
+                 live_threshold: float = 0.3):
         """
         Initialize Anti-Spoofing detector
         
         Args:
             model_path: Path to the ONNX model file
             model_img_size: Input image size for the model
+            live_threshold: Minimum live_score to consider face as real (default: 0.3)
         """
         self.model_path = model_path
         self.model_img_size = model_img_size
+        self.live_threshold = live_threshold
         self.ort_session, self.input_name = self._init_session_(model_path)
 
     def _init_session_(self, onnx_model_path: str):
@@ -186,9 +189,21 @@ class AntiSpoof:
                 
                 predicted_class = np.argmax(pred[0])
                 
-                spoof_score = print_score + replay_score
+                # VALIDATION: Ensure scores are properly normalized (sum ≈ 1.0)
+                score_sum = live_score + print_score + replay_score
+                if abs(score_sum - 1.0) > 1e-6:
+                    logger.warning(f"AntiSpoof scores not properly normalized: sum={score_sum:.6f}")
                 
-                is_real = (predicted_class == 0)
+                # OPTIMIZED: Since softmax normalizes scores (sum = 1), 
+                # spoof_score = 1 - live_score is cleaner and equivalent
+                # Mathematical proof: live + print + replay = 1, so spoof = print + replay = 1 - live
+                spoof_score = 1.0 - live_score
+                
+                is_real = live_score >= self.live_threshold
+                
+                # DEBUG: Log the decision process
+                logger.debug(f"AntiSpoof Decision: live_score={live_score:.3f}, threshold={self.live_threshold:.3f}, "
+                           f"predicted_class={predicted_class}, is_real={is_real}")
                 
                 result = {
                     'is_real': bool(is_real),

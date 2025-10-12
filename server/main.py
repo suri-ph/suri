@@ -135,7 +135,8 @@ async def startup_event():
         
         optimized_antispoofing_detector = AntiSpoof(
             model_path=str(ANTISPOOFING_CONFIG["model_path"]),
-            model_img_size=ANTISPOOFING_CONFIG.get("model_img_size", 128)
+            model_img_size=ANTISPOOFING_CONFIG.get("model_img_size", 128),
+            live_threshold=ANTISPOOFING_CONFIG.get("live_threshold", 0.3)
         )
         
         # Initialize shared FaceMesh detector first

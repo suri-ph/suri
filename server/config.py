@@ -152,11 +152,12 @@ MODEL_CONFIGS = {
     "antispoofing": {
         "name": "SimpleAntiSpoof",
         "model_path": WEIGHTS_DIR / "AntiSpoofing_print-replay_1.5_128.onnx",
-        "threshold": 0.5,
+        "threshold": 0.3,  # More lenient threshold for live faces (was 0.5)
+        "live_threshold": 0.3,  # Minimum live_score to consider face as real
         "bbox_inc": 1.5,
         "model_img_size": 128,
-        "description": "Anti-spoofing detector - Matches Face-AntiSpoofing prototype exactly",
-        "version": "prototype_accurate_fixed"
+        "description": "Anti-spoofing detector - Optimized with confidence-based threshold",
+        "version": "prototype_optimized"
     },
     "facemesh": {
         "name": "MediaPipe FaceMesh",
