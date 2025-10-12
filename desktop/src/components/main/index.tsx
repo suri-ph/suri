@@ -2036,7 +2036,7 @@ export default function Main() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 mt-3 bg-white/[0.02] border-l border-white/[0.08] flex flex-col max-h-full">
+        <div className="w-96 my-2 bg-white/[0.02] border-l border-b border-white/[0.08] flex flex-col max-h-full">
           <div className="px-4 py-2 border-b border-white/[0.08]">
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">

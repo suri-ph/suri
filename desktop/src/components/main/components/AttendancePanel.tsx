@@ -127,7 +127,7 @@ export function AttendancePanel({
             {/* Search - Left Side */}
             <input
               type="text"
-              placeholder="🔍 Search by name..."
+              placeholder="Search by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-white/[0.05] text-white text-xs border border-white/[0.1] rounded px-3 py-1.5 placeholder:text-white/30 focus:border-blue-500 focus:outline-none"
