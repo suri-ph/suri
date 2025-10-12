@@ -1,9 +1,3 @@
-"""
-Anti-Spoofing Detector
-Simple, effective anti-spoofing using ONNX model
-Based on the Face-AntiSpoofing prototype implementation
-"""
-
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -14,18 +8,7 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 class AntiSpoof:
-    def __init__(self,
-                 model_path: str = None,
-                 model_img_size: int = 128,
-                 live_threshold: float = 0.3):
-        """
-        Initialize Anti-Spoofing detector
-        
-        Args:
-            model_path: Path to the ONNX model file
-            model_img_size: Input image size for the model
-            live_threshold: Minimum live_score to consider face as real (default: 0.3)
-        """
+    def __init__(self, model_path: str, model_img_size: int, live_threshold: float):
         self.model_path = model_path
         self.model_img_size = model_img_size
         self.live_threshold = live_threshold
