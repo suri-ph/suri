@@ -88,7 +88,7 @@ def main():
         # Import the app directly for PyInstaller compatibility
         from main import app
         
-        logger.info(f"🚀 Starting server on {server_config['host']}:{server_config['port']}")
+        logger.info(f"Starting server on {server_config['host']}:{server_config['port']}")
         
         # Start the server
         uvicorn.run(

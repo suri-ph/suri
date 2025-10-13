@@ -3,7 +3,7 @@ import numpy as np
 import onnxruntime as ort
 import os
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -149,10 +149,12 @@ class AntiSpoof:
                 'live_score': float,       # Probability of real face
                 'spoof_score': float,      # print_score + replay_score
                 'confidence': float,       # Max of live/spoof score
-                'label': str,              # 'Live' or 'Spoof'
+                'label': str,              # 'Live', 'Print Attack', 'Replay Attack', or 'Spoof'
                 'predicted_class': int,    # 0=live, 1=print, 2=replay
                 'print_score': float,      # Photo attack probability
-                'replay_score': float      # Video replay attack probability
+                'replay_score': float,     # Video replay attack probability
+                'attack_type': str,        # 'live', 'print', 'replay', or 'unknown'
+                'detailed_label': str      # More descriptive label
             }
         """
         if not self.ort_session:
@@ -166,6 +168,12 @@ class AntiSpoof:
                 pred = onnx_result[0]
                 pred = self.postprocessing(pred)
                 
+                # VALIDATION: Ensure model outputs exactly 3 classes
+                if pred.shape[1] != 3:
+                    logger.error(f"Model output has {pred.shape[1]} classes, expected 3 (live, print, replay)")
+                    results.append(self._create_error_result("Invalid model output"))
+                    continue
+                
                 live_score = float(pred[0][0])
                 print_score = float(pred[0][1])
                 replay_score = float(pred[0][2])
@@ -177,43 +185,70 @@ class AntiSpoof:
                 if abs(score_sum - 1.0) > 1e-6:
                     logger.warning(f"AntiSpoof scores not properly normalized: sum={score_sum:.6f}")
                 
-                # OPTIMIZED: Since softmax normalizes scores (sum = 1), 
-                # spoof_score = 1 - live_score is cleaner and equivalent
-                # Mathematical proof: live + print + replay = 1, so spoof = print + replay = 1 - live
-                spoof_score = 1.0 - live_score
+                # Calculate spoof score as sum of print and replay scores
+                spoof_score = print_score + replay_score
                 
+                # Determine if face is real based on threshold
                 is_real = live_score >= self.live_threshold
                 
-                # DEBUG: Log the decision process
-                logger.debug(f"AntiSpoof Decision: live_score={live_score:.3f}, threshold={self.live_threshold:.3f}, "
-                           f"predicted_class={predicted_class}, is_real={is_real}")
+                # Determine attack type based on highest spoof score
+                if is_real:
+                    attack_type = 'live'
+                    label = 'Live'
+                    detailed_label = 'Live Face'
+                else:
+                    if print_score > replay_score:
+                        attack_type = 'print'
+                        label = 'Print Attack'
+                        detailed_label = f'Print Attack (confidence: {print_score:.3f})'
+                    elif replay_score > print_score:
+                        attack_type = 'replay'
+                        label = 'Replay Attack'
+                        detailed_label = f'Replay Attack (confidence: {replay_score:.3f})'
+                    else:
+                        attack_type = 'unknown'
+                        label = 'Spoof'
+                        detailed_label = f'Spoof Attack (print: {print_score:.3f}, replay: {replay_score:.3f})'
+                
+                # DEBUG: Log the decision process with attack type details
+                logger.debug(f"AntiSpoof Decision: live_score={live_score:.3f}, print_score={print_score:.3f}, "
+                           f"replay_score={replay_score:.3f}, threshold={self.live_threshold:.3f}, "
+                           f"predicted_class={predicted_class}, attack_type={attack_type}, is_real={is_real}")
                 
                 result = {
                     'is_real': bool(is_real),
                     'live_score': float(live_score),
                     'spoof_score': float(spoof_score),
                     'confidence': float(max(live_score, spoof_score)),
-                    'label': 'Live' if is_real else 'Spoof',
+                    'label': label,
+                    'detailed_label': detailed_label,
                     'predicted_class': int(predicted_class),
                     'print_score': float(print_score),
-                    'replay_score': float(replay_score)
+                    'replay_score': float(replay_score),
+                    'attack_type': attack_type
                 }
                 results.append(result)
                 
             except Exception as e:
                 logger.error(f"Error in anti-spoofing prediction: {e}")
-                results.append({
-                    'is_real': False,
-                    'live_score': 0.0,
-                    'spoof_score': 1.0,
-                    'confidence': 0.0,
-                    'label': 'Error',
-                    'predicted_class': 1,
-                    'print_score': 0.5,
-                    'replay_score': 0.5
-                })
+                results.append(self._create_error_result(f"Prediction error: {str(e)}"))
         
         return results
+    
+    def _create_error_result(self, error_msg: str) -> Dict:
+        """Create a standardized error result"""
+        return {
+            'is_real': False,
+            'live_score': 0.0,
+            'spoof_score': 1.0,
+            'confidence': 0.0,
+            'label': 'Error',
+            'detailed_label': f'Error: {error_msg}',
+            'predicted_class': 1,
+            'print_score': 0.5,
+            'replay_score': 0.5,
+            'attack_type': 'error'
+        }
 
     def detect_faces(self, image: np.ndarray, face_detections: List[Dict]) -> List[Dict]:
         """
@@ -279,10 +314,12 @@ class AntiSpoof:
                     'spoof_score': prediction['spoof_score'],
                     'confidence': prediction['confidence'],
                     'label': prediction['label'],
+                    'detailed_label': prediction['detailed_label'],
                     'status': 'real' if prediction['is_real'] else 'fake',
                     'predicted_class': prediction['predicted_class'],
                     'print_score': prediction['print_score'],
-                    'replay_score': prediction['replay_score']
+                    'replay_score': prediction['replay_score'],
+                    'attack_type': prediction['attack_type']
                 }
             else:
                 detection['antispoofing'] = {
@@ -291,10 +328,12 @@ class AntiSpoof:
                     'spoof_score': 1.0,
                     'confidence': 0.0,
                     'label': 'Error',
+                    'detailed_label': 'Error: Processing failed',
                     'status': 'error',
                     'predicted_class': 1,
                     'print_score': 0.5,
-                    'replay_score': 0.5
+                    'replay_score': 0.5,
+                    'attack_type': 'error'
                 }
             
             results.append(detection)
@@ -304,13 +343,146 @@ class AntiSpoof:
     async def detect_faces_async(self, image, faces):
         """Async wrapper for detect_faces method"""
         return self.detect_faces(image, faces)
+    
+    def get_attack_statistics(self, predictions: List[Dict]) -> Dict[str, Any]:
+        """
+        Analyze attack type statistics from predictions
+        
+        Args:
+            predictions: List of prediction results from predict() method
+            
+        Returns:
+            Dictionary with attack statistics
+        """
+        stats = {
+            "total_predictions": len(predictions),
+            "live_count": 0,
+            "print_count": 0,
+            "replay_count": 0,
+            "unknown_count": 0,
+            "error_count": 0,
+            "attack_distribution": {},
+            "confidence_stats": {
+                "live_avg": 0.0,
+                "print_avg": 0.0,
+                "replay_avg": 0.0,
+                "overall_avg": 0.0
+            }
+        }
+        
+        if not predictions:
+            return stats
+        
+        live_scores = []
+        print_scores = []
+        replay_scores = []
+        
+        for pred in predictions:
+            attack_type = pred.get('attack_type', 'unknown')
+            
+            if attack_type == 'live':
+                stats["live_count"] += 1
+                live_scores.append(pred.get('live_score', 0.0))
+            elif attack_type == 'print':
+                stats["print_count"] += 1
+                print_scores.append(pred.get('print_score', 0.0))
+            elif attack_type == 'replay':
+                stats["replay_count"] += 1
+                replay_scores.append(pred.get('replay_score', 0.0))
+            elif attack_type == 'error':
+                stats["error_count"] += 1
+            else:
+                stats["unknown_count"] += 1
+        
+        # Calculate attack distribution percentages
+        total_valid = stats["live_count"] + stats["print_count"] + stats["replay_count"]
+        if total_valid > 0:
+            stats["attack_distribution"] = {
+                "live_percentage": (stats["live_count"] / total_valid) * 100,
+                "print_percentage": (stats["print_count"] / total_valid) * 100,
+                "replay_percentage": (stats["replay_count"] / total_valid) * 100
+            }
+        
+        # Calculate average confidence scores
+        if live_scores:
+            stats["confidence_stats"]["live_avg"] = sum(live_scores) / len(live_scores)
+        if print_scores:
+            stats["confidence_stats"]["print_avg"] = sum(print_scores) / len(print_scores)
+        if replay_scores:
+            stats["confidence_stats"]["replay_avg"] = sum(replay_scores) / len(replay_scores)
+        
+        all_scores = live_scores + print_scores + replay_scores
+        if all_scores:
+            stats["confidence_stats"]["overall_avg"] = sum(all_scores) / len(all_scores)
+        
+        return stats
+
+    def validate_model(self) -> Dict[str, Any]:
+        """
+        Validate that the model is properly configured for 3-class detection
+        
+        Returns:
+            Dictionary with validation results
+        """
+        validation_result = {
+            "is_valid": False,
+            "model_path": str(self.model_path),
+            "model_exists": False,
+            "session_loaded": False,
+            "output_classes": 0,
+            "expected_classes": 3,
+            "class_names": ["live", "print", "replay"],
+            "errors": []
+        }
+        
+        # Check if model file exists
+        if os.path.isfile(self.model_path):
+            validation_result["model_exists"] = True
+        else:
+            validation_result["errors"].append(f"Model file not found: {self.model_path}")
+            return validation_result
+        
+        # Check if session is loaded
+        if self.ort_session is not None:
+            validation_result["session_loaded"] = True
+        else:
+            validation_result["errors"].append("ONNX session not loaded")
+            return validation_result
+        
+        # Test model output shape
+        try:
+            # Create a dummy input image
+            dummy_img = np.zeros((self.model_img_size, self.model_img_size, 3), dtype=np.uint8)
+            dummy_input = self.preprocessing(dummy_img)
+            
+            # Run inference
+            onnx_result = self.ort_session.run([], {self.input_name: dummy_input})
+            pred = onnx_result[0]
+            
+            # Check output shape
+            if len(pred.shape) == 2 and pred.shape[1] == 3:
+                validation_result["output_classes"] = pred.shape[1]
+                validation_result["is_valid"] = True
+                logger.info("SUCCESS: AntiSpoof model validation passed: 3-class detection ready")
+            else:
+                validation_result["errors"].append(f"Invalid output shape: {pred.shape}, expected (1, 3)")
+                
+        except Exception as e:
+            validation_result["errors"].append(f"Model inference test failed: {str(e)}")
+        
+        return validation_result
 
     def get_model_info(self):
         """Get model information"""
+        validation = self.validate_model()
         return {
             "name": "SimpleAntiSpoof",
             "model_path": self.model_path,
             "model_img_size": self.model_img_size,
             "description": "Simple anti-spoofing detector based on Face-AntiSpoofing prototype",
-            "version": "prototype_accurate"
+            "version": "prototype_accurate",
+            "validation": validation,
+            "supported_attacks": ["print", "replay"],
+            "detection_classes": 3,
+            "class_names": ["live", "print", "replay"]
         }
