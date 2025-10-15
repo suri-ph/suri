@@ -152,7 +152,7 @@ MODEL_CONFIGS = {
     "antispoofing": {
         "name": "SimpleAntiSpoof",
         "model_path": WEIGHTS_DIR / "AntiSpoofing_print-replay_1.5_128.onnx",
-        "live_threshold": 0.3,  # Minimum live_score to consider face as real
+        "live_threshold": 0.5,  # Minimum live_score to consider face as real
         "bbox_inc": 1.5,
         "model_img_size": 128,
         "description": "Anti-spoofing detector - Optimized with confidence-based threshold",
