@@ -59,8 +59,6 @@ declare global {
       faces: Array<{
         bbox: [number, number, number, number];
         confidence: number;
-        landmarks: number[][];
-        landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
       }>;
       model_used: string;
       processing_time: number;
@@ -76,8 +74,6 @@ declare global {
       faces: Array<{
         bbox: number[] | { x: number; y: number; width: number; height: number };
         confidence: number;
-        landmarks?: number[][];
-        landmarks_468?: number[][];
         antispoofing?: {
           is_real?: boolean | null;
           live_score?: number;

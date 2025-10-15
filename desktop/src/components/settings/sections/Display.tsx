@@ -9,7 +9,6 @@ export function Display({ quickSettings, toggleQuickSetting }: DisplayProps) {
   const settingItems = [
     { key: 'showFPS' as keyof QuickSettings, icon: '⚡', label: 'FPS' },
     { key: 'showBoundingBoxes' as keyof QuickSettings, icon: '▢', label: 'Boxes' },
-    { key: 'showLandmarks' as keyof QuickSettings, icon: '●', label: 'Landmarks' },
     { key: 'showAntiSpoofStatus' as keyof QuickSettings, icon: '🛡️', label: 'Anti-Spoof' },
     { key: 'showRecognitionNames' as keyof QuickSettings, icon: '👤', label: 'Names' },
     { key: 'showDebugInfo' as keyof QuickSettings, icon: '🔧', label: 'Debug' },

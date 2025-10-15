@@ -64,7 +64,7 @@ class YuNet:
             image: Input image (BGR format - OpenCV native)
             
         Returns:
-            List of face detection dictionaries with bbox, confidence, and landmarks
+            List of face detection dictionaries with bbox and confidence
         """
         if not self.detector:
             return []
@@ -83,7 +83,7 @@ class YuNet:
         detections = []
         for face in faces:
             if face[4] >= self.conf_threshold:  # confidence check
-                # YuNet returns [x, y, w, h, confidence, 10_landmarks]
+                # YuNet returns [x, y, w, h, confidence]
                 x, y, w, h, conf = face[:5]
                 
                 # Scale coordinates from resized image back to original image
@@ -110,15 +110,6 @@ class YuNet:
                 # Anti-spoofing already handles bbox expansion with its bbox_inc parameter (1.2)
                 # This eliminates redundant expansion that was applied TWICE (30% perf loss)
                 
-                landmarks = []
-                if len(face) > 5:
-                    landmarks = face[5:15]
-                    scaled_landmarks = []
-                    for i in range(0, len(landmarks), 2):
-                        lx = float(landmarks[i] * scale_x)
-                        ly = float(landmarks[i+1] * scale_y)
-                        scaled_landmarks.extend([lx, ly])
-                    landmarks = scaled_landmarks
                 
                 normalized_conf = float(conf)
                 if normalized_conf > 1.0:
@@ -139,8 +130,7 @@ class YuNet:
                         'width': face_width_orig,
                         'height': face_height_orig
                     },
-                    'confidence': normalized_conf,
-                    'landmarks': landmarks
+                    'confidence': normalized_conf
                 }
                 detections.append(detection)
         

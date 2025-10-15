@@ -13,14 +13,6 @@ export interface DetectionResult {
     };
     confidence: number;
     track_id?: number;
-    landmarks: {
-      right_eye: { x: number; y: number };
-      left_eye: { x: number; y: number };
-      nose_tip: { x: number; y: number };
-      right_mouth_corner: { x: number; y: number };
-      left_mouth_corner: { x: number; y: number };
-    };
-    landmarks_468?: Array<{ x: number; y: number }>;
     antispoofing?: {
       is_real: boolean | null;
       confidence: number;
@@ -39,8 +31,6 @@ export interface WebSocketFaceData {
   bbox?: number[];
   confidence?: number;
   track_id?: number;
-  landmarks?: number[][];
-  landmarks_468?: number[][];
   antispoofing?: {
     is_real?: boolean | null;
     confidence?: number;

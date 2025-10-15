@@ -10,8 +10,6 @@ interface DetectionResponse {
   faces: Array<{
     bbox: number[] | { x: number; y: number; width: number; height: number };
     confidence: number;
-    landmarks?: number[][];
-    landmarks_468?: number[][];
     antispoofing?: {
       is_real?: boolean | null;
       live_score?: number;

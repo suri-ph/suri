@@ -71,68 +71,8 @@ export const setupCanvasContext = (ctx: CanvasRenderingContext2D, color: string)
   ctx.lineJoin = 'round';
 };
 
-export const drawLandmarks = (
-  ctx: CanvasRenderingContext2D,
-  landmarks: {
-    right_eye: { x: number; y: number };
-    left_eye: { x: number; y: number };
-    nose_tip: { x: number; y: number };
-    right_mouth_corner: { x: number; y: number };
-    left_mouth_corner: { x: number; y: number };
-  },
-  scaleX: number,
-  scaleY: number,
-  offsetX: number,
-  offsetY: number
-) => {
-  const landmarkColor = '#00D4FF';
 
-  Object.entries(landmarks).forEach(([, point]) => {
-    const x = point.x * scaleX + offsetX;
-    const y = point.y * scaleY + offsetY;
-
-    ctx.save();
-
-    ctx.fillStyle = landmarkColor;
-    ctx.shadowColor = landmarkColor;
-    ctx.shadowBlur = 4;
-
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, 2 * Math.PI);
-    ctx.fill();
-
-    ctx.restore();
-  });
-};
-
-export const drawFaceMeshLandmarks = (
-  ctx: CanvasRenderingContext2D,
-  landmarks: Array<{ x: number; y: number }>,
-  scaleX: number,
-  scaleY: number,
-  offsetX: number,
-  offsetY: number
-) => {
-  const landmarkColor = '#00D4FF';
-  const landmarkSize = 1;
-
-  ctx.save();
-
-  ctx.fillStyle = landmarkColor;
-  ctx.shadowColor = landmarkColor;
-  ctx.shadowBlur = 2;
-
-  landmarks.forEach(point => {
-    const x = point.x * scaleX + offsetX;
-    const y = point.y * scaleY + offsetY;
-
-    ctx.beginPath();
-    ctx.arc(x, y, landmarkSize, 0, 2 * Math.PI);
-    ctx.fill();
-  });
-
-  ctx.restore();
-};
+// REMOVED: drawFaceMeshLandmarks - no longer needed
 
 interface DrawOverlaysParams {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -281,13 +221,6 @@ export const drawOverlays = ({
       ctx.fillText("RECOGNIZED", x1 + 10, y2 + 15);
     }
 
-    if (quickSettings.showLandmarks) {
-      if (face.landmarks_468 && face.landmarks_468.length > 0) {
-        drawFaceMeshLandmarks(ctx, face.landmarks_468, scaleX, scaleY, offsetX, offsetY);
-      } else if (face.landmarks) {
-        drawLandmarks(ctx, face.landmarks, scaleX, scaleY, offsetX, offsetY);
-      }
-    }
 
     ctx.shadowBlur = 0;
   });

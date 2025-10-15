@@ -14,7 +14,7 @@ import numpy as np
 import onnxruntime as ort
 
 from utils.database_manager import FaceDatabaseManager
-from .facemesh_detector import FaceMeshDetector
+from models.facemesh_detector import FaceMeshDetector
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,11 @@ class EdgeFaceDetector:
         providers: Optional[List[str]] = None,
         database_path: Optional[str] = None,
         session_options: Optional[Dict[str, Any]] = None,
-        facemesh_alignment: bool = False,  # Enable FaceMesh-based alignment
-        facemesh_detector: Optional['FaceMeshDetector'] = None,  # External FaceMesh detector instance
-        facemesh_model_path: Optional[str] = None,  # DEPRECATED: Path to FaceMesh ONNX model
-        facemesh_config: Optional[Dict[str, Any]] = None  # DEPRECATED: FaceMesh configuration
+        # FaceMesh alignment parameters
+        facemesh_alignment: bool = True,
+        facemesh_detector: Optional[Any] = None,
+        facemesh_model_path: Optional[str] = None,
+        facemesh_config: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize EdgeFace detector
@@ -46,10 +47,10 @@ class EdgeFaceDetector:
             providers: ONNX runtime providers
             database_path: Path to face database JSON file
             session_options: ONNX runtime session options for optimization
-            facemesh_alignment: Enable FaceMesh-based alignment instead of simple similarity transform
-            facemesh_detector: External FaceMesh detector instance (recommended for performance)
-            facemesh_model_path: DEPRECATED - Path to FaceMesh ONNX model file
-            facemesh_config: DEPRECATED - Configuration dictionary for FaceMesh detector
+            facemesh_alignment: Enable FaceMesh for high-precision face alignment
+            facemesh_detector: Pre-initialized FaceMesh detector instance
+            facemesh_model_path: Path to FaceMesh ONNX model
+            facemesh_config: FaceMesh configuration dictionary
         """
         self.model_path = model_path
         self.input_size = input_size
@@ -57,12 +58,7 @@ class EdgeFaceDetector:
         self.providers = providers or ['CPUExecutionProvider']
         self.database_path = database_path
         self.session_options = session_options
-        
-        # FaceMesh alignment parameters
         self.facemesh_alignment = facemesh_alignment
-        self.facemesh_model_path = facemesh_model_path
-        self.facemesh_config = facemesh_config or {}
-        self.facemesh_detector = None
         
         # Model specifications (matching EdgeFace research paper)
         self.INPUT_MEAN = 127.5
@@ -71,6 +67,30 @@ class EdgeFaceDetector:
         
         # Model components
         self.session = None
+        
+        # Initialize FaceMesh detector for high-precision alignment
+        self.facemesh_detector = None
+        if self.facemesh_alignment:
+            if facemesh_detector is not None:
+                self.facemesh_detector = facemesh_detector
+            elif facemesh_model_path and os.path.exists(facemesh_model_path):
+                try:
+                    facemesh_config = facemesh_config or {}
+                    self.facemesh_detector = FaceMeshDetector(
+                        model_path=facemesh_model_path,
+                        input_size=facemesh_config.get("input_size", (192, 192)),
+                        providers=facemesh_config.get("providers", self.providers),
+                        session_options=facemesh_config.get("session_options", self.session_options),
+                        score_threshold=facemesh_config.get("score_threshold", 0.5),
+                        margin_ratio=facemesh_config.get("margin_ratio", 0.25)
+                    )
+                    logger.info("FaceMesh detector initialized for high-precision alignment")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize FaceMesh detector: {e}")
+                    self.facemesh_alignment = False
+            else:
+                logger.warning("FaceMesh alignment enabled but no valid model path provided")
+                self.facemesh_alignment = False
         
         # Initialize SQLite database manager
         if self.database_path:
@@ -87,39 +107,6 @@ class EdgeFaceDetector:
         
         # Initialize the model
         self._initialize_model()
-        
-        # Initialize FaceMesh detector if alignment is enabled
-        if self.facemesh_alignment:
-            if facemesh_detector is not None:
-                # Use external FaceMesh detector (recommended for performance)
-                self.facemesh_detector = facemesh_detector
-            elif self.facemesh_model_path:
-                # Fallback: create internal FaceMesh detector (DEPRECATED)
-                logger.warning("Creating internal FaceMesh detector - consider using external instance for better performance")
-                try:
-                    # Extract only valid FaceMeshDetector parameters from config
-                    valid_params = {}
-                    if 'input_size' in self.facemesh_config:
-                        valid_params['input_size'] = self.facemesh_config['input_size']
-                    if 'score_threshold' in self.facemesh_config:
-                        valid_params['score_threshold'] = self.facemesh_config['score_threshold']
-                    if 'margin_ratio' in self.facemesh_config:
-                        valid_params['margin_ratio'] = self.facemesh_config['margin_ratio']
-                    
-                    self.facemesh_detector = FaceMeshDetector(
-                        model_path=self.facemesh_model_path,
-                        providers=self.providers,
-                        session_options=self.session_options,
-                        **valid_params
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to initialize FaceMesh detector: {e}")
-                    self.facemesh_alignment = False
-                    self.facemesh_detector = None
-            else:
-                logger.warning("FaceMesh alignment enabled but no detector instance or model path provided")
-                self.facemesh_alignment = False
-                self.facemesh_detector = None
         
     def _initialize_model(self):
         """Initialize the ONNX model with optimized session options"""
@@ -153,41 +140,39 @@ class EdgeFaceDetector:
             raise
     
     
-    def _align_face(self, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> np.ndarray:
+    def _align_face(self, image: np.ndarray, bbox: List[float]) -> np.ndarray:
         """
-        Align face using FaceMesh detector for high-quality alignment
+        Align face using FaceMesh's high-precision landmarks for optimal alignment
         
         Args:
             image: Input image
-            bbox: Face bounding box [x, y, width, height] for FaceMesh (required)
-            facemesh_landmarks_5: Pre-computed 5-point landmarks from FaceMesh (optional, avoids recomputation)
+            bbox: Face bounding box [x, y, width, height] (used for FaceMesh input)
             
         Returns:
             Aligned face crop (112x112)
-        """
-        # Use FaceMesh alignment (required)
-        if self.facemesh_alignment and self.facemesh_detector is not None:
-            # OPTIMIZATION: Use pre-computed landmarks if available
-            if facemesh_landmarks_5 is not None and len(facemesh_landmarks_5) > 0:
-                facemesh_landmarks = np.array(facemesh_landmarks_5, dtype=np.float32)
-            else:
-                # Fallback: Compute landmarks if not provided
-                # Convert bbox from [x, y, width, height] to [x1, y1, x2, y2] format for FaceMesh
-                x, y, width, height = bbox
-                facemesh_bbox = [x, y, x + width, y + height]
-                
-                # Get FaceMesh landmarks
-                facemesh_result = self.facemesh_detector.detect_landmarks(image, facemesh_bbox)
-                if facemesh_result['success'] and facemesh_result['landmarks_5']:
-                    facemesh_landmarks = np.array(facemesh_result['landmarks_5'], dtype=np.float32)
-                else:
-                    raise ValueError("FaceMesh detection failed - unable to detect landmarks")
             
-            # Create aligned face using FaceMesh landmarks and similarity transform
-            aligned_face = self._create_aligned_face(image, facemesh_landmarks)
-            return aligned_face
-        else:
-            raise ValueError("FaceMesh alignment is disabled or not available")
+        Raises:
+            RuntimeError: If FaceMesh alignment fails
+        """
+        if not self.facemesh_alignment or not self.facemesh_detector:
+            raise RuntimeError("FaceMesh alignment is required but not available")
+        
+        # Convert bbox to [x1, y1, x2, y2] format for FaceMesh
+        x, y, width, height = bbox
+        bbox_xyxy = [x, y, x + width, y + height]
+        
+        # Detect landmarks using FaceMesh
+        facemesh_result = self.facemesh_detector.detect_landmarks(image, bbox_xyxy)
+        
+        if not facemesh_result.get('success') or not facemesh_result.get('landmarks_5'):
+            raise RuntimeError("FaceMesh landmark detection failed")
+        
+        landmarks_5 = facemesh_result['landmarks_5']
+        landmarks = np.array(landmarks_5, dtype=np.float32)
+        
+        # Create aligned face using FaceMesh landmarks and similarity transform
+        aligned_face = self._create_aligned_face(image, landmarks)
+        return aligned_face
     
     def _create_aligned_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         """
@@ -279,21 +264,20 @@ class EdgeFaceDetector:
             logger.error(f"Image preprocessing failed: {e}")
             raise
     
-    def _extract_embedding(self, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> np.ndarray:
+    def _extract_embedding(self, image: np.ndarray, bbox: List[float]) -> np.ndarray:
         """
         Extract face embedding from image using FaceMesh alignment
         
         Args:
             image: Input image
             bbox: Bounding box [x, y, width, height] from face detection (required)
-            facemesh_landmarks_5: Pre-computed 5-point landmarks from FaceMesh (optional, avoids recomputation)
             
         Returns:
             Normalized face embedding (512-dim)
         """
         try:
-            # Align face using FaceMesh (with optional pre-computed landmarks)
-            aligned_face = self._align_face(image, bbox, facemesh_landmarks_5)
+            # Align face using FaceMesh landmarks
+            aligned_face = self._align_face(image, bbox)
             
             # Preprocess for model
             input_tensor = self._preprocess_image(aligned_face)
@@ -322,7 +306,7 @@ class EdgeFaceDetector:
         
         Args:
             image: Input image
-            face_data_list: List of dicts with 'bbox' and optional 'landmarks_5' keys
+            face_data_list: List of dicts with 'bbox' key
             
         Returns:
             List of normalized face embeddings (512-dim each)
@@ -338,10 +322,9 @@ class EdgeFaceDetector:
             for i, face_data in enumerate(face_data_list):
                 try:
                     bbox = face_data.get('bbox')
-                    landmarks_5 = face_data.get('landmarks_5')
                     
-                    # Align face
-                    aligned_face = self._align_face(image, bbox, landmarks_5)
+                    # Align face using FaceMesh
+                    aligned_face = self._align_face(image, bbox)
                     aligned_faces.append(aligned_face)
                     valid_indices.append(i)
                 except Exception as e:
@@ -387,8 +370,7 @@ class EdgeFaceDetector:
             for face_data in face_data_list:
                 try:
                     bbox = face_data.get('bbox')
-                    landmarks_5 = face_data.get('landmarks_5')
-                    emb = self._extract_embedding(image, bbox, landmarks_5)
+                    emb = self._extract_embedding(image, bbox)
                     embeddings.append(emb)
                 except:
                     continue
@@ -407,13 +389,12 @@ class EdgeFaceDetector:
             logger.error(f"Similarity calculation failed: {e}")
             return 0.0
     
-    def _find_best_match(self, embedding: np.ndarray, landmarks: Optional[np.ndarray] = None) -> Tuple[Optional[str], float]:
+    def _find_best_match(self, embedding: np.ndarray) -> Tuple[Optional[str], float]:
         """
         Find best matching person in database using fixed similarity threshold
         
         Args:
             embedding: Query embedding
-            landmarks: Optional landmarks (not used in simplified version)
             
         Returns:
             Tuple of (person_id, similarity_score)
@@ -443,21 +424,20 @@ class EdgeFaceDetector:
         else:
             return None, best_similarity
     
-    def recognize_face(self, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> Dict:
+    def recognize_face(self, image: np.ndarray, bbox: List[float]) -> Dict:
         """
         Recognize face in image using FaceMesh alignment (synchronous)
         
         Args:
             image: Input image as numpy array (BGR format)
             bbox: Bounding box [x, y, width, height] from face detection (required)
-            facemesh_landmarks_5: Pre-computed 5-point landmarks from FaceMesh (optional, avoids recomputation)
             
         Returns:
             Recognition result with person_id and similarity
         """
         try:
-            # Extract embedding using FaceMesh alignment (with optional pre-computed landmarks)
-            embedding = self._extract_embedding(image, bbox, facemesh_landmarks_5)
+            # Extract embedding using FaceMesh alignment
+            embedding = self._extract_embedding(image, bbox)
             
             # Find best match
             person_id, similarity = self._find_best_match(embedding)
@@ -479,21 +459,20 @@ class EdgeFaceDetector:
                 "error": str(e)
             }
     
-    async def recognize_face_async(self, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> Dict:
+    async def recognize_face_async(self, image: np.ndarray, bbox: List[float]) -> Dict:
         """
         Recognize face in image using FaceMesh alignment (asynchronous)
         
         Args:
             image: Input image as numpy array (BGR format)
             bbox: Bounding box [x, y, width, height] from face detection (required)
-            facemesh_landmarks_5: Pre-computed 5-point landmarks from FaceMesh (optional, avoids recomputation)
             
         Returns:
             Recognition result with person_id and similarity
         """
         # Run recognition in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.recognize_face, image, bbox, facemesh_landmarks_5)
+        return await loop.run_in_executor(None, self.recognize_face, image, bbox)
     
     def recognize_from_embedding(self, embedding: np.ndarray) -> Dict:
         """
@@ -559,8 +538,7 @@ class EdgeFaceDetector:
                     continue
                 
                 face_data = {
-                    'bbox': bbox_list,
-                    'landmarks_5': face.get('landmarks_5')
+                    'bbox': bbox_list
                 }
                 face_data_list.append(face_data)
             
@@ -593,7 +571,7 @@ class EdgeFaceDetector:
         
         Args:
             image: Input image
-            face_data_list: List of dicts with 'bbox' and optional 'landmarks_5' keys
+            face_data_list: List of dicts with 'bbox' key
             
         Returns:
             List of recognition results with person_id and similarity for each face
@@ -636,8 +614,7 @@ class EdgeFaceDetector:
             results = []
             for i, face_data in enumerate(face_data_list):
                 bbox = face_data.get('bbox')
-                landmarks_5 = face_data.get('landmarks_5')
-                result = self.recognize_face(image, bbox, landmarks_5)
+                result = self.recognize_face(image, bbox)
                 result['face_index'] = i
                 results.append(result)
             return results
@@ -648,7 +625,7 @@ class EdgeFaceDetector:
         
         Args:
             image: Input image
-            face_data_list: List of dicts with 'bbox' and optional 'landmarks_5' keys
+            face_data_list: List of dicts with 'bbox' keys
             
         Returns:
             List of recognition results
@@ -656,7 +633,7 @@ class EdgeFaceDetector:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.recognize_faces_batch, image, face_data_list)
     
-    def register_person(self, person_id: str, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> Dict:
+    def register_person(self, person_id: str, image: np.ndarray, bbox: List[float]) -> Dict:
         """
         Register a new person in the database using FaceMesh alignment
         
@@ -664,14 +641,13 @@ class EdgeFaceDetector:
             person_id: Unique identifier for the person
             image: Input image
             bbox: Bounding box [x, y, width, height] from face detection (required)
-            facemesh_landmarks_5: Pre-computed 5-point landmarks from FaceMesh (optional, avoids recomputation)
             
         Returns:
             Registration result
         """
         try:
-            # Extract embedding using FaceMesh alignment (with optional pre-computed landmarks)
-            embedding = self._extract_embedding(image, bbox, facemesh_landmarks_5)
+            # Extract embedding using FaceMesh alignment
+            embedding = self._extract_embedding(image, bbox)
             
             # Store in SQLite database
             if self.db_manager:
@@ -699,10 +675,10 @@ class EdgeFaceDetector:
                 "person_id": person_id
             }
     
-    async def register_person_async(self, person_id: str, image: np.ndarray, bbox: List[float], facemesh_landmarks_5: Optional[List] = None) -> Dict:
+    async def register_person_async(self, person_id: str, image: np.ndarray, bbox: List[float]) -> Dict:
         """Register person asynchronously using FaceMesh alignment"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.register_person, person_id, image, bbox, facemesh_landmarks_5)
+        return await loop.run_in_executor(None, self.register_person, person_id, image, bbox)
     
     def remove_person(self, person_id: str) -> Dict:
         """
@@ -856,9 +832,12 @@ class EdgeFaceDetector:
             "embedding_dimension": self.EMBEDDING_DIM,
             "similarity_threshold": self.similarity_threshold,
             "providers": self.providers,
-            "description": "EdgeFace recognition model for face identification",
+            "description": "EdgeFace recognition model with FaceMesh-only alignment for face identification",
             "version": "production",
             "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
             "requires_landmarks": False,
-            "landmark_count": 0
+            "landmark_count": 0,
+            "facemesh_alignment": self.facemesh_alignment,
+            "facemesh_available": self.facemesh_detector is not None,
+            "alignment_method": "facemesh_only"
         }

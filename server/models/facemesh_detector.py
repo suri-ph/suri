@@ -1,7 +1,9 @@
 """
 MediaPipe FaceMesh Detector Implementation
-Provides 468-point facial landmarks with conversion to 5-point landmarks for EdgeFace compatibility
-Based on PINTO0309's facemesh_onnx_tensorrt implementation
+Provides high-precision 468-point facial landmarks with conversion to 5-point landmarks for EdgeFace compatibility.
+Used specifically for face alignment to improve recognition accuracy.
+
+Based on PINTO0309's facemesh_onnx_tensorrt implementation.
 """
 
 import logging

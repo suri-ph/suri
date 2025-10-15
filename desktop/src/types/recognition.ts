@@ -103,13 +103,6 @@ export interface FaceWithRecognition {
   };
   confidence: number;
   track_id?: number; // SORT tracker ID for consistent face tracking across frames
-  landmarks: {
-    right_eye: { x: number; y: number };
-    left_eye: { x: number; y: number };
-    nose_tip: { x: number; y: number };
-    right_mouth_corner: { x: number; y: number };
-    left_mouth_corner: { x: number; y: number };
-  };
   antispoofing?: {
     is_real: boolean | null;
     live_score?: number;

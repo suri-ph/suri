@@ -1266,17 +1266,14 @@ async def bulk_detect_faces(
                 processed_faces = []
                 for face in detections:
                     bbox = face.get("bbox")
-                    landmarks = face.get("landmarks")  # YuNet returns "landmarks" not "landmarks_5"
                     
                     if not bbox:
                         continue
                     
-                    # Simple quality check - just ensure face is detected
                     quality_result = {"is_acceptable": True, "quality_score": 0.8}
                     
                     processed_faces.append({
                         "bbox": bbox,
-                        "landmarks_5": landmarks,  # Rename to landmarks_5 for frontend compatibility
                         "confidence": face.get("confidence", 0.0),
                         "quality_score": quality_result.get("quality_score", 0.0),
                         "quality_checks": quality_result.get("checks", {}),
@@ -1356,7 +1353,6 @@ async def bulk_register_faces(
                 person_id = reg_data.get("person_id")
                 image_base64 = reg_data.get("image")
                 bbox = reg_data.get("bbox")
-                landmarks_5 = reg_data.get("landmarks_5")
                 
                 # Validate required fields
                 if not person_id:
@@ -1432,8 +1428,7 @@ async def bulk_register_faces(
                 result = await edgeface_detector.register_person_async(
                     person_id,
                     image,
-                    bbox,
-                    landmarks_5
+                    bbox
                 )
                 
                 if result.get("success"):

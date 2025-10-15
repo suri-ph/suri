@@ -4,7 +4,6 @@ export interface QuickSettings {
   showFPS: boolean;
   showPreprocessing: boolean;
   showBoundingBoxes: boolean;
-  showLandmarks: boolean;
   showAntiSpoofStatus: boolean;
   showRecognitionNames: boolean;
   showDebugInfo: boolean;

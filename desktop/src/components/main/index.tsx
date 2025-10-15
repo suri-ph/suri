@@ -112,7 +112,6 @@ export default function Main() {
     showFPS: true,
     showPreprocessing: false,
     showBoundingBoxes: true,
-    showLandmarks: false,
     showAntiSpoofStatus: true,
     showRecognitionNames: true,
     showDebugInfo: false,
@@ -885,9 +884,7 @@ export default function Main() {
         if (data.faces && Array.isArray(data.faces)) {
           const detectionResult: DetectionResult = {
             faces: data.faces.map((face: WebSocketFaceData) => {
-              // Safe extraction of face data with fallbacks
               const bbox = face.bbox || [0, 0, 0, 0];
-              const landmarks = face.landmarks || [];
               
               return {
                 bbox: {
@@ -897,34 +894,7 @@ export default function Main() {
                   height: bbox[3] || 0
                 },
                 confidence: face.confidence || 0,
-                track_id: face.track_id, // CRITICAL: Include track_id from SORT tracker
-                landmarks: {
-                  // Backend landmarks are in face perspective order: [right_eye, left_eye, nose_tip, right_mouth, left_mouth]
-                  right_eye: { 
-                    x: (landmarks[0] && landmarks[0][0]) || 0, 
-                    y: (landmarks[0] && landmarks[0][1]) || 0 
-                  },
-                  left_eye: { 
-                    x: (landmarks[1] && landmarks[1][0]) || 0, 
-                    y: (landmarks[1] && landmarks[1][1]) || 0 
-                  },
-                  nose_tip: { 
-                    x: (landmarks[2] && landmarks[2][0]) || 0, 
-                    y: (landmarks[2] && landmarks[2][1]) || 0 
-                  },
-                  right_mouth_corner: { 
-                    x: (landmarks[3] && landmarks[3][0]) || 0, 
-                    y: (landmarks[3] && landmarks[3][1]) || 0 
-                  },
-                  left_mouth_corner: { 
-                    x: (landmarks[4] && landmarks[4][0]) || 0, 
-                    y: (landmarks[4] && landmarks[4][1]) || 0 
-                  }
-                },
-                landmarks_468: face.landmarks_468 ? face.landmarks_468.map(point => ({
-                  x: point[0] || 0,
-                  y: point[1] || 0
-                })) : undefined,
+                track_id: face.track_id,
                 antispoofing: face.antispoofing ? {
                   is_real: face.antispoofing.is_real ?? null,
                   confidence: face.antispoofing.confidence || 0,

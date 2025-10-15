@@ -171,7 +171,6 @@ MODEL_CONFIGS = {
         "version": "PINTO0309_tensorrt",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "landmark_count": 468,     # Full 468-point facial mesh
-        "output_5_point": True,    # Also outputs 5-point landmarks for EdgeFace compatibility
         "enable_dense_mesh": True, # Enable full 468-point mesh output
         "batch_size": 1,           # Single face processing for accuracy
         "alignment_method": "facemesh_dense",  # Dense mesh alignment method
@@ -189,7 +188,6 @@ MODEL_CONFIGS = {
         "embedding_dimension": 512,  # Face embedding dimension
         "database_path": DATA_DIR / "face_database.db",  # SQLite database storage (auto-handles dev/prod)
         "requires_landmarks": False,  # Uses FaceMesh alignment instead of external landmarks
-        "landmark_count": 0,  # No external landmarks required
         "batch_size": 4,  # Enable small batch processing
         "enable_face_alignment": True,
         "alignment_method": "facemesh_dense",  # Use FaceMesh for high-quality alignment

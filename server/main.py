@@ -22,7 +22,6 @@ from pydantic import BaseModel
 from models.yunet_detector import YuNet
 from models.antispoof_detector import AntiSpoof
 from models.edgeface_detector import EdgeFaceDetector
-from models.facemesh_detector import FaceMeshDetector
 from models.deep_sort_tracker import DeepSortFaceTracker
 from utils.image_utils import decode_base64_image, encode_image_to_base64
 from utils.websocket_manager import manager, handle_websocket_message
@@ -57,7 +56,6 @@ app.add_middleware(
 yunet_detector = None
 optimized_antispoofing_detector = None
 edgeface_detector = None
-facemesh_detector = None
 face_tracker = None
 
 # Initialize attendance database
@@ -123,7 +121,7 @@ class PersonUpdateRequest(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize models on startup"""
-    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, face_tracker, attendance_database
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, face_tracker, attendance_database
     try:
         yunet_detector = YuNet(
             model_path=str(YUNET_MODEL_PATH),
@@ -139,17 +137,7 @@ async def startup_event():
             live_threshold=ANTISPOOFING_CONFIG.get("live_threshold", 0.3)
         )
         
-        # Initialize shared FaceMesh detector first
-        facemesh_detector = FaceMeshDetector(
-            model_path=str(MODEL_CONFIGS["facemesh"]["model_path"]),
-            input_size=MODEL_CONFIGS["facemesh"]["input_size"],
-            score_threshold=MODEL_CONFIGS["facemesh"]["score_threshold"],
-            margin_ratio=MODEL_CONFIGS["facemesh"]["margin_ratio"],
-            providers=MODEL_CONFIGS["facemesh"]["providers"],
-            session_options=MODEL_CONFIGS["facemesh"]["session_options"]
-        )
-        
-        # Initialize EdgeFace detector with shared FaceMesh instance
+        # Initialize EdgeFace detector (uses FaceMesh for high-precision alignment)
         edgeface_detector = EdgeFaceDetector(
             model_path=str(EDGEFACE_MODEL_PATH),
             input_size=EDGEFACE_CONFIG["input_size"],
@@ -157,11 +145,10 @@ async def startup_event():
             providers=EDGEFACE_CONFIG["providers"],
             database_path=str(EDGEFACE_CONFIG["database_path"]),
             session_options=EDGEFACE_CONFIG.get("session_options"),
-            facemesh_alignment=EDGEFACE_CONFIG.get("facemesh_alignment", False),
-            facemesh_detector=facemesh_detector if EDGEFACE_CONFIG.get("facemesh_alignment", False) else None,
-            # DEPRECATED parameters - kept for backward compatibility
-            facemesh_model_path=str(MODEL_CONFIGS.get("facemesh", {}).get("model_path", "")) if EDGEFACE_CONFIG.get("facemesh_alignment") else None,
-            facemesh_config=MODEL_CONFIGS.get("facemesh", {}) if EDGEFACE_CONFIG.get("facemesh_alignment") else None
+            # Enable FaceMesh alignment for better precision
+            facemesh_alignment=EDGEFACE_CONFIG.get("facemesh_alignment", True),
+            facemesh_model_path=str(MODEL_CONFIGS["facemesh"]["model_path"]),
+            facemesh_config=MODEL_CONFIGS["facemesh"]
         )
         
         # Initialize Deep SORT face tracker (appearance + motion features)
@@ -193,7 +180,7 @@ async def shutdown_event():
     logger.info("🛑 Shutting down backend server...")
     
     # Cleanup models and resources
-    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, facemesh_detector, face_tracker, attendance_database
+    global yunet_detector, optimized_antispoofing_detector, edgeface_detector, face_tracker, attendance_database
     
     try:
         # Database connections use context managers - no explicit close needed
@@ -203,7 +190,6 @@ async def shutdown_event():
         yunet_detector = None
         optimized_antispoofing_detector = None
         edgeface_detector = None
-        facemesh_detector = None
         face_tracker = None
         attendance_database = None
         
@@ -412,50 +398,22 @@ async def detect_faces(request: DetectionRequest):
             
             faces = await process_antispoofing(faces, image, request.enable_antispoofing)
             
-            if faces and facemesh_detector:
-                try:
-                    for face in faces:
-                        bbox_orig = face.get('bbox_original', face['bbox'])
-                        
-                        x, y, w, h = bbox_orig['x'], bbox_orig['y'], bbox_orig['width'], bbox_orig['height']
-                        face_bbox = [x, y, x + w, y + h]
-                        
-                        loop = asyncio.get_event_loop()
-                        facemesh_result = await loop.run_in_executor(None, facemesh_detector.detect_landmarks, image, face_bbox)
-                        
-                        if facemesh_result and 'landmarks_468' in facemesh_result:
-                            # Add 468-point landmarks for frontend visualization
-                            face['landmarks_468'] = facemesh_result['landmarks_468']
-                        else:
-                            # If FaceMesh fails, set empty landmarks array
-                            face['landmarks_468'] = []
-                            
-                except Exception as e:
-                    logger.error(f"FaceMesh processing failed: {e}")
-                    # If FaceMesh fails, add empty landmarks arrays to all faces
-                    for face in faces:
-                        face['landmarks_468'] = []
-            
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported model type: {request.model_type}")
         
         processing_time = time.time() - start_time
 
-        # Convert bbox from dict to array format for frontend compatibility
-        # This ensures IPC and WebSocket have the same format
         for face in faces:
             if 'bbox' in face and isinstance(face['bbox'], dict):
                 bbox_orig = face.get('bbox_original', face['bbox'])
                 face['bbox'] = [bbox_orig.get('x', 0), bbox_orig.get('y', 0), bbox_orig.get('width', 0), bbox_orig.get('height', 0)]
             
-            # Convert track_id to native Python int if it exists (for JSON serialization)
             if 'track_id' in face:
                 import numpy as np
                 track_id_value = face['track_id']
                 if isinstance(track_id_value, (np.integer, np.int32, np.int64)):
                     face['track_id'] = int(track_id_value)
             
-            # Remove embeddings from response (not needed by frontend, causes JSON errors)
             if 'embedding' in face:
                 del face['embedding']
         
@@ -520,45 +478,22 @@ async def detect_faces_upload(
             
             faces = await process_antispoofing(faces, image, enable_antispoofing)
             
-            # Add FaceMesh 468 landmarks for frontend visualization
-            if facemesh_detector and faces:
-                for face in faces:
-                    try:
-                        bbox_orig = face.get('bbox_original', face.get('bbox', {}))
-                        x, y, w, h = bbox_orig.get('x', 0), bbox_orig.get('y', 0), bbox_orig.get('width', 0), bbox_orig.get('height', 0)
-                        face_bbox = [x, y, x + w, y + h]
-                        
-                        loop = asyncio.get_event_loop()
-                        facemesh_result = await loop.run_in_executor(None, facemesh_detector.detect_landmarks, image, face_bbox)
-                        
-                        if facemesh_result and 'landmarks_468' in facemesh_result:
-                            face['landmarks_468'] = facemesh_result['landmarks_468']
-                        else:
-                            face['landmarks_468'] = []
-                    except Exception as e:
-                        logger.warning(f"FaceMesh detection failed for face: {e}")
-                        face['landmarks_468'] = []  # Empty array on error
-            
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported model type: {model_type}")
         
         processing_time = time.time() - start_time
         
-        # Convert bbox from dict to array format for frontend compatibility
-        # This ensures IPC and WebSocket have the same format
         for face in faces:
             if 'bbox' in face and isinstance(face['bbox'], dict):
                 bbox_orig = face.get('bbox_original', face['bbox'])
                 face['bbox'] = [bbox_orig.get('x', 0), bbox_orig.get('y', 0), bbox_orig.get('width', 0), bbox_orig.get('height', 0)]
             
-            # Convert track_id to native Python int if it exists (for JSON serialization)
             if 'track_id' in face:
                 import numpy as np
                 track_id_value = face['track_id']
                 if isinstance(track_id_value, (np.integer, np.int32, np.int64)):
                     face['track_id'] = int(track_id_value)
             
-            # Remove embeddings from response (not needed by frontend, causes JSON errors)
             if 'embedding' in face:
                 del face['embedding']
         
@@ -633,7 +568,11 @@ async def recognize_face(request: FaceRecognitionRequest):
                         error=f"Recognition blocked: face status {status}"
                     )
         
-        result = await edgeface_detector.recognize_face_async(image, request.bbox)
+        # Use FaceMesh for high-precision face alignment
+        result = await edgeface_detector.recognize_face_async(
+            image, 
+            request.bbox
+        )
         
         processing_time = time.time() - start_time
         

@@ -46,8 +46,6 @@ export interface ModelInfo {
   description?: string;
   version?: string;
   supported_formats?: string[];
-  requires_landmarks?: boolean;
-  landmark_count?: number;
 }
 
 export interface ModelEntry {
@@ -74,8 +72,6 @@ export interface DetectionResponse {
   faces: Array<{
     bbox: [number, number, number, number];
     confidence: number;
-    landmarks: number[][];
-    landmarks_468?: number[][]; // FaceMesh 468 landmarks for frontend visualization
   }>;
   model_used: string;
   processing_time: number;
