@@ -1874,7 +1874,7 @@ export default function Main() {
         {/* Video Section */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Video Container */}
-          <div className="relative flex flex-1 min-h-0 items-center justify-center px-4 pt-4">
+          <div className="relative flex flex-1 min-h-0 items-center justify-center px-4 pt-5">
             <div className="relative w-full h-full min-h-[260px] overflow-hidden rounded-lg bg-white/[0.02] border border-white/[0.08]">
               <video
                 ref={videoRef}
