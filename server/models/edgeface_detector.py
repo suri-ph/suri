@@ -826,14 +826,11 @@ class EdgeFaceDetector:
     def get_model_info(self) -> Dict:
         """Get model information"""
         return {
-            "name": "EdgeFace",
             "model_path": self.model_path,
             "input_size": self.input_size,
             "embedding_dimension": self.EMBEDDING_DIM,
             "similarity_threshold": self.similarity_threshold,
             "providers": self.providers,
-            "description": "EdgeFace recognition model with FaceMesh-only alignment for face identification",
-            "version": "production",
             "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
             "requires_landmarks": False,
             "landmark_count": 0,

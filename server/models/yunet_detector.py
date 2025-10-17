@@ -164,12 +164,9 @@ class YuNet:
     def get_model_info(self):
         """Get model information"""
         return {
-            "name": "YuNet",
             "model_path": self.model_path,
             "input_size": self.input_size,
             "conf_threshold": self.conf_threshold,
             "nms_threshold": self.nms_threshold,
-            "top_k": self.top_k,
-            "description": "YuNet face detection model from OpenCV Zoo - OPTIMIZED",
-            "version": "2023mar"
+            "top_k": self.top_k
         }

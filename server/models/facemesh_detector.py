@@ -336,7 +336,6 @@ class FaceMeshDetector:
     def get_model_info(self) -> Dict:
         """Get model information"""
         return {
-            'name': 'MediaPipe FaceMesh',
             'model_path': self.model_path,
             'input_size': self.input_size,
             'landmark_count': 468,

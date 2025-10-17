@@ -1,7 +1,3 @@
-"""
-Configuration settings for the face detection backend
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -132,7 +128,6 @@ OPTIMIZED_SESSION_OPTIONS = {
 # Model configurations - OPTIMIZED FOR MAXIMUM PERFORMANCE
 MODEL_CONFIGS = {
     "yunet": {
-        "name": "YuNet",
         "model_path": WEIGHTS_DIR / "face_detection_yunet_2023mar.onnx",
         "input_size": (320, 320),
         "score_threshold": 0.4,
@@ -140,30 +135,22 @@ MODEL_CONFIGS = {
         "top_k": 100,
         "backend_id": 0,
         "target_id": 0,
-        "description": "YuNet face detection",
-        "version": "2023mar",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "max_image_size": (1920, 1080)
     },
     "antispoofing": {
-        "name": "SimpleAntiSpoof",
         "model_path": WEIGHTS_DIR / "AntiSpoofing_print-replay_1.5_128.onnx",
         "live_threshold": 0.3,  # Minimum live_score to consider face as real
         "bbox_inc": 1.5,
-        "model_img_size": 128,
-        "description": "Anti-spoofing detector - Optimized with confidence-based threshold",
-        "version": "prototype_optimized"
+        "model_img_size": 128
     },
     "facemesh": {
-        "name": "MediaPipe FaceMesh",
         "model_path": WEIGHTS_DIR / "face_mesh_Nx3x192x192_post.onnx",
         "input_size": (192, 192),  # FaceMesh standard input size
         "score_threshold": 0.5,    # Confidence threshold for landmark detection
         "margin_ratio": 0.25,      # 25% margin for face cropping as recommended by MediaPipe
         "providers": OPTIMIZED_PROVIDERS,  # Use optimized providers
         "session_options": OPTIMIZED_SESSION_OPTIONS,
-        "description": "MediaPipe FaceMesh model for 468-point facial landmark detection - OPTIMIZED",
-        "version": "PINTO0309_tensorrt",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "landmark_count": 468,     # Full 468-point facial mesh
         "enable_dense_mesh": True, # Enable full 468-point mesh output
@@ -171,14 +158,11 @@ MODEL_CONFIGS = {
         "alignment_method": "facemesh_dense",  # Dense mesh alignment method
     },
     "edgeface": {
-        "name": "EdgeFace-XS",
         "model_path": WEIGHTS_DIR / "edgeface-recognition-xs.onnx",
         "input_size": (112, 112),  # EdgeFace standard input size
         "similarity_threshold": 0.45,  # Reduced threshold for better movement tolerance
         "providers": OPTIMIZED_PROVIDERS,  # Use optimized providers
         "session_options": OPTIMIZED_SESSION_OPTIONS,
-        "description": "EdgeFace-XS Gamma 0.6 - Fast & Accurate Face Recognition - OPTIMIZED",
-        "version": "production",
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "embedding_dimension": 512,  # Face embedding dimension
         "database_path": DATA_DIR / "face_database.db",  # SQLite database storage (auto-handles dev/prod)
@@ -194,14 +178,11 @@ MODEL_CONFIGS = {
         "facemesh_model": "facemesh",  # Reference to FaceMesh model config
     },
     "deep_sort": {
-        "name": "Deep SORT",
         "max_age": 30,  # Maximum frames to keep track alive without detection
         "n_init": 2,  # 🚀 OPTIMIZED: Reduced from 3 to 2 (faster track confirmation)
         "max_iou_distance": 0.6,  # 🚀 OPTIMIZED: Reduced from 0.7 to 0.6 (stricter motion gating)
         "max_cosine_distance": 0.25,  # 🚀 OPTIMIZED: Reduced from 0.3 to 0.25 (stricter appearance gating)
         "nn_budget": 30,  # 🚀 OPTIMIZED: Reduced from 100 to 30 (faster matching, less memory)
-        "description": "Deep SORT tracker - OPTIMIZED: Faster matching with stricter gating",
-        "version": "1.0.0",
         "enable_appearance_matching": True,  # Use EdgeFace embeddings for tracking
         "matching_weights": {
             "appearance": 0.7,  # 70% weight on appearance matching
@@ -212,9 +193,6 @@ MODEL_CONFIGS = {
 
 # API configuration
 API_CONFIG = {
-    "title": "Face Detection API",
-    "description": "High-performance async face detection API with YuNet and other models",
-    "version": "1.0.0",
     "docs_url": "/docs",
     "redoc_url": "/redoc",
     "openapi_url": "/openapi.json",

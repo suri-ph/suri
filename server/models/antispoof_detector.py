@@ -8,10 +8,11 @@ from typing import List, Dict, Optional, Any
 logger = logging.getLogger(__name__)
 
 class AntiSpoof:
-    def __init__(self, model_path: str, model_img_size: int, live_threshold: float):
+    def __init__(self, model_path: str, model_img_size: int, live_threshold: float, config: Dict = None):
         self.model_path = model_path
         self.model_img_size = model_img_size
         self.live_threshold = live_threshold
+        self.config = config or {}
         self.ort_session, self.input_name = self._init_session_(model_path)
 
     def _init_session_(self, onnx_model_path: str):
@@ -476,11 +477,8 @@ class AntiSpoof:
         """Get model information"""
         validation = self.validate_model()
         return {
-            "name": "SimpleAntiSpoof",
             "model_path": self.model_path,
             "model_img_size": self.model_img_size,
-            "description": "Simple anti-spoofing detector based on Face-AntiSpoofing prototype",
-            "version": "prototype_accurate",
             "validation": validation,
             "supported_attacks": ["print", "replay"],
             "detection_classes": 3,
