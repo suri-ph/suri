@@ -183,8 +183,8 @@ export class BackendService {
       let args: string[];
 
       if (isDev()) {
-        // Development mode - use Python
-        command = 'python';
+        // Development mode - use Python virtual environment
+        command = path.join(process.cwd(), '..', 'venv', 'Scripts', 'python.exe');
         args = [executablePath, '--port', this.config.port.toString(), '--host', this.config.host];
       } else {
         // Production mode - use PyInstaller executable
