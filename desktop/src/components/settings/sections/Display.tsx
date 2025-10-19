@@ -36,11 +36,6 @@ export function Display({ quickSettings, toggleQuickSetting }: DisplayProps) {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold text-white/90">Overlay Configuration</h3>
-        <p className="text-sm text-white/50">Camera feed visual elements</p>
-      </div>
-
       <div className="space-y-4">
         {settingItems.map(({ key, label, description }) => (
           <div key={key} className="flex items-center justify-between py-3 border-b border-white/5 gap-4">
