@@ -1816,7 +1816,7 @@ export default function Main() {
   // Removed delayed recognition useEffect for real-time performance
 
   return (
-    <div className="pt-8 h-screen bg-black text-white flex flex-col overflow-hidden">
+    <div className="pt-11 pb-7 h-screen bg-black text-white flex flex-col overflow-hidden">
 
       {/* Error Display */}
       {error && (
@@ -1830,7 +1830,7 @@ export default function Main() {
         {/* Video Section */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Video Container */}
-          <div className="relative flex flex-1 min-h-0 items-center justify-center px-4 pt-6">
+          <div className="relative flex flex-1 min-h-0 items-center justify-center px-4 pt-4">
             <VideoCanvas
               videoRef={videoRef}
               canvasRef={canvasRef}

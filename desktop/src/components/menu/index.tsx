@@ -100,7 +100,7 @@ export function Menu({ onBack, initialSection }: MenuProps) {
   };
 
   return (
-    <div className="pt-10 h-screen bg-black text-white flex overflow-hidden">
+    <div className="pt-11 pb-7 h-screen bg-black text-white flex overflow-hidden">
       {/* Error Banner */}
       {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
 
