@@ -3,7 +3,6 @@ import { attendanceManager } from '../../../../services/AttendanceManager';
 import { backendService } from '../../../../services/BackendService';
 import type { AttendanceGroup, AttendanceMember } from '../../../../types/recognition';
 
-type RegistrationMode = 'quick' | 'full';
 type CaptureSource = 'upload' | 'live';
 
 type FrameStatus = 'pending' | 'processing' | 'ready' | 'error' | 'registered';
@@ -29,10 +28,7 @@ interface FaceCaptureProps {
   onRefresh?: () => Promise<void> | void;
 }
 
-const REQUIRED_ANGLES: Record<RegistrationMode, string[]> = {
-  quick: ['Front'],
-  full: ['Front', 'Profile Left', 'Profile Right']
-};
+const REQUIRED_ANGLE = 'Front';
 
 const makeId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -61,12 +57,11 @@ const getImageDimensions = (dataUrl: string) => new Promise<{ width: number; hei
 });
 
 export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
-  const [mode, setMode] = useState<RegistrationMode>('quick');
   const [source, setSource] = useState<CaptureSource>('upload');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [frames, setFrames] = useState<CapturedFrame[]>([]);
-  const [activeAngle, setActiveAngle] = useState<string>(REQUIRED_ANGLES.quick[0]);
+  const [activeAngle, setActiveAngle] = useState<string>(REQUIRED_ANGLE);
   const [memberStatus, setMemberStatus] = useState<Map<string, boolean>>(new Map());
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -78,7 +73,6 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const requiredAngles = useMemo(() => REQUIRED_ANGLES[mode], [mode]);
 
   const filteredMembers = useMemo(() => {
     if (!memberSearch.trim()) return members;
@@ -91,8 +85,8 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
 
   const resetFrames = useCallback(() => {
     setFrames([]);
-    setActiveAngle(REQUIRED_ANGLES[mode][0]);
-  }, [mode]);
+    setActiveAngle(REQUIRED_ANGLE);
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(track => track.stop());
@@ -168,13 +162,13 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     resetFrames();
     setSuccessMessage(null);
     setGlobalError(null);
-  }, [group, mode, resetFrames, members, selectedMemberId]);
+  }, [group, resetFrames, members, selectedMemberId]);
 
   useEffect(() => {
-    if (!requiredAngles.includes(activeAngle)) {
-      setActiveAngle(requiredAngles[0]);
+    if (activeAngle !== REQUIRED_ANGLE) {
+      setActiveAngle(REQUIRED_ANGLE);
     }
-  }, [requiredAngles, activeAngle]);
+  }, [activeAngle]);
 
   useEffect(() => {
     if (source === 'live') {
@@ -282,12 +276,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     await captureProcessedFrame(angle, dataUrl, width, height);
     
-    // Auto-advance to next angle in Full Spectrum mode
-    const currentIndex = requiredAngles.indexOf(angle);
-    if (currentIndex >= 0 && currentIndex < requiredAngles.length - 1) {
-      setActiveAngle(requiredAngles[currentIndex + 1]);
-    }
-  }, [captureProcessedFrame, requiredAngles]);
+  }, [captureProcessedFrame]);
 
   const handleFileSelected = useCallback(async (angle: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -312,10 +301,10 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     setFrames(prev => prev.filter(frame => frame.angle !== angle));
   }, []);
 
-  const framesReady = requiredAngles.every(angle => {
-    const frame = frames.find(item => item.angle === angle);
+  const framesReady = (() => {
+    const frame = frames.find(item => item.angle === REQUIRED_ANGLE);
     return frame && (frame.status === 'ready' || frame.status === 'registered');
-  });
+  })();
 
   const handleRegister = useCallback(async () => {
     if (!group) {
@@ -337,11 +326,14 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     }
 
     if (!framesReady) {
-      const missingAngles = requiredAngles.filter(angle => {
-        const frame = frames.find(f => f.angle === angle);
-        return !frame || (frame.status !== 'ready' && frame.status !== 'registered');
-      });
-      setGlobalError(`Missing or invalid captures for: ${missingAngles.join(', ')}. Please complete all required angles.`);
+      const frame = frames.find(f => f.angle === REQUIRED_ANGLE);
+      if (!frame) {
+        setGlobalError('Please capture a face image first.');
+      } else if (frame.status === 'error') {
+        setGlobalError('Face capture failed. Please try again.');
+      } else {
+        setGlobalError('Face capture is still processing. Please wait.');
+      }
       return;
     }
 
@@ -350,32 +342,26 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     setSuccessMessage(null);
 
     try {
-      for (const angle of requiredAngles) {
-        const frame = frames.find(item => item.angle === angle);
-        if (!frame || !frame.bbox) {
-          throw new Error(`Missing processed frame for ${angle}.`);
-        }
-
-        const payload = toBase64Payload(frame.dataUrl);
-        const result = await attendanceManager.registerFaceForGroupPerson(
-          group.id,
-          selectedMemberId,
-          payload,
-          frame.bbox
-        );
-
-        if (!result.success) {
-          throw new Error(result.error || `Registration failed for ${angle}.`);
-        }
-
-        updateFrame(frame.id, current => ({ ...current, status: 'registered' }));
+      const frame = frames.find(item => item.angle === REQUIRED_ANGLE);
+      if (!frame || !frame.bbox) {
+        throw new Error('Missing processed frame. Please capture a face image first.');
       }
 
-      setSuccessMessage(
-        mode === 'quick'
-          ? 'Quick registration synced. Identity embedded successfully.'
-          : 'Full-spectrum registration complete. Multi-angle embeddings secured.'
+      const payload = toBase64Payload(frame.dataUrl);
+      const result = await attendanceManager.registerFaceForGroupPerson(
+        group.id,
+        selectedMemberId,
+        payload,
+        frame.bbox
       );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Registration failed.');
+      }
+
+      updateFrame(frame.id, current => ({ ...current, status: 'registered' }));
+
+      setSuccessMessage('Registration complete. Identity embedded successfully.');
 
       await loadMemberStatus();
       if (onRefresh) {
@@ -387,7 +373,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     } finally {
       setIsRegistering(false);
     }
-  }, [group, selectedMemberId, framesReady, requiredAngles, frames, mode, loadMemberStatus, onRefresh, updateFrame, members]);
+  }, [group, selectedMemberId, framesReady, frames, loadMemberStatus, onRefresh, updateFrame, members]);
 
   const handleRemoveFaceData = useCallback(async (member: AttendanceMember) => {
     if (!group) return;
@@ -487,7 +473,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                   onClick={() => setSelectedMemberId(member.person_id)}
                   className={`group relative w-full rounded-xl border px-3 py-3 text-left transition-all ${
                     isSelected 
-                      ? 'border-cyan-400/40 bg-gradient-to-br from-cyan-500/10 to-cyan-600/5' 
+                      ? 'border-white/20 bg-gradient-to-br from-white/5 to-white/2' 
                       : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
                   }`}
                 >
@@ -537,11 +523,8 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
         <div className="space-y-4 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2">
           {/* Header */}
           {selectedMemberId ? (
-            <div className="rounded-xl border border-cyan-400/20 bg-gradient-to-br from-cyan-500/5 to-transparent p-4">
+            <div className="rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-4">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center text-xl">
-                  👤
-                </div>
                 <div className="flex-1">
                   <div className="text-lg font-medium text-white">
                     {members.find(m => m.person_id === selectedMemberId)?.name}
@@ -559,22 +542,6 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
 
           {selectedMemberId && (
             <>
-              {/* Controls */}
-              <div className="flex gap-2">
-                {(['quick', 'full'] as RegistrationMode[]).map(option => (
-                  <button
-                    key={option}
-                    onClick={() => setMode(option)}
-                    className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                      mode === option 
-                        ? 'bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 text-cyan-100 border border-cyan-400/40 shadow-lg shadow-cyan-500/10' 
-                        : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
-                    }`}
-                  >
-                    {option === 'quick' ? '⚡ Quick' : '🎯 Multi-angle'}
-                  </button>
-                ))}
-              </div>
 
               <div className="flex gap-2">
                 {(['upload', 'live'] as CaptureSource[]).map(option => (
@@ -583,11 +550,11 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                     onClick={() => setSource(option)}
                     className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                       source === option 
-                        ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 text-purple-100 border border-purple-400/40 shadow-lg shadow-purple-500/10' 
+                        ? 'bg-gradient-to-br from-white/10 to-white/5 text-white border border-white/20 shadow-lg shadow-white/5' 
                         : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
                     }`}
                   >
-                    {option === 'upload' ? '📁 Upload' : '📷 Camera'}
+                    {option === 'upload' ? 'Upload' : 'Camera'}
                   </button>
                 ))}
               </div>
@@ -617,27 +584,22 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                       {cameraError && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
                           <div className="space-y-2">
-                            <div className="text-2xl">📷</div>
                             <div className="text-xs text-red-300">{cameraError}</div>
                           </div>
                         </div>
                       )}
                     </div>
                     <button
-                      onClick={() => void captureFromCamera(activeAngle)}
+                      onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
                       disabled={!cameraReady || !!cameraError}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 border border-cyan-400/40 py-4 text-sm font-medium text-cyan-100 hover:from-cyan-500/30 hover:to-cyan-600/30 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-white/10 to-white/5 border border-white/20 py-4 text-sm font-medium text-white hover:from-white/15 hover:to-white/10 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
                     >
-                      <span className="text-lg">📸</span>
-                      Capture
+                      Capture Face
                     </button>
                   </div>
                 ) : (
                   <label className="flex h-96 cursor-pointer flex-col items-center justify-center p-8 text-center hover:bg-white/5 transition-all group">
                     <div className="flex flex-col items-center gap-4">
-                      <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center text-4xl transition-transform">
-                        📁
-                      </div>
                       <div>
                         <div className="text-sm text-white/60 mb-1">Drop image or click to browse</div>
                         <div className="text-xs text-white/30">PNG, JPG up to 10MB</div>
@@ -648,7 +610,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                       accept="image/*"
                       className="hidden"
                       onChange={(e) => {
-                        void handleFileSelected(activeAngle, e.target.files);
+                        void handleFileSelected(REQUIRED_ANGLE, e.target.files);
                         e.target.value = '';
                       }}
                     />
@@ -656,49 +618,17 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                 )}
               </div>
 
-              {/* Angle Selector & Preview */}
+              {/* Face Preview */}
               <div className="space-y-3">
-                {/* Angles */}
-                <div className="flex gap-2">
-                  {requiredAngles.map(angle => {
-                    const frame = frames.find(item => item.angle === angle);
-                    const isActive = activeAngle === angle;
-                    const isComplete = frame?.status === 'ready' || frame?.status === 'registered';
-                    const hasError = frame?.status === 'error';
-                    
-                    return (
-                      <button
-                        key={angle}
-                        onClick={() => setActiveAngle(angle)}
-                        className={`flex-1 rounded-xl px-3 py-2.5 text-xs font-medium transition-all border ${
-                          isActive
-                            ? 'bg-white/10 border-white/20 text-white'
-                            : isComplete
-                            ? 'bg-emerald-500/10 border-emerald-400/30 text-emerald-300'
-                            : hasError
-                            ? 'bg-red-500/10 border-red-400/30 text-red-300'
-                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          {isComplete && '✓'}
-                          {hasError && '✕'}
-                          {frame?.status === 'processing' && '...'}
-                          <span>{angle}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
 
                 {/* Preview */}
                 <div className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
                   <div className="p-2 border-b border-white/10">
-                    <div className="text-xs text-white/40">{activeAngle}</div>
+                    <div className="text-xs text-white/40">Front View</div>
                   </div>
                   <div className="p-3">
-                    {frames.find(f => f.angle === activeAngle) ? (
-                      frames.filter(f => f.angle === activeAngle).map(frame => {
+                    {frames.find(f => f.angle === REQUIRED_ANGLE) ? (
+                      frames.filter(f => f.angle === REQUIRED_ANGLE).map(frame => {
                         const left = frame.bbox ? (frame.bbox[0] / frame.width) * 100 : 0;
                         const top = frame.bbox ? (frame.bbox[1] / frame.height) * 100 : 0;
                         const width = frame.bbox ? (frame.bbox[2] / frame.width) * 100 : 0;
@@ -754,7 +684,6 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                     ) : (
                       <div className="flex h-40 items-center justify-center text-center">
                         <div className="space-y-2">
-                          <div className="text-3xl opacity-20">📷</div>
                           <div className="text-xs text-white/30">No capture</div>
                         </div>
                       </div>

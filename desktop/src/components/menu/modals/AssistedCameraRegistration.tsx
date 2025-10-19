@@ -3,7 +3,7 @@ import { attendanceManager } from '../../../services/AttendanceManager';
 import { backendService } from '../../../services/BackendService';
 import type { AttendanceGroup, AttendanceMember } from '../../../types/recognition';
 
-type RegistrationMode = 'quick' | 'full';
+type RegistrationMode = 'single';
 type CaptureStatus = 'pending' | 'capturing' | 'processing' | 'completed' | 'error';
 
 interface QueuedMember {
@@ -24,10 +24,7 @@ interface AssistedCameraRegistrationProps {
   onClose: () => void;
 }
 
-const REQUIRED_ANGLES: Record<RegistrationMode, string[]> = {
-  quick: ['Front'],
-  full: ['Front', 'Profile Left', 'Profile Right']
-};
+const REQUIRED_ANGLE = 'Front';
 
 const toBase64Payload = (dataUrl: string) => {
   const [, payload] = dataUrl.split(',');
@@ -35,10 +32,9 @@ const toBase64Payload = (dataUrl: string) => {
 };
 
 export function AssistedCameraRegistration({ group, members, onRefresh, onClose }: AssistedCameraRegistrationProps) {
-  const [mode, setMode] = useState<RegistrationMode>('quick');
+  const [mode] = useState<RegistrationMode>('single');
   const [memberQueue, setMemberQueue] = useState<QueuedMember[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentAngleIndex, setCurrentAngleIndex] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,9 +48,8 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const requiredAngles = REQUIRED_ANGLES[mode];
   const currentMember = memberQueue[currentIndex];
-  const currentAngle = requiredAngles[currentAngleIndex];
+  const currentAngle = REQUIRED_ANGLE;
   const totalMembers = memberQueue.length;
   const completedMembers = memberQueue.filter(m => m.status === 'completed').length;
   const progress = totalMembers > 0 ? Math.round((completedMembers / totalMembers) * 100) : 0;
@@ -188,32 +183,23 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         throw new Error(result.error || 'Registration failed');
       }
 
-      // Update member with captured angle
-      const newCapturedAngles = [...currentMember.capturedAngles, currentAngle];
-      const allAnglesCompleted = requiredAngles.every(angle => newCapturedAngles.includes(angle));
-
+      // Mark member as completed since we only need one angle
       setMemberQueue(prev => prev.map((m, idx) => 
         idx === currentIndex ? {
           ...m,
-          capturedAngles: newCapturedAngles,
-          status: allAnglesCompleted ? 'completed' as CaptureStatus : 'pending' as CaptureStatus,
+          capturedAngles: [currentAngle],
+          status: 'completed' as CaptureStatus,
           qualityWarning: bestFace.confidence && bestFace.confidence < 0.8 
             ? 'Low confidence - consider retaking' 
             : undefined
         } : m
       ));
 
-      // Auto-advance logic
+      // Auto-advance to next member since we only need one angle
       if (autoAdvance) {
-        if (currentAngleIndex < requiredAngles.length - 1) {
-          // Next angle for same member
-          setTimeout(() => setCurrentAngleIndex(prev => prev + 1), 500);
-        } else if (currentIndex < memberQueue.length - 1) {
+        if (currentIndex < memberQueue.length - 1) {
           // Next member
-          setTimeout(() => {
-            setCurrentIndex(prev => prev + 1);
-            setCurrentAngleIndex(0);
-          }, 1000);
+          setTimeout(() => setCurrentIndex(prev => prev + 1), 1000);
         } else {
           // All done
           setSuccessMessage(`✅ All ${totalMembers} members registered successfully!`);
@@ -236,7 +222,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
     } finally {
       setIsProcessing(false);
     }
-  }, [currentMember, currentAngle, currentIndex, currentAngleIndex, requiredAngles, memberQueue, group.id, autoAdvance, totalMembers, onRefresh]);
+  }, [currentMember, currentAngle, currentIndex, memberQueue, group.id, autoAdvance, totalMembers, onRefresh]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -335,28 +321,6 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
           {!queueStarted ? (
             /* Setup Phase */
             <div className="space-y-6">
-              {/* Mode Selection */}
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-3">Registration Mode</h3>
-                <div className="flex gap-3">
-                  {(['quick', 'full'] as RegistrationMode[]).map(option => (
-                    <button
-                      key={option}
-                      onClick={() => setMode(option)}
-                      className={`flex-1 rounded-lg px-4 py-3 text-sm transition ${
-                        mode === option 
-                          ? 'bg-cyan-400/20 text-cyan-100 border border-cyan-400/40' 
-                          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="font-semibold">{option === 'quick' ? 'Quick' : 'Full Spectrum'}</div>
-                      <div className="text-xs mt-1 opacity-80">
-                        {option === 'quick' ? '1 photo per person' : '3 angles per person'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Settings */}
               <div>
@@ -400,7 +364,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                         key={member.person_id}
                         className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${
                           isInQueue 
-                            ? 'bg-cyan-500/20 border border-cyan-400/40' 
+                            ? 'bg-white/10 border border-white/20' 
                             : 'bg-white/5 border border-white/10 hover:bg-white/10'
                         }`}
                       >
@@ -431,7 +395,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
               {memberQueue.length > 0 && (
                 <button
                   onClick={() => setQueueStarted(true)}
-                  className="w-full px-4 py-4 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-100 hover:bg-emerald-500/30 transition text-base font-medium"
+                  className="w-full px-4 py-4 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition text-base font-medium"
                 >
                   🎥 Start Queue ({memberQueue.length} members)
                 </button>
@@ -466,7 +430,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                       <div className="bg-black/80 rounded-lg p-3 border border-white/20">
                         <div className="text-lg font-semibold text-white">{currentMember.name}</div>
                         <div className="text-sm text-white/60 mt-1">
-                          Capture: {currentAngle} ({currentAngleIndex + 1}/{requiredAngles.length})
+                          Capture: {currentAngle}
                         </div>
                       </div>
                     </div>
@@ -477,9 +441,9 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                 <button
                   onClick={() => void capturePhoto()}
                   disabled={!cameraReady || isProcessing || !currentMember}
-                  className="w-full px-4 py-4 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
+                  className="w-full px-4 py-4 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
                 >
-                  {isProcessing ? 'Processing...' : `📸 Capture ${currentAngle} (Space)`}
+                  {isProcessing ? 'Processing...' : `Capture ${currentAngle} (Space)`}
                 </button>
 
                 {/* Keyboard Shortcuts */}
@@ -521,7 +485,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                       : member.status === 'error'
                       ? 'border-red-400/60 bg-red-500/10'
                       : isCurrent
-                      ? 'border-cyan-400/60 bg-cyan-500/10'
+                      ? 'border-white/20 bg-white/10'
                       : 'border-white/10 bg-white/5';
 
                     return (
@@ -540,7 +504,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                           <span className={`text-xs px-2 py-0.5 rounded ${
                             member.status === 'completed' ? 'bg-emerald-500/20 text-emerald-200' :
                             member.status === 'error' ? 'bg-red-500/20 text-red-200' :
-                            member.status === 'processing' ? 'bg-yellow-500/20 text-yellow-200' :
+                            member.status === 'processing' ? 'bg-amber-500/20 text-amber-200' :
                             'bg-white/10 text-white/60'
                           }`}>
                             {member.status === 'completed' ? '✓ Done' :
@@ -576,7 +540,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
                   </div>
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-500"
+                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>

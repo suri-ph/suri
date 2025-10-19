@@ -99,7 +99,7 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
           <div className="relative flex items-start gap-4">
             <div className="flex-1">
               <div className="text-lg font-medium text-white mb-1">Individual</div>
-              <div className="text-sm text-white/50">Register one person at a time with precision</div>
+              <div className="text-sm text-white/50">Register one person at a time with high-quality face capture</div>
             </div>
             <svg className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

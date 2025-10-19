@@ -295,9 +295,6 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center text-xl">
-              📸
-            </div>
             <div>
               <h2 className="text-lg font-medium text-white">Batch Registration</h2>
               <p className="text-xs text-white/40 mt-0.5">{group.name}</p>
@@ -331,20 +328,17 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
           {/* Step 1: Upload Files */}
           {!registrationResults && (
             <div className="mb-6">
-              <label className="group relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:border-purple-400/40 hover:from-purple-500/5 transition-all overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/5 group-hover:to-transparent transition-all" />
+              <label className="group relative flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:border-white/20 hover:from-white/10 transition-all overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0 group-hover:from-white/5 group-hover:to-transparent transition-all" />
                 <div className="relative flex flex-col items-center gap-3">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center text-4xl transition-transform">
-                    📁
-                  </div>
                   <div className="text-center">
                     <div className="text-sm text-white/70 mb-1">Drop images or click to browse</div>
                     <div className="text-xs text-white/40">Up to 50 photos • Class or individual</div>
                   </div>
                   {uploadedFiles.length > 0 && (
-                    <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-400/30">
-                      <div className="h-1.5 w-1.5 rounded-full bg-purple-400" />
-                      <span className="text-xs text-purple-200">{uploadedFiles.length} images ready</span>
+                    <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
+                      <div className="h-1.5 w-1.5 rounded-full bg-white/60" />
+                      <span className="text-xs text-white/70">{uploadedFiles.length} images ready</span>
                     </div>
                   )}
                 </div>
@@ -361,7 +355,7 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
                 <button
                   onClick={() => void handleDetectFaces()}
                   disabled={isDetecting}
-                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-400/40 px-4 py-4 text-sm font-medium text-purple-100 hover:from-purple-500/30 hover:to-purple-600/30 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all shadow-lg shadow-purple-500/10"
+                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-white/10 to-white/5 border border-white/20 px-4 py-4 text-sm font-medium text-white hover:from-white/15 hover:to-white/10 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all shadow-lg shadow-white/5"
                 >
                   {isDetecting ? (
                     <>
@@ -404,7 +398,7 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
                           ? 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5' 
                           : face.isAcceptable
                           ? 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                          : 'border-yellow-400/30 bg-yellow-500/5'
+                          : 'border-amber-400/30 bg-amber-500/5'
                       }`}
                     >
                       {/* Face Preview */}
@@ -419,7 +413,7 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
                           <span className="text-xs text-white">{Math.round(face.confidence * 100)}%</span>
                         </div>
                         {!face.isAcceptable && (
-                          <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded-lg bg-yellow-500/90 text-center">
+                          <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded-lg bg-amber-500/90 text-center">
                             <div className="text-[10px] font-medium text-black">⚠️ Low quality</div>
                           </div>
                         )}
