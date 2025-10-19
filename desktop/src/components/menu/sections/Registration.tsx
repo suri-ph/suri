@@ -80,7 +80,7 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
         <div className="flex items-center gap-3">
           <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-500"
+              className="h-full bg-gradient-to-r from-[#00ff88] to-[#00ff88]/80 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -93,18 +93,15 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
         {/* Single */}
         <button
           onClick={() => setMode('single')}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-cyan-400/40 hover:bg-white/10 transition-all duration-300"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-white/20 hover:bg-white/10 transition-all duration-300"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:to-transparent transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0 group-hover:from-white/5 group-hover:to-transparent transition-all duration-300" />
           <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 text-2xl transition-transform duration-300">
-              👤
-            </div>
             <div className="flex-1">
               <div className="text-lg font-medium text-white mb-1">Individual</div>
               <div className="text-sm text-white/50">Register one person at a time with precision</div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-cyan-400 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
@@ -113,18 +110,15 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
         {/* Bulk */}
         <button
           onClick={() => setMode('bulk')}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-purple-400/40 hover:bg-white/10 transition-all duration-300"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-white/20 hover:bg-white/10 transition-all duration-300"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/5 group-hover:to-transparent transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0 group-hover:from-white/5 group-hover:to-transparent transition-all duration-300" />
           <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 text-2xl transition-transform duration-300">
-              📸
-            </div>
             <div className="flex-1">
               <div className="text-lg font-medium text-white mb-1">Batch Upload</div>
               <div className="text-sm text-white/50">Process multiple photos at once, assign faces</div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-purple-400 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
@@ -133,18 +127,15 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
         {/* Queue */}
         <button
           onClick={() => setMode('queue')}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-emerald-400/40 hover:bg-white/10 transition-all duration-300"
+          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 text-left hover:border-white/20 hover:bg-white/10 transition-all duration-300"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 group-hover:from-emerald-500/5 group-hover:to-transparent transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/0 group-hover:from-white/5 group-hover:to-transparent transition-all duration-300" />
           <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 text-2xl transition-transform duration-300">
-              🎥
-            </div>
             <div className="flex-1">
               <div className="text-lg font-medium text-white mb-1">Camera Queue</div>
               <div className="text-sm text-white/50">Capture multiple people sequentially with live camera</div>
             </div>
-            <svg className="w-5 h-5 text-white/20 group-hover:text-emerald-400 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white/20 group-hover:text-white/60 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
