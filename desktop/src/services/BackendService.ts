@@ -79,6 +79,8 @@ export class BackendService {
   private maxReconnectAttempts = 5;
   private reconnectTimeout: number | null = null;
   private pingInterval: number | null = null;
+  private isConnecting = false;
+  private connectionPromise: Promise<void> | null = null;
 
   constructor(config?: Partial<BackendConfig>) {
     this.config = {
@@ -245,7 +247,18 @@ export class BackendService {
   }
 
   async connectWebSocket(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    // If already connecting, return the existing promise
+    if (this.isConnecting && this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    // If already connected, return immediately
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      return Promise.resolve();
+    }
+
+    this.isConnecting = true;
+    this.connectionPromise = new Promise((resolve, reject) => {
       try {
         // Close existing connection if any
         if (this.ws) {
@@ -261,6 +274,8 @@ export class BackendService {
         
         this.ws.onopen = () => {
           this.reconnectAttempts = 0;
+          this.isConnecting = false;
+          this.connectionPromise = null;
           this.startPingInterval();
           resolve();
         };
@@ -276,6 +291,8 @@ export class BackendService {
         
         this.ws.onclose = (event) => {
           this.stopPingInterval();
+          this.isConnecting = false;
+          this.connectionPromise = null;
           
           if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.scheduleReconnect();
@@ -290,14 +307,20 @@ export class BackendService {
         
         this.ws.onerror = (error) => {
           console.error('[BackendService] WebSocket error:', error);
+          this.isConnecting = false;
+          this.connectionPromise = null;
           reject(error);
         };
         
       } catch (error) {
         console.error('[BackendService] Failed to create WebSocket:', error);
+        this.isConnecting = false;
+        this.connectionPromise = null;
         reject(error);
       }
     });
+
+    return this.connectionPromise;
   }
 
   private scheduleReconnect(): void {
@@ -410,6 +433,10 @@ export class BackendService {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
+    
+    // Reset connection state
+    this.isConnecting = false;
+    this.connectionPromise = null;
     
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');

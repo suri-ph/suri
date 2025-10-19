@@ -10,6 +10,7 @@ interface VideoCanvasProps {
   currentDetections: DetectionResult | null;
   detectionFps: number;
   websocketStatus: string;
+  isVideoLoading: boolean;
 }
 
 export function VideoCanvas({
@@ -20,6 +21,7 @@ export function VideoCanvas({
   currentDetections,
   detectionFps,
   websocketStatus,
+  isVideoLoading,
 }: VideoCanvasProps) {
   return (
     <div className="relative w-full h-full min-h-[260px] overflow-hidden rounded-lg glass-card">
@@ -52,6 +54,16 @@ export function VideoCanvas({
             <span className={websocketStatus === 'connected' ? 'text-green-400' : 'text-red-400'}>
               {websocketStatus === 'connected' ? '●' : '○'}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Minimalist Video Loader */}
+      {isVideoLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none" style={{ zIndex: 15 }}>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
+            <span className="text-white/60 text-sm">Loading camera...</span>
           </div>
         </div>
       )}

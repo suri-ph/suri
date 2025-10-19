@@ -79,10 +79,55 @@ export default function Main() {
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [detectionEnabled, setDetectionEnabled] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [currentDetections, setCurrentDetections] = useState<DetectionResult | null>(null);
   const [detectionFps, setDetectionFps] = useState<number>(0);
   const [websocketStatus, setWebsocketStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const backendServiceReadyRef = useRef(false);
+
+  // Monitor video element to sync camera state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const checkVideoState = () => {
+      const hasStream = video.srcObject !== null;
+      const isPlaying = !video.paused && !video.ended && video.readyState > 2;
+      const shouldBeActive = hasStream && isPlaying;
+      
+      if (cameraActive !== shouldBeActive) {
+        setCameraActive(shouldBeActive);
+        // Sync streaming state with actual camera state
+        if (shouldBeActive && !isStreaming) {
+          setIsStreaming(true);
+          isStreamingRef.current = true;
+        } else if (!shouldBeActive && isStreaming) {
+          setIsStreaming(false);
+          isStreamingRef.current = false;
+        }
+      }
+    };
+
+    // Check immediately
+    checkVideoState();
+
+    // Set up event listeners
+    const events = ['loadedmetadata', 'play', 'pause', 'ended', 'emptied'];
+    events.forEach(event => {
+      video.addEventListener(event, checkVideoState);
+    });
+
+    // Also check periodically for state changes
+    const interval = setInterval(checkVideoState, 100);
+
+    return () => {
+      events.forEach(event => {
+        video.removeEventListener(event, checkVideoState);
+      });
+      clearInterval(interval);
+    };
+  }, [cameraActive, isStreaming]);
   
   const lastDetectionRef = useRef<DetectionResult | null>(null);
   const lastFrameTimestampRef = useRef<number>(0);
@@ -722,6 +767,11 @@ export default function Main() {
   // Initialize WebSocket connection
   const initializeWebSocket = useCallback(async () => {
     try {
+      // Prevent multiple simultaneous WebSocket initialization attempts
+      if (websocketStatus === 'connecting') {
+        return;
+      }
+
       if (!backendServiceRef.current) {
         backendServiceRef.current = new BackendService();
       }
@@ -889,7 +939,10 @@ export default function Main() {
       
     } catch (error) {
       console.error('❌ WebSocket initialization failed:', error);
-      setError('Failed to connect to real-time detection service');
+      // Don't show error for rapid clicking - it's expected behavior
+      if (!isStartingRef.current) {
+        setError('Failed to connect to real-time detection service');
+      }
       backendServiceReadyRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -978,13 +1031,18 @@ export default function Main() {
         return;
       }
       
-      // Prevent starting too quickly after last start (minimum 500ms gap)
-      if (timeSinceLastStart < 500) {
+      // Prevent starting too quickly after last start (minimum 200ms gap)
+      if (timeSinceLastStart < 200) {
         return;
       }
       
       isStartingRef.current = true;
       lastStartTimeRef.current = now;
+      
+      // IMMEDIATELY set streaming state for instant button response
+      setIsStreaming(true);
+      isStreamingRef.current = true;
+      setIsVideoLoading(true);
       
       setError(null);
       
@@ -1037,8 +1095,9 @@ export default function Main() {
 
         await waitForVideoReady();
         
-        // Set streaming state (ref will be synced automatically)
-        setIsStreaming(true);
+        // Video is ready, clear loading state and set camera active
+        setIsVideoLoading(false);
+        setCameraActive(true);
         
         try {
           // Wait for backend to be ready with retry logic
@@ -1104,7 +1163,10 @@ export default function Main() {
             } catch (error) {
               console.error('❌ Failed to initialize WebSocket or start detection:', error);
               setDetectionEnabled(false);
-              setError('Failed to connect to detection service');
+              // Don't show error for rapid clicking - it's expected behavior
+              if (!isStartingRef.current) {
+                setError('Failed to connect to detection service');
+              }
             }
           } else if (websocketStatus === 'connected') {
             // WebSocket is already connected, set backend ready and start detection immediately
@@ -1116,7 +1178,6 @@ export default function Main() {
             
             // CRITICAL: Ensure streaming state is also properly set
             if (!isStreamingRef.current) {
-              setIsStreaming(true);
               isStreamingRef.current = true;
             }
             
@@ -1127,7 +1188,10 @@ export default function Main() {
           }
         } catch (error) {
           console.error('❌ Failed to check backend readiness:', error);
-          setError('Failed to check backend readiness');
+          // Don't show error for rapid clicking - it's expected behavior
+          if (!isStartingRef.current) {
+            setError('Failed to check backend readiness');
+          }
           setDetectionEnabled(false);
         }
         // If websocketStatus is 'connecting', the useEffect will handle starting detection when connected
@@ -1140,7 +1204,6 @@ export default function Main() {
           
           // CRITICAL: Ensure streaming state is also properly set
           if (!isStreamingRef.current) {
-            setIsStreaming(true);
             isStreamingRef.current = true;
           }
           
@@ -1151,6 +1214,12 @@ export default function Main() {
     } catch (err) {
       console.error('Error starting camera:', err);
       setError('Failed to start camera. Please check permissions.');
+      
+      // Reset streaming state on error
+      setIsStreaming(false);
+      isStreamingRef.current = false;
+      setIsVideoLoading(false);
+      setCameraActive(false);
     } finally {
       // CRITICAL: Always reset starting flag
       isStartingRef.current = false;
@@ -1193,6 +1262,8 @@ export default function Main() {
     // Stop detection
     setDetectionEnabled(false);
     setIsStreaming(false);
+    setIsVideoLoading(false);
+    setCameraActive(false);
     
     // Reset processing state
     isProcessingRef.current = false;
@@ -1768,6 +1839,7 @@ export default function Main() {
               currentDetections={currentDetections}
               detectionFps={detectionFps}
               websocketStatus={websocketStatus}
+              isVideoLoading={isVideoLoading}
             />
           </div>
 
