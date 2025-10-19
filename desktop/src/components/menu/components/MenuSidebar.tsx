@@ -108,13 +108,14 @@ export function MenuSidebar({
       {/* Collapse Button - Center of Right Border */}
       <button
         onClick={onToggleCollapse}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-6 h-6 bg-black border border-white/10 rounded-full hover:bg-white/5 transition-colors flex items-center justify-center z-10"
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-8 h-8 bg-black/90 backdrop-blur-sm border border-white/10 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-200 flex items-center justify-center z-10 group"
         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        <span className={`text-xs transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}>
-          ◀
-        </span>
+        <div className="relative w-4 h-4">
+          <div className={`absolute top-1/2 left-1/2 w-3 h-0.5 bg-white/70 group-hover:bg-white transition-all duration-200 ${isCollapsed ? 'rotate-45 -translate-x-1/2 -translate-y-1/2' : '-rotate-45 -translate-x-1/2 -translate-y-1/2'}`}></div>
+          <div className={`absolute top-1/2 left-1/2 w-3 h-0.5 bg-white/70 group-hover:bg-white transition-all duration-200 ${isCollapsed ? '-rotate-45 -translate-x-1/2 -translate-y-1/2' : 'rotate-45 -translate-x-1/2 -translate-y-1/2'}`}></div>
+        </div>
       </button>
       {/* Sidebar Header */}
       <div className="px-4 py-4 border-b border-white/10">

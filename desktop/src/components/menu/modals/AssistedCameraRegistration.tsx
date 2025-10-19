@@ -3,7 +3,6 @@ import { attendanceManager } from '../../../services/AttendanceManager';
 import { backendService } from '../../../services/BackendService';
 import type { AttendanceGroup, AttendanceMember } from '../../../types/recognition';
 
-type RegistrationMode = 'single';
 type CaptureStatus = 'pending' | 'capturing' | 'processing' | 'completed' | 'error';
 
 interface QueuedMember {
@@ -32,7 +31,6 @@ const toBase64Payload = (dataUrl: string) => {
 };
 
 export function AssistedCameraRegistration({ group, members, onRefresh, onClose }: AssistedCameraRegistrationProps) {
-  const [mode] = useState<RegistrationMode>('single');
   const [memberQueue, setMemberQueue] = useState<QueuedMember[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
@@ -98,7 +96,6 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
     }));
     setMemberQueue(queue);
     setCurrentIndex(0);
-    setCurrentAngleIndex(0);
     setQueueStarted(false);
   }, []);
 
@@ -239,7 +236,6 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         // Next member
         if (currentIndex < memberQueue.length - 1) {
           setCurrentIndex(prev => prev + 1);
-          setCurrentAngleIndex(0);
           setError(null);
         }
       } else if (e.key === 'p' || e.key === 'P') {
@@ -247,7 +243,6 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         // Previous member
         if (currentIndex > 0) {
           setCurrentIndex(prev => prev - 1);
-          setCurrentAngleIndex(0);
           setError(null);
         }
       } else if (e.key === 'r' || e.key === 'R') {
@@ -262,7 +257,6 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         // Skip current member
         if (currentIndex < memberQueue.length - 1) {
           setCurrentIndex(prev => prev + 1);
-          setCurrentAngleIndex(0);
         }
       }
     };
@@ -306,7 +300,12 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         {error && (
           <div className="mx-6 mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-200/70 hover:text-red-100">✕</button>
+            <button onClick={() => setError(null)} className="text-red-200/70 hover:text-red-100 group">
+              <div className="relative w-3 h-3">
+                <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-red-200/70 group-hover:bg-red-100 transition-all duration-200 rotate-45 -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-red-200/70 group-hover:bg-red-100 transition-all duration-200 -rotate-45 -translate-x-1/2 -translate-y-1/2"></div>
+              </div>
+            </button>
           </div>
         )}
 

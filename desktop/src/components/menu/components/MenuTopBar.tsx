@@ -28,10 +28,14 @@ export function MenuTopBar({
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors group"
             aria-label="Toggle menu"
           >
-            <span className="text-xl">☰</span>
+            <div className="relative w-4 h-4">
+              <div className="absolute top-1 left-1/2 w-2 h-0.5 bg-white/70 group-hover:bg-white transition-all duration-200 -translate-x-1/2"></div>
+              <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-white/70 group-hover:bg-white transition-all duration-200 -translate-x-1/2 -translate-y-1/2"></div>
+              <div className="absolute bottom-1 left-1/2 w-2 h-0.5 bg-white/70 group-hover:bg-white transition-all duration-200 -translate-x-1/2"></div>
+            </div>
           </button>
         )}
 
