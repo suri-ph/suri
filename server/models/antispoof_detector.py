@@ -238,11 +238,6 @@ class AntiSpoof:
                         label = 'Spoof'
                         detailed_label = f'Spoof Attack (print: {print_score:.3f}, replay: {replay_score:.3f})'
                 
-                # DEBUG: Log the decision process with CONFIDENCE strategy details
-                logger.debug(f"AntiSpoof CONFIDENCE Decision: live={live_score:.3f}, spoof={spoof_score:.3f}, "
-                           f"max_conf={max_confidence:.3f}, threshold={self.confidence_threshold:.3f}, "
-                           f"is_real={is_real}, attack_type={attack_type}")
-                
                 result = {
                     'is_real': bool(is_real),
                     'live_score': float(live_score),
@@ -506,7 +501,7 @@ class AntiSpoof:
             if len(pred.shape) == 2 and pred.shape[1] == 3:
                 validation_result["output_classes"] = pred.shape[1]
                 validation_result["is_valid"] = True
-                logger.info("SUCCESS: AntiSpoof model validation passed: 3-class detection ready with CONFIDENCE strategy")
+                # AntiSpoof model validation passed: 3-class detection ready with CONFIDENCE strategy
             else:
                 validation_result["errors"].append(f"Invalid output shape: {pred.shape}, expected (1, 3)")
                 
@@ -553,7 +548,7 @@ class AntiSpoof:
         
         old_threshold = self.confidence_threshold
         self.confidence_threshold = threshold
-        logger.info(f"Confidence threshold updated: {old_threshold:.3f} → {threshold:.3f}")
+        # Confidence threshold updated
         
         if threshold < 0.60:
             logger.warning("Low confidence threshold may increase false positives (accepting spoofs)")

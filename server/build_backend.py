@@ -120,8 +120,7 @@ def build_backend(debug=False, onefile=True, clean=True):
     # Add the spec file (spec file contains all other configuration)
     cmd.append("suri_backend.spec")
     
-    print(f"🔨 Build command: {' '.join(cmd)}")
-    print("⏳ Building... This may take several minutes")
+    print("⏳ Building backend... This may take several minutes")
     
     start_time = time.time()
     
@@ -149,7 +148,6 @@ def build_backend(debug=False, onefile=True, clean=True):
             return True
         else:
             print("[ERROR] Build failed!")
-            print("STDOUT:", result.stdout)
             print("STDERR:", result.stderr)
             return False
             
@@ -212,11 +210,10 @@ def main():
     if success and args.test:
         test_executable()
     
-    if success:
-        print("\n🎉 Build process completed successfully!")
-        print("💡 You can now integrate the executable with your Electron app")
+    if success:        
+        print("\n✅ Build completed successfully!")
     else:
-        print("\n💥 Build process failed!")
+        print("\n❌ Build failed!")
         sys.exit(1)
 
 if __name__ == "__main__":

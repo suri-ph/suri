@@ -37,7 +37,7 @@ class YuNet:
                 self.nms_threshold,
                 self.top_k
             )
-            logger.info(f"YuNet detector initialized with model: {self.model_path}")
+            # YuNet detector initialized
         except Exception as e:
             logger.error(f"Error initializing YuNet detector: {e}")
             self.detector = None
@@ -99,7 +99,7 @@ class YuNet:
                 # AntiSpoof model (1.5_128.onnx) was trained with 1.5x expanded bboxes resized to 128x128
                 # Minimum face size of 80px ensures adequate texture density after 1.5x expansion
                 if face_width_orig < self.min_face_size or face_height_orig < self.min_face_size:
-                    logger.debug(f"Face too small for AntiSpoof: {face_width_orig}x{face_height_orig} < {self.min_face_size}px, skipping")
+                    # Face too small for AntiSpoof - skipping
                     continue
                 
                 # 🚀 OPTIMIZATION: Remove bbox expansion here
@@ -168,7 +168,7 @@ class YuNet:
             logger.warning(f"Large minimum face size ({min_size}px) may reject too many valid faces")
         
         self.min_face_size = min_size
-        logger.info(f"Minimum face size updated to {min_size}px for AntiSpoof compatibility")
+        # Minimum face size updated for AntiSpoof compatibility
 
     def get_model_info(self):
         """Get model information"""

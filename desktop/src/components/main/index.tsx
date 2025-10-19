@@ -40,8 +40,6 @@ export default function Main() {
   
   // Emergency recovery function to reset system to known good state
   const emergencyRecovery = useCallback(() => {
-    console.log('🚨 Emergency recovery triggered - resetting system state');
-    
     // Reset all flags
     isStartingRef.current = false;
     isStoppingRef.current = false;
@@ -53,7 +51,6 @@ export default function Main() {
     
     // Force stop if streaming
     if (isStreamingRef.current) {
-      console.log('🔧 Force stopping stream during recovery');
       setIsStreaming(false);
       isStreamingRef.current = false;
       setDetectionEnabled(false);
@@ -68,8 +65,6 @@ export default function Main() {
     
     // Note: We preserve cooldowns even during emergency recovery
     // to maintain the cooldown behavior across all scenarios
-    
-    console.log('✅ Emergency recovery completed');
   }, []);
   
   // Performance optimization refs
@@ -185,10 +180,8 @@ export default function Main() {
       }
       
       if (criticalIssues.length > 0) {
-        console.warn('⚠️ Critical state issues detected:', criticalIssues);
         // Auto-fix critical issues
         if (isStartingRef.current && isStoppingRef.current) {
-          console.log('🔧 Auto-fixing: Resetting both flags');
           isStartingRef.current = false;
           isStoppingRef.current = false;
         }
@@ -206,7 +199,6 @@ export default function Main() {
     if (isStartingRef.current) {
       startTimeout = setTimeout(() => {
         if (isStartingRef.current) {
-          console.warn('⚠️ Start operation timed out - triggering recovery');
           emergencyRecovery();
         }
       }, 10000); // 10 second timeout for start
@@ -215,7 +207,6 @@ export default function Main() {
     if (isStoppingRef.current) {
       stopTimeout = setTimeout(() => {
         if (isStoppingRef.current) {
-          console.warn('⚠️ Stop operation timed out - triggering recovery');
           emergencyRecovery();
         }
       }, 5000); // 5 second timeout for stop
@@ -309,23 +300,6 @@ export default function Main() {
     return () => clearInterval(interval);
   }, [attendanceCooldowns, attendanceCooldownSeconds, persistentCooldowns]);
 
-  // Debug effect to log antispoofing data
-  useEffect(() => {
-    if (currentDetections && currentDetections.faces.length > 0) {
-      currentDetections.faces.forEach((face, index) => {
-        if (face.antispoofing) {
-          console.log(`DEBUG: Face ${index} antispoofing data:`, {
-            status: face.antispoofing.status,
-            live_score: face.antispoofing.live_score,
-            spoof_score: face.antispoofing.spoof_score,
-            live_score_defined: face.antispoofing.live_score !== undefined,
-            spoof_score_defined: face.antispoofing.spoof_score !== undefined,
-            confidence: face.antispoofing.confidence
-          });
-        }
-      });
-    }
-  }, [currentDetections]);
 
   const [showMenuPanel, setShowMenuPanel] = useState(false);
 
@@ -340,12 +314,10 @@ export default function Main() {
     const canvas = canvasRef.current;
     
     if (!video || !canvas) {
-      console.warn('⚠️ captureFrame: Missing video or canvas element');
       return Promise.resolve(null);
     }
     
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.warn('⚠️ captureFrame: Video dimensions not ready:', video.videoWidth, 'x', video.videoHeight);
       return Promise.resolve(null);
     }
 
@@ -355,7 +327,6 @@ export default function Main() {
       willReadFrequently: false // We don't read pixels frequently
     });
     if (!ctx) {
-      console.warn('⚠️ captureFrame: Failed to get canvas context');
       return Promise.resolve(null);
     }
 
@@ -373,17 +344,14 @@ export default function Main() {
         // Convert to Binary ArrayBuffer (30% faster than Base64, SaaS-ready!)
         canvas.toBlob((blob) => {
           if (!blob) {
-            console.error('❌ captureFrame: Failed to create blob');
             resolve(null);
             return;
           }
-          blob.arrayBuffer().then(resolve).catch((error) => {
-            console.error('❌ captureFrame: Failed to convert blob to arrayBuffer:', error);
+          blob.arrayBuffer().then(resolve).catch(() => {
             resolve(null);
           });
         }, 'image/jpeg', 0.95);
       } catch (error) {
-        console.error('❌ captureFrame: Failed to capture frame:', error);
         resolve(null);
       }
     });
@@ -392,19 +360,15 @@ export default function Main() {
   // Face recognition function
   const performFaceRecognition = useCallback(async (detectionResult: DetectionResult) => {
     try {
-      console.log('🔍 performFaceRecognition called with', detectionResult.faces.length, 'faces');
       // Only perform recognition when a group is selected
       const currentGroupValue = currentGroupRef.current;
       if (!currentGroupValue) {
-        console.log('❌ No group selected, clearing recognition results');
         setCurrentRecognitionResults(new Map());
         return;
       }
-      console.log('✅ Group selected:', currentGroupValue.name);
 
       const frameData = await captureFrame();
       if (!frameData) {
-        console.warn('⚠️ Failed to capture frame for face recognition');
         return;
       }
 
@@ -422,7 +386,6 @@ export default function Main() {
           
           // CRITICAL: Anti-spoofing validation FIRST - Skip recognition for spoofed faces but still display them
           if (face.antispoofing?.status === 'fake') {
-            console.log(`🚫 Spoofed face detected - skipping recognition but keeping for display (track ${face.track_id})`);
             // Don't return null - we want to show spoofed faces in the sidebar
             // Just skip the recognition processing
             return {
@@ -436,7 +399,6 @@ export default function Main() {
           
           // Also reject faces with anti-spoofing errors for safety
           if (face.antispoofing?.status === 'error') {
-            console.log(`⚠️ Anti-spoofing error, blocking face (track ${face.track_id})`);
             return null; // Filter out faces with anti-spoofing errors
           }
           
@@ -444,10 +406,6 @@ export default function Main() {
           // Backend should always provide track_id after restart
           // Temporary fallback to index until backend is restarted with track_id support
           const trackId = face.track_id ?? index;
-          if (face.track_id === undefined) {
-            console.warn(`⚠️ Backend not sending track_id! Face keys:`, Object.keys(face));
-            console.warn(`Full face object:`, face);
-          }
           
           // Convert bbox to array format [x, y, width, height]
           const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
@@ -474,16 +432,9 @@ export default function Main() {
                 
                 // Compare group IDs directly for reliable filtering
                 if (member.group_id !== currentGroupValue.id) {
-                  // Get the member's group information for logging purposes
-                  try {
-                    await attendanceManager.getGroup(member.group_id);
-                  } catch (groupError) {
-                    console.warn(groupError)
-                  }
                   return null; // Filter out this face completely
                 }
-              } catch (error) {
-                console.warn(`⚠️ Error validating group membership for ${response.person_id}:`, error);
+              } catch {
                 return null; // Filter out on error
               }
             } else {
@@ -559,7 +510,6 @@ export default function Main() {
 
               // Additional safety check: explicitly block spoofed faces
               if (face.antispoofing?.status && NON_LOGGING_ANTISPOOF_STATUSES.has(face.antispoofing.status)) {
-                console.log(`🚫 Attendance blocked for face with status: ${face.antispoofing.status} (track ${face.track_id})`);
                 return null; // Skip attendance processing for spoofed/problematic faces
               }
 
@@ -662,7 +612,6 @@ export default function Main() {
                       setError(null);
                     } catch (attendanceError: unknown) {
                        const errorMessage = attendanceError instanceof Error ? attendanceError.message : 'Unknown error';
-                       console.error(`❌ Attendance event processing failed for ${response.person_id}:`, errorMessage);
                        setError(errorMessage || `Failed to record attendance for ${response.person_id}`);
                     }
                   }
@@ -672,15 +621,7 @@ export default function Main() {
                   console.error('❌ Attendance processing failed:', error);
                   setError(`Attendance error: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
-              } else if (antispoofStatus) {
-                console.debug(
-                  `ℹ️ Skipping attendance log for ${response.person_id} due to anti-spoof status: ${antispoofStatus}`
-                );
               }
-            } else {
-              if (!attendanceEnabled) console.log(`ℹ️ Attendance is disabled`);
-              if (!currentGroupValue) console.log(`ℹ️ No current group selected`);
-              if (!response.person_id) console.log(`ℹ️ No person ID in response`);
             }
             
             // Store name in response for overlay display
@@ -709,8 +650,8 @@ export default function Main() {
               return newTracked;
             });
           }
-        } catch (error) {
-          console.warn(`⚠️ Face recognition failed for face ${index}:`, error);
+        } catch {
+          // Silently continue
         }
         return null;
       });
@@ -802,7 +743,6 @@ export default function Main() {
           }
         }
         
-        console.warn('⚠️ Backend readiness timeout for WebSocket after all attempts');
         return false;
       };
       
@@ -825,15 +765,12 @@ export default function Main() {
           return;
         }
         
-        // Reduced logging for performance
-        
         // FRAME ORDERING: Check if this response is for the most recent frame
         const responseFrameTimestamp = data.frame_timestamp || 0;
         const lastFrameTimestamp = lastFrameTimestampRef.current || 0;
         
         // Skip outdated responses to prevent inconsistent results
         if (responseFrameTimestamp < lastFrameTimestamp) {
-          console.debug(`⏭️ Skipping outdated frame response: ${responseFrameTimestamp} < ${lastFrameTimestamp}`);
           return;
         }
         
@@ -892,12 +829,6 @@ export default function Main() {
             model_used: data.model_used || 'unknown',
             processing_time: data.processing_time || 0
           };
-
-          // DEBUG: Log the detection result to see what antispoofing data we're getting
-          console.log('DEBUG: Detection result antispoofing data:', detectionResult.faces.map(face => ({
-            track_id: face.track_id,
-            antispoofing: face.antispoofing
-          })));
           
           setCurrentDetections(detectionResult);
           lastDetectionRef.current = detectionResult;
@@ -906,16 +837,9 @@ export default function Main() {
 
           // Perform face recognition if enabled
           if (recognitionEnabled && backendServiceReadyRef.current && detectionResult.faces.length > 0) {
-            console.log('🔍 Starting face recognition for', detectionResult.faces.length, 'faces');
             // Perform face recognition asynchronously without blocking next frame processing
             performFaceRecognition(detectionResult).catch(error => {
               console.error('Face recognition failed:', error);
-            });
-          } else {
-            console.log('❌ Face recognition skipped:', {
-              recognitionEnabled,
-              backendReady: backendServiceReadyRef.current,
-              facesCount: detectionResult.faces.length
             });
           }
 
@@ -937,10 +861,8 @@ export default function Main() {
 
       // Handle connection messages
       backendServiceRef.current.onMessage('connection', (data: WebSocketConnectionMessage) => {
-        console.log('🔗 WebSocket connection message:', data);
         // Set backend service as ready when connection is confirmed
         if (data.status === 'connected') {
-          console.log('✅ Backend service marked as ready');
           backendServiceReadyRef.current = true;
         }
       });
@@ -1019,7 +941,6 @@ export default function Main() {
         setSelectedCamera(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('Error getting camera devices:', err);
       setError('Failed to get camera devices');
     }
   }, [selectedCamera]);
@@ -1049,19 +970,16 @@ export default function Main() {
       
       // Prevent starting if already starting or recently started
       if (isStartingRef.current || isStreamingRef.current) {
-        console.log('⚠️ Start ignored - already starting or streaming');
         return;
       }
       
       // Prevent starting too quickly after stop (minimum 100ms gap)
       if (timeSinceLastStop < 100) {
-        console.log('⚠️ Start ignored - too soon after stop');
         return;
       }
       
       // Prevent starting too quickly after last start (minimum 500ms gap)
       if (timeSinceLastStart < 500) {
-        console.log('⚠️ Start ignored - too soon after last start');
         return;
       }
       
@@ -1111,8 +1029,7 @@ export default function Main() {
             // Start playing and check readiness
             video.play().then(() => {
               checkVideoReady();
-            }).catch((error) => {
-              console.warn('Video play failed, but continuing:', error);
+            }).catch(() => {
               checkVideoReady();
             });
           });
@@ -1139,14 +1056,12 @@ export default function Main() {
               }
             }
             
-            console.warn('⚠️ Backend readiness timeout after all attempts');
             return false;
           };
           
           const isBackendReady = await waitForBackendReady();
           
           if (!isBackendReady) {
-            console.warn('⚠️ Backend not ready for face recognition after retries');
             setError('Backend models are still loading. Please wait and try again.');
             
             // Still allow camera to start but don't enable detection
@@ -1160,13 +1075,10 @@ export default function Main() {
           
           if (websocketStatus === 'disconnected') {
             try {
-              console.log('🔌 Initializing WebSocket...');
               await initializeWebSocket();
-              console.log('✅ WebSocket initialized, waiting for readiness...');
               
               // CRITICAL: Set backend ready immediately since WebSocket is connected
               backendServiceReadyRef.current = true;
-              console.log('✅ Backend service marked as ready (WebSocket connected)');
               
               // Wait for WebSocket to be fully ready before starting detection
               let attempts = 0;
@@ -1196,9 +1108,7 @@ export default function Main() {
             }
           } else if (websocketStatus === 'connected') {
             // WebSocket is already connected, set backend ready and start detection immediately
-            console.log('🔌 WebSocket already connected, setting backend ready');
             backendServiceReadyRef.current = true;
-            console.log('✅ Backend service marked as ready (existing connection)');
             
             // CRITICAL: Ensure detection is enabled before starting
             setDetectionEnabled(true);
@@ -1222,9 +1132,7 @@ export default function Main() {
         }
         // If websocketStatus is 'connecting', the useEffect will handle starting detection when connected
         if (websocketStatus === 'connecting') {
-          console.log('🔌 WebSocket connecting, waiting for connection...');
           backendServiceReadyRef.current = true;
-          console.log('✅ Backend service marked as ready (connecting state)');
           
           // CRITICAL: Ensure detection is enabled for connecting state
           setDetectionEnabled(true);
@@ -1257,13 +1165,11 @@ export default function Main() {
     
     // Prevent stopping if already stopping or not streaming
     if (isStoppingRef.current || !isStreamingRef.current) {
-      console.log('⚠️ Stop ignored - already stopping or not streaming');
       return;
     }
     
     // Prevent stopping too quickly after last stop (minimum 100ms gap)
     if (timeSinceLastStop < 100) {
-      console.log('⚠️ Stop ignored - too soon after last stop');
       return;
     }
     
@@ -1494,14 +1400,12 @@ export default function Main() {
       const groupStillExists = groups.some(group => group.id === currentGroupValue.id);
       if (!groupStillExists) {
         // Only clear currentGroup if it was explicitly deleted, not during normal operations
-        console.warn(`⚠️ Current group "${currentGroupValue.name}" no longer exists. This might be due to deletion.`);
         // Add a small delay to avoid race conditions during group switching
         setTimeout(() => {
           // Double-check that the group still doesn't exist before clearing
           attendanceManager.getGroups().then(latestGroups => {
             const stillMissing = !latestGroups.some(group => group.id === currentGroupValue.id);
             if (stillMissing) {
-              console.warn(`⚠️ Confirmed: group "${currentGroupValue.name}" no longer exists. Clearing selection.`);
               setCurrentGroup(null);
               setGroupMembers([]);
               setRecentAttendance([]);
@@ -1730,8 +1634,6 @@ export default function Main() {
           attempts++;
           const delay = Math.min(50 * Math.pow(1.2, attempts), 500); // Faster exponential backoff, max 500ms
           timeoutId = setTimeout(checkReadiness, delay);
-        } else {
-          console.warn('⚠️ WebSocket readiness check timed out after', maxAttempts, 'attempts');
         }
       };
       
@@ -1769,7 +1671,7 @@ export default function Main() {
   }, [currentGroup, stopCamera]);
 
   // Manual attendance logging function
-  const handleManualLog = async (personId: string, name: string, confidence: number) => {
+  const handleManualLog = async (personId: string, _name: string, confidence: number) => {
     try {
       // Call backend with manual log location
       const attendanceEvent = await attendanceManager.processAttendanceEvent(
@@ -1783,13 +1685,11 @@ export default function Main() {
         setTimeout(async () => {
           await loadAttendanceData();
         }, 100);
-        
-        console.log(`✓ Manual attendance logged for ${name}`);
       }
       setError(null);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ Manual attendance logging failed:`, errorMessage);
+      console.error(`Manual attendance logging failed:`, errorMessage);
       setError(errorMessage || 'Failed to log attendance manually');
     }
   };

@@ -163,7 +163,6 @@ export class BackendService {
           // Test if it's actually Python by checking version
           const result = await execAsync(`"${pythonPath}" --version`);
           if (result.stdout.includes('Python')) {
-            console.log(`[BackendService] Found Python at: ${pythonPath}`);
             return pythonPath;
           }
         } else if (!pythonPath.includes('\\') && !pythonPath.includes('/')) {
@@ -171,7 +170,6 @@ export class BackendService {
           try {
             const result = await execAsync(`${pythonPath} --version`);
             if (result.stdout.includes('Python')) {
-              console.log(`[BackendService] Found Python command: ${pythonPath}`);
               return pythonPath;
             }
           } catch {
@@ -226,7 +224,6 @@ export class BackendService {
 
     // CRITICAL: Kill any existing backend processes before starting new one
     // This prevents orphaned processes from previous runs
-    console.log('[BackendService] Checking for existing backend processes...');
     this.killAllBackendProcesses();
 
     try {
@@ -247,7 +244,6 @@ export class BackendService {
       }
 
       // Spawn the process
-      console.log(`[BackendService] Starting backend with command: ${command} ${args.join(' ')}`);
       this.process = spawn(command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: false,
@@ -264,8 +260,6 @@ export class BackendService {
       this.status.pid = this.process.pid;
       this.status.startTime = new Date();
       this.status.error = undefined;
-
-      console.log(`[BackendService] Backend started successfully! PID: ${this.process.pid}, Port: ${this.config.port}`);
 
       // Start health monitoring
       this.startHealthMonitoring();
@@ -287,8 +281,13 @@ export class BackendService {
   private setupProcessHandlers(): void {
     if (!this.process) return;
 
+    // Pipe stdout for important startup logs
     this.process.stdout?.on('data', (data) => {
-      console.log('[Backend]', data.toString().trim());
+      const output = data.toString().trim();
+      // Only log important startup messages
+      if (output.includes('Starting server') || output.includes('Uvicorn running')) {
+        console.log('[Backend]', output);
+      }
     });
 
     this.process.stderr?.on('data', (data) => {
@@ -346,20 +345,16 @@ export class BackendService {
    * Kills ALL suri-backend processes (bootloader + Python child)
    */
   async stop(): Promise<void> {
-    console.log('[BackendService] Stopping ALL backend processes...');
-
     try {
       if (process.platform === 'win32') {
         // Windows: Kill ALL suri-backend.exe processes (multiple attempts)
         for (let i = 0; i < 3; i++) {
           try {
             await execAsync('taskkill /F /IM suri-backend.exe /T');
-            console.log(`[BackendService] Kill attempt ${i + 1} successful`);
             await sleep(200); // Wait between attempts
           } catch (error: any) {
             // Process not found = all killed
             if (error.message?.includes('not found') || error.code === 128) {
-              console.log('[BackendService] ✅ All backend processes killed');
               break;
             }
           }
@@ -374,18 +369,15 @@ export class BackendService {
             
             // If empty, all killed
             if (!checkResult.stdout.trim()) {
-              console.log('[BackendService] ✅ All backend processes killed');
               break;
             }
             
             // Kill all
             await execAsync('pkill -9 suri-backend');
-            console.log(`[BackendService] Kill attempt ${i + 1} successful`);
             await sleep(200);
             
           } catch {
             // pgrep error = no processes = success
-            console.log('[BackendService] ✅ All backend processes killed');
             break;
           }
         }
@@ -402,8 +394,6 @@ export class BackendService {
     this.status.isRunning = false;
     this.status.pid = undefined;
     this.cleanup();
-
-    console.log('[BackendService] ✅ Stop complete');
   }
 
   /**
@@ -428,12 +418,10 @@ export class BackendService {
           
           // If no PIDs returned, we're done
           if (!checkResult.trim()) {
-            console.log(`[BackendService] ✅ All backend processes cleared (${attempts} attempts)`);
             return;
           }
           
           // Processes exist - kill them
-          console.log(`[BackendService] Attempt ${attempts}: Killing backend processes...`);
           execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
           
           // Wait for processes to die
@@ -442,12 +430,10 @@ export class BackendService {
           
         } catch {
           // pgrep returns non-zero if no matches = all killed = success
-          console.log('[BackendService] ✅ Backend processes cleared');
           return;
         }
       }
       
-      console.warn(`[BackendService] ⚠️ Unix cleanup incomplete after ${maxAttempts} attempts`);
       return;
     }
     
@@ -467,13 +453,10 @@ export class BackendService {
         
         // If no processes found, we're done
         if (checkResult.includes('INFO: No tasks') || !checkResult.includes('suri-backend.exe')) {
-          console.log(`[BackendService] ✅ All backend processes cleared (${attempts} attempts)`);
           return;
         }
         
         // Processes exist - kill them ALL
-        console.log(`[BackendService] Attempt ${attempts}: Killing backend processes...`);
-        
         // Strategy 1: Kill by image name
         try {
           execSync('taskkill /F /IM suri-backend.exe /T', { 
@@ -499,7 +482,6 @@ export class BackendService {
                 const pid = match[1];
                 try {
                   execSync(`taskkill /F /PID ${pid} /T`, { stdio: 'ignore', timeout: 1000 });
-                  console.log(`[BackendService] Killed PID ${pid}`);
                 } catch {
                   // OK
                 }
@@ -517,13 +499,10 @@ export class BackendService {
       } catch (error: any) {
         // Error checking or killing - might mean processes are gone
         if (error.message?.includes('not found')) {
-          console.log('[BackendService] ✅ Backend processes cleared');
           return;
         }
       }
     }
-    
-    console.warn(`[BackendService] ⚠️ Cleanup incomplete after ${maxAttempts} attempts`);
   }
 
   /**
@@ -531,8 +510,6 @@ export class BackendService {
    * AGGRESSIVE: Keeps killing until NO processes remain
    */
   killSync(): void {
-    console.log('[BackendService] Stopping ALL backend processes (sync)...');
-    
     if (process.platform !== 'win32') {
       // Unix/Mac: Kill all with verification
       let attempts = 0;
@@ -550,12 +527,10 @@ export class BackendService {
           
           // No processes found = success
           if (!checkResult.trim()) {
-            console.log(`[BackendService] ✅ All processes killed (${attempts} attempts)`);
             break;
           }
           
           // Processes still exist - kill them
-          console.log(`[BackendService] Attempt ${attempts}: Killing remaining processes...`);
           execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
           
           // Wait for processes to die
@@ -564,7 +539,6 @@ export class BackendService {
           
         } catch {
           // pgrep error = no processes found = success
-          console.log('[BackendService] ✅ All processes killed');
           break;
         }
       }
@@ -589,13 +563,10 @@ export class BackendService {
         
         // No processes found = success
         if (checkResult.includes('INFO: No tasks') || !checkResult.includes('suri-backend.exe')) {
-          console.log(`[BackendService] ✅ All processes killed (${attempts} attempts)`);
           break;
         }
         
         // Processes still exist - kill them
-        console.log(`[BackendService] Attempt ${attempts}: Killing remaining processes...`);
-        
         // Strategy 1: Kill by image name with tree
         try {
           execSync('taskkill /F /IM suri-backend.exe /T', { 
@@ -625,7 +596,6 @@ export class BackendService {
                     stdio: 'ignore',
                     timeout: 1000 
                   });
-                  console.log(`[BackendService] Killed PID ${pid}`);
                 } catch {
                   // OK if already dead
                 }
@@ -643,7 +613,6 @@ export class BackendService {
       } catch (error: any) {
         // Errors might mean processes are gone
         if (error.message?.includes('not found')) {
-          console.log('[BackendService] ✅ All processes killed');
           break;
         }
       }

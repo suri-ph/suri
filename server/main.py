@@ -155,7 +155,7 @@ async def startup_event():
         )
         
         # Initialize Deep SORT face tracker (appearance + motion features)
-        logger.info("Initializing Deep SORT tracker with appearance features")
+        # Initializing Deep SORT tracker with appearance features
         face_tracker = DeepSortFaceTracker(
             max_age=DEEP_SORT_CONFIG.get("max_age", 30),
             n_init=DEEP_SORT_CONFIG.get("n_init", 3),
@@ -163,7 +163,7 @@ async def startup_event():
             max_cosine_distance=DEEP_SORT_CONFIG.get("max_cosine_distance", 0.3),
             nn_budget=DEEP_SORT_CONFIG.get("nn_budget", 100)
         )
-        logger.info("Deep SORT tracker initialized successfully")
+        # Deep SORT tracker initialized successfully
         
         # Initialize attendance database (auto-handles dev/prod paths)
         attendance_database = AttendanceDatabaseManager(str(DATA_DIR / "attendance.db"))
@@ -840,7 +840,7 @@ async def get_face_stats():
 @app.websocket("/ws/detect/{client_id}")
 async def websocket_detect_endpoint(websocket: WebSocket, client_id: str):
     await websocket.accept()
-    logger.info(f"WebSocket detection connected: {client_id}")
+    # WebSocket detection connected
     
     try:
         await websocket.send_text(json.dumps({
@@ -936,14 +936,14 @@ async def websocket_detect_endpoint(websocket: WebSocket, client_id: str):
                 }))
                     
     except WebSocketDisconnect:
-        logger.info(f"WebSocket detection disconnected: {client_id}")
+        pass  # WebSocket detection disconnected
     except Exception as e:
         logger.error(f"WebSocket detection error: {e}")
 
 @app.websocket("/ws/notifications/{client_id}")
 async def websocket_notifications_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
-    logger.info(f"Notification client connected: {client_id}")
+    # Notification client connected
     
     try:
         await websocket.send_text(json.dumps({
@@ -967,7 +967,7 @@ async def websocket_notifications_endpoint(websocket: WebSocket, client_id: str)
                     }))
                     
     except WebSocketDisconnect:
-        logger.info(f"Notification client disconnected: {client_id}")
+        # Notification client disconnected
         manager.disconnect(client_id)
     except Exception as e:
         logger.error(f"WebSocket notification error: {e}")

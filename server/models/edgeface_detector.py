@@ -84,7 +84,7 @@ class EdgeFaceDetector:
                         score_threshold=facemesh_config.get("score_threshold", 0.5),
                         margin_ratio=facemesh_config.get("margin_ratio", 0.25)
                     )
-                    logger.info("FaceMesh detector initialized for high-precision alignment")
+                    # FaceMesh detector initialized for high-precision alignment
                 except Exception as e:
                     logger.warning(f"Failed to initialize FaceMesh detector: {e}")
                     self.facemesh_alignment = False

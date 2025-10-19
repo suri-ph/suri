@@ -108,9 +108,6 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
       );
 
       // Call bulk detect endpoint
-      console.log('[BulkDetect] Sending request to:', `${API_BASE_URL}/attendance/groups/${group.id}/bulk-detect-faces`);
-      console.log('[BulkDetect] Images data count:', imagesData.length);
-      
       const response = await fetch(`${API_BASE_URL}/attendance/groups/${group.id}/bulk-detect-faces`, {
         method: 'POST',
         headers: { 
@@ -120,9 +117,6 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
         mode: 'cors', // Explicitly set CORS mode
         body: JSON.stringify({ images: imagesData })
       });
-
-      console.log('[BulkDetect] Response status:', response.status);
-      console.log('[BulkDetect] Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorData = await response.json();
