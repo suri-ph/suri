@@ -209,7 +209,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
 
     try {
       const detection = await backendService.detectFaces(toBase64Payload(dataUrl), {
-        model_type: 'yunet'
+        model_type: 'face_detector'
       });
 
       if (!detection.faces || detection.faces.length === 0) {

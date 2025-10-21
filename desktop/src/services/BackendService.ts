@@ -121,7 +121,7 @@ export class BackendService {
 
       // Check if critical models are loaded
       const models = await this.getAvailableModels();
-      const requiredModels = ['yunet', 'edgeface'];
+      const requiredModels = ['face_detector', 'face_recognizer'];
       const loadedModels = Object.keys(models).filter(key => 
         requiredModels.some(required => key.toLowerCase().includes(required.toLowerCase()))
       );
@@ -186,7 +186,7 @@ export class BackendService {
 
       const request: DetectionRequest = {
         image: imageBase64,
-        model_type: options.model_type || 'yunet',
+        model_type: options.model_type || 'face_detector',
         confidence_threshold: options.confidence_threshold || 0.5,
         nms_threshold: options.nms_threshold || 0.3
       };
@@ -225,7 +225,7 @@ export class BackendService {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('model_type', options.model_type || 'yunet');
+      formData.append('model_type', options.model_type || 'face_detector');
       formData.append('confidence_threshold', (options.confidence_threshold || 0.5).toString());
       formData.append('nms_threshold', (options.nms_threshold || 0.3).toString());
 

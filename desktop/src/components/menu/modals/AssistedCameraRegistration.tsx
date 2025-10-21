@@ -143,7 +143,7 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
     try {
       // Detect face
       const detection = await backendService.detectFaces(base64Payload, {
-        model_type: 'yunet'
+        model_type: 'face_detector'
       });
 
       if (!detection.faces || detection.faces.length === 0) {
