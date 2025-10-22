@@ -173,7 +173,8 @@ export function AssistedCameraRegistration({ group, members, onRefresh, onClose 
         group.id,
         currentMember.personId,
         base64Payload,
-        bestFace.bbox
+        bestFace.bbox,
+        bestFace.landmarks_5
       );
 
       if (!result.success) {

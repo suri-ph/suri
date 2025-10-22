@@ -19,6 +19,7 @@ interface CapturedFrame {
   status: FrameStatus;
   confidence?: number;
   bbox?: BoundingBox;
+  landmarks_5?: number[][];
   error?: string;
 }
 
@@ -230,6 +231,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
         status: 'ready',
         confidence: bestFace.confidence,
         bbox: bestFace.bbox,
+        landmarks_5: bestFace.landmarks_5,
         error: undefined
       }));
     } catch (error) {
@@ -352,7 +354,8 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
         group.id,
         selectedMemberId,
         payload,
-        frame.bbox
+        frame.bbox,
+        frame.landmarks_5
       );
 
       if (!result.success) {

@@ -1290,6 +1290,7 @@ async def bulk_detect_faces(
                     processed_faces.append({
                         "bbox": bbox,
                         "confidence": face.get("confidence", 0.0),
+                        "landmarks_5": face.get("landmarks_5"),
                         "quality_score": quality_result.get("quality_score", 0.0),
                         "quality_checks": quality_result.get("checks", {}),
                         "is_acceptable": quality_result.get("is_acceptable", False),

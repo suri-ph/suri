@@ -9,6 +9,7 @@ interface DetectedFace {
   imageId: string;
   bbox: [number, number, number, number];
   confidence: number;
+  landmarks_5?: number[][];
   qualityScore: number;
   isAcceptable: boolean;
   suggestions: string[];
@@ -146,6 +147,7 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
             imageId: imageResult.image_id,
             bbox: face.bbox,
             confidence: face.confidence,
+            landmarks_5: face.landmarks_5,
             qualityScore: face.quality_score,
             isAcceptable: face.is_acceptable,
             suggestions: face.suggestions || [],
@@ -237,6 +239,7 @@ export function BulkFaceRegistration({ group, members, onRefresh, onClose }: Bul
             person_id: face.assignedPersonId,
             image: toBase64Payload(dataUrl),
             bbox: face.bbox,
+            landmarks_5: face.landmarks_5,
             skip_quality_check: false
           };
         })
