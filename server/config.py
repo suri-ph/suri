@@ -136,8 +136,7 @@ MODEL_CONFIGS = {
         "min_face_size": 80,  # Minimum face size for liveness detection compatibility
         "backend_id": 0,
         "target_id": 0,
-        "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
-        "max_image_size": (1920, 1080)
+        "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"]
     },
     "liveness_detector": {
         "model_path": WEIGHTS_DIR / "validator_standard.onnx",
@@ -262,7 +261,7 @@ def get_config() -> Dict[str, Any]:
         "models": MODEL_CONFIGS.copy(),
         "api": API_CONFIG.copy(),
         "websocket": WEBSOCKET_CONFIG.copy(),
-        "image": IMAGE_CONFIG.copy(),
+        "image": IMAGE_CONFIG.copy(),       
         "streaming": STREAMING_CONFIG.copy(),
         "logging": LOGGING_CONFIG.copy(),
     }
@@ -307,7 +306,6 @@ PERFORMANCE_CONFIG = {
 IMAGE_PROCESSING_CONFIG = {
     "jpeg_quality": 0.8,  # Higher quality than current 0.4
     "enable_image_caching": True,
-    "max_image_size": (1920, 1080),  # Limit max resolution
     "resize_interpolation": "INTER_LINEAR",  # Fastest interpolation
     "color_conversion": "BGR2RGB",
     "enable_preprocessing_cache": True,
