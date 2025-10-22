@@ -37,11 +37,6 @@ export function Display({ quickSettings, toggleQuickSetting }: DisplayProps) {
       label: 'Recognition Labels',
       description: 'Identity name tags'
     },
-    { 
-      key: 'showDebugInfo' as keyof QuickSettings, 
-      label: 'Debug Info',
-      description: 'Technical metrics'
-    },
   ];
 
   return (

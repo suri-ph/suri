@@ -28,7 +28,6 @@ interface DetectionResponse {
     confidence: number;
   }>;
   model_used: string;
-  processing_time: number;
   session_id?: string;
 }
 
@@ -66,7 +65,6 @@ interface IPCMessage {
     track_id?: number;
   }>;
   model_used?: string;
-  processing_time?: number;
   [key: string]: unknown;
 }
 

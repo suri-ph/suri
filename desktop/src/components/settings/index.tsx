@@ -46,7 +46,6 @@ export const Settings: React.FC<SettingsProps> = ({
     showLandmarks: true,
     showAntiSpoofStatus: true,
     showRecognitionNames: true,
-    showDebugInfo: false,
   });
 
   const [internalAttendanceSettings, setInternalAttendanceSettings] = useState<AttendanceSettings>({

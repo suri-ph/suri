@@ -25,7 +25,6 @@ export interface DetectionResult {
     };
   }>;
   model_used: string;
-  processing_time: number;
 }
 
 export interface WebSocketFaceData {
@@ -47,13 +46,11 @@ export interface WebSocketFaceData {
 export interface WebSocketDetectionResponse {
   faces?: WebSocketFaceData[];
   model_used?: string;
-  processing_time?: number;
   timestamp?: number;
   frame_timestamp?: number;
   frame_dropped?: boolean;
   performance_metrics?: {
     actual_fps?: number;
-    avg_processing_time?: number;
     overload_counter?: number;
     samples_count?: number;
     queue_size?: number;

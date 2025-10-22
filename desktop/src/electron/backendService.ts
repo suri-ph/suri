@@ -71,7 +71,6 @@ export interface FaceRecognitionResponse {
   success: boolean;
   person_id?: string;
   similarity?: number;
-  processing_time?: number;
   error?: string;
 }
 
@@ -81,7 +80,6 @@ export interface DetectionResponse {
     confidence: number;
   }>;
   model_used: string;
-  processing_time: number;
 }
 
 export class BackendService {

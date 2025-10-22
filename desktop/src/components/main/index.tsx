@@ -157,7 +157,6 @@ export default function Main() {
     showBoundingBoxes: true,
     showAntiSpoofStatus: true,
     showRecognitionNames: true,
-    showDebugInfo: false,
     showLandmarks: true,
   });
 
@@ -724,7 +723,6 @@ export default function Main() {
               success: false,
               person_id: undefined,
               similarity: 0,
-              processing_time: 0,
               error: 'Spoofed face - recognition skipped'
             });
           } else if (result.result) {
@@ -881,7 +879,6 @@ export default function Main() {
               };
             }),
             model_used: data.model_used || 'unknown',
-            processing_time: data.processing_time || 0
           };
           
           setCurrentDetections(detectionResult);
@@ -1840,9 +1837,7 @@ export default function Main() {
               canvasRef={canvasRef}
               overlayCanvasRef={overlayCanvasRef}
               quickSettings={quickSettings}
-              currentDetections={currentDetections}
               detectionFps={detectionFps}
-              websocketStatus={websocketStatus}
               isVideoLoading={isVideoLoading}
             />
           </div>

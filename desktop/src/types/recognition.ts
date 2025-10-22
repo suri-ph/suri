@@ -13,7 +13,6 @@ export interface FaceRecognitionResponse {
   person_id?: string;
   name?: string;
   similarity?: number;
-  processing_time: number;
   error?: string;
 }
 
@@ -27,7 +26,6 @@ export interface FaceRegistrationRequest {
 export interface FaceRegistrationResponse {
   success: boolean;
   person_id: string;
-  processing_time: number;
   total_persons?: number;
   error?: string;
 }
@@ -116,7 +114,6 @@ export interface FaceWithRecognition {
 export interface DetectionWithRecognitionResult {
   faces: FaceWithRecognition[];
   model_used: string;
-  processing_time: number;
 }
 
 /**

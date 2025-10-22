@@ -61,7 +61,6 @@ declare global {
         confidence: number;
       }>;
       model_used: string;
-      processing_time: number;
     }>
     recognizeFace: (imageData: string, bbox: number[], groupId?: string, landmarks_5?: number[][]) => Promise<FaceRecognitionResponse>
     registerFace: (imageData: string, personId: string, bbox: number[], groupId?: string) => Promise<FaceRegistrationResponse>

@@ -115,7 +115,6 @@ ipcMain.handle('backend:recognize-face', async (_event, imageData: string, bbox:
             success: false,
             person_id: null,
             similarity: 0.0,
-            processing_time: 0,
             error: error instanceof Error ? error.message : String(error)
         };
     }
@@ -153,7 +152,6 @@ ipcMain.handle('backend:register-face', async (_event, imageData: string, person
             success: false,
             person_id: personId,
             total_persons: 0,
-            processing_time: 0,
             error: error instanceof Error ? error.message : String(error)
         };
     }

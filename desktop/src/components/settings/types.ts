@@ -7,7 +7,6 @@ export interface QuickSettings {
   showLandmarks: boolean;
   showAntiSpoofStatus: boolean;
   showRecognitionNames: boolean;
-  showDebugInfo: boolean;
   cameraMirrored: boolean;
 }
 
