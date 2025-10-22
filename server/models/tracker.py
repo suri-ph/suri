@@ -2,7 +2,6 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from filterpy.kalman import KalmanFilter
-from scipy.spatial.distance import cdist
 
 logger = logging.getLogger(__name__)
 

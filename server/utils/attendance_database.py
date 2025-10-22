@@ -2,10 +2,10 @@ import sqlite3
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
 import threading
-from datetime import datetime, date
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

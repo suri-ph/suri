@@ -1,12 +1,10 @@
 import logging
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional
-import uuid
-import re
+import ulid
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from fastapi.responses import JSONResponse
 
 from models.attendance_models import (
     # Group models
@@ -15,9 +13,9 @@ from models.attendance_models import (
     AttendanceMemberCreate, AttendanceMemberUpdate, AttendanceMemberResponse,
     BulkMemberCreate, BulkMemberResponse,
     # Record models
-    AttendanceRecordCreate, AttendanceRecordResponse, AttendanceRecordsQuery,
+    AttendanceRecordCreate, AttendanceRecordResponse,
     # Session models
-    AttendanceSessionResponse, AttendanceSessionsQuery,
+    AttendanceSessionResponse,
     # Event models
     AttendanceEventCreate, AttendanceEventResponse,
     # Settings models
@@ -31,6 +29,8 @@ from models.attendance_models import (
     GroupType, AttendanceStatus
 )
 from utils.attendance_database import AttendanceDatabaseManager
+from utils.websocket_manager import manager as ws_manager
+from utils.image_utils import decode_base64_image
 
 logger = logging.getLogger(__name__)
 
@@ -54,32 +54,10 @@ def get_attendance_db() -> AttendanceDatabaseManager:
 
 def generate_id() -> str:
     """Generate a unique ID"""
-    return str(uuid.uuid4())
+    return ulid.ulid()
 
 
 def generate_person_id(name: str, group_type: str, db: AttendanceDatabaseManager, group_id: str = None) -> str:
-    """
-    Generate a secure, unique Person ID using ULID (Universally Unique Lexicographically Sortable Identifier)
-    
-    ULID provides:
-    - 26 characters (vs UUID's 36)
-    - Lexicographically sortable by timestamp
-    - Cryptographically secure randomness (80 bits)
-    - URL-safe and case-insensitive
-    - No prefixes needed - clean, professional appearance
-    - Database performance optimized - no index fragmentation
-    
-    Args:
-        name: Full name of the person (not used in ID generation for security)
-        group_type: Type of group (employee, student, visitor, general)
-        db: Database manager instance
-        group_id: Optional group ID for additional context
-    
-    Returns:
-        str: Generated ULID that's unique, secure, and sortable
-    """
-    import ulid
-    
     # Generate ULID - automatically handles uniqueness and security
     # ULID format: 01ARZ3NDEKTSV4RRFFQ69G5FAV (26 characters)
     # First 10 chars: timestamp (sortable)
@@ -99,10 +77,6 @@ def generate_person_id(name: str, group_type: str, db: AttendanceDatabaseManager
         # Generate new ULID if collision occurs (extremely unlikely)
         person_id = ulid.ulid()
         attempt += 1
-    
-    # If collision still exists (practically impossible), fallback to UUID
-    if attempt >= max_attempts:
-        person_id = str(uuid.uuid4()).replace('-', '').upper()[:26]
     
     return person_id
 
@@ -629,9 +603,6 @@ async def process_attendance_event(
 ):
     """Process an attendance event (face recognition trigger)"""
     try:
-        # Import websocket manager
-        from utils.websocket_manager import manager as ws_manager
-        
         # Check if member exists
         member = db.get_member(event_data.person_id)
         if not member:
@@ -904,9 +875,6 @@ async def register_face_for_group_person(
 ):
     """Register face data for a specific person in a group with anti-duplicate protection"""
     try:
-        # Import required modules
-        from utils.image_utils import decode_base64_image
-        
         if not face_recognizer:
             raise HTTPException(status_code=500, detail="Face recognition system not available")
         
@@ -1221,9 +1189,6 @@ async def bulk_detect_faces(
     logger.info(f"[BULK-DETECT] Request data keys: {list(request.keys())}")
     
     try:
-        # Import inside function
-        from utils.image_utils import decode_base64_image
-        
         logger.info(f"[BULK-DETECT] Face detector available: {face_detector is not None}")
         
         if not face_detector:
@@ -1337,8 +1302,6 @@ async def bulk_register_faces(
     Processes multiple faces in a single batch for efficiency
     """
     try:
-        from utils.image_utils import decode_base64_image
-        
         if not face_recognizer:
             raise HTTPException(status_code=500, detail="Face recognition system not available")
         

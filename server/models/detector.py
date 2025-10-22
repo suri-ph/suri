@@ -37,7 +37,6 @@ class FaceDetector:
                 self.nms_threshold,
                 self.top_k
             )
-            # Face detector initialized
         except Exception as e:
             logger.error(f"Error initializing face detector: {e}")
             self.detector = None

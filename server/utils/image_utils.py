@@ -3,12 +3,10 @@ Image utility functions for the face detection API
 """
 
 import base64
-import io
-from typing import Union, Tuple
+from typing import Tuple
 
 import cv2
 import numpy as np
-from PIL import Image
 
 def decode_base64_image(base64_string: str) -> np.ndarray:
     """

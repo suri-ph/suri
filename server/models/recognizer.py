@@ -1,12 +1,6 @@
-"""
-Face Recognition Model Implementation
-Optimized for production deployment
-"""
-
 import asyncio
 import logging
-import time
-from typing import List, Dict, Tuple, Optional, Union, Any
+from typing import List, Dict, Tuple, Optional, Any
 import os
 
 import cv2

@@ -28,7 +28,7 @@ from utils.image_utils import decode_base64_image, encode_image_to_base64
 from utils.websocket_manager import manager, handle_websocket_message
 from utils.attendance_database import AttendanceDatabaseManager
 from routes import attendance
-from config import FACE_DETECTOR_MODEL_PATH, FACE_DETECTOR_CONFIG, LIVENESS_DETECTOR_CONFIG, FACE_RECOGNIZER_MODEL_PATH, FACE_RECOGNIZER_CONFIG, MODEL_CONFIGS, CORS_CONFIG, FACE_TRACKER_CONFIG, DATA_DIR
+from config import FACE_DETECTOR_MODEL_PATH, FACE_DETECTOR_CONFIG, LIVENESS_DETECTOR_CONFIG, FACE_RECOGNIZER_MODEL_PATH, FACE_RECOGNIZER_CONFIG, CORS_CONFIG, FACE_TRACKER_CONFIG, DATA_DIR
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -163,7 +163,6 @@ async def startup_event():
             nn_budget=FACE_TRACKER_CONFIG["nn_budget"],
             matching_weights=matching_weights
         )
-        # Deep SORT tracker initialized successfully
         
         # Initialize attendance database (auto-handles dev/prod paths)
         attendance_database = AttendanceDatabaseManager(str(DATA_DIR / "attendance.db"))
@@ -208,22 +207,20 @@ async def process_liveness_detection(faces: List[Dict], image: np.ndarray, enabl
         return faces
     
     try:
-        # DEBUG: Log input faces before liveness detection
-        logger.info(f"DEBUG process_liveness_detection: Input {len(faces)} faces")
+        logger.info(f"process_liveness_detection: Input {len(faces)} faces")
         for i, face in enumerate(faces):
             bbox = face.get('bbox', {})
             conf = face.get('confidence', 0)
-            logger.info(f"DEBUG Input face {i}: bbox={bbox}, confidence={conf}")
+            logger.info(f"Input face {i}: bbox={bbox}, confidence={conf}")
         
         # Use simple liveness detector
         faces_with_liveness = liveness_detector.detect_faces(image, faces)
         
-        # DEBUG: Log liveness detection results
-        logger.info(f"DEBUG process_liveness_detection: {len(faces_with_liveness)} faces processed")
+        logger.info(f"process_liveness_detection: {len(faces_with_liveness)} faces processed")
         for i, face in enumerate(faces_with_liveness):
             if 'liveness' in face:
                 liveness = face['liveness']
-                logger.info(f"DEBUG Face {i} result: is_real={liveness['is_real']}, live_score={liveness['live_score']:.3f}, spoof_score={liveness['spoof_score']:.3f}, predicted_class={liveness.get('predicted_class', 'N/A')}")
+                logger.info(f"Face {i} result: is_real={liveness['is_real']}, live_score={liveness['live_score']:.3f}, spoof_score={liveness['spoof_score']:.3f}, predicted_class={liveness.get('predicted_class', 'N/A')}")
         
         return faces_with_liveness
         

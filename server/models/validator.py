@@ -3,7 +3,7 @@ import numpy as np
 import onnxruntime as ort
 import os
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
