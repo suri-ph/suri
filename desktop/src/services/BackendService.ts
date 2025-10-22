@@ -26,6 +26,7 @@ interface DetectionResponse {
   faces: Array<{
     bbox: [number, number, number, number];
     confidence: number;
+    landmarks_5?: number[][];
   }>;
   model_used: string;
   session_id?: string;

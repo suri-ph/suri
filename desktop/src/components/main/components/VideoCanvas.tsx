@@ -45,9 +45,8 @@ export function VideoCanvas({
       {/* Minimalist Video Loader */}
       {isVideoLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none" style={{ zIndex: 15 }}>
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
-            <span className="text-white/60 text-sm">Loading camera...</span>
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
           </div>
         </div>
       )}
