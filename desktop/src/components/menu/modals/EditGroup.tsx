@@ -3,7 +3,6 @@ import { attendanceManager } from '../../../services/AttendanceManager.js';
 import type { GroupType, AttendanceGroup } from '../../../types/recognition.js';
 import { ErrorMessage } from '../../common/ErrorMessage';
 import { FormInput } from '../../common/FormInput';
-import { FormTextarea } from '../../common/FormTextarea';
 
 interface EditGroupProps {
   group: AttendanceGroup;

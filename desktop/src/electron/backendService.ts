@@ -797,7 +797,7 @@ export class BackendService {
   /**
    * Recognize a face using backend API
    */
-  async recognizeFace(imageBase64: string, bbox: number[], groupId?: string, landmarks_5?: number[][]): Promise<FaceRecognitionResponse> {
+  async recognizeFace(imageBase64: string, bbox: number[], _groupId?: string, landmarks_5?: number[][]): Promise<FaceRecognitionResponse> {
     const request = {
       image: imageBase64,
       bbox: bbox,
