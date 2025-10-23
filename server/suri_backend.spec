@@ -28,13 +28,8 @@ hidden_imports = [
     'onnxruntime',
     'onnxruntime.capi',
     'onnxruntime.capi.onnxruntime_pybind11_state',
-    'websockets',
-    'websockets.legacy',
-    'websockets.legacy.server',
     'cv2',
     'numpy',
-    'PIL',
-    'PIL._imaging',
     # Windows-specific imports
     'win32ctypes',
     'win32ctypes.pywin32',

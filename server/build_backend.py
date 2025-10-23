@@ -37,9 +37,11 @@ def check_dependencies():
         "opencv-python": "cv2",
         "onnxruntime": "onnxruntime",
         "numpy": "numpy",
-        "pillow": "PIL",
-        "websockets": "websockets",
         "pydantic": "pydantic",
+        "filterpy": "filterpy",
+        "scipy": "scipy",
+        "lap": "lap",
+        "ulid": "ulid",
     }
     
     missing_packages = []
