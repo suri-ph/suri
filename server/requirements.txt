@@ -2,28 +2,14 @@
 
 # FastAPI and web server dependencies
 fastapi
-uvicorn[standard]
-websockets
-python-multipart
+uvicorn
 
 # Computer vision and image processing
 opencv-python
 numpy
-Pillow
-
-# Async and utilities
-aiofiles
-python-dotenv
 
 # Data validation and serialization
 pydantic
-
-# Testing dependencies
-requests
-pytest
-
-# Logging and monitoring
-structlog
 
 # ONNX runtime for anti-spoofing models
 onnxruntime
