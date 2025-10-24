@@ -1502,7 +1502,7 @@ export default function Main() {
         attendanceManager.getGroupStats(currentGroupValue.id),
         attendanceManager.getRecords({
           group_id: currentGroupValue.id,
-          limit: 50
+          limit: 100
         })
       ]);
       
@@ -1605,7 +1605,7 @@ export default function Main() {
         attendanceManager.getGroupStats(group.id),
         attendanceManager.getRecords({
           group_id: group.id,
-          limit: 50
+          limit: 100
         })
       ]);
       

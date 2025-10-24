@@ -26,7 +26,7 @@ export function AttendancePanel({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [displayLimit, setDisplayLimit] = useState(10);
+  
 
   // Filtered and sorted attendance records (memoized for performance)
   const processedRecords = useMemo(() => {
@@ -64,12 +64,10 @@ export function AttendancePanel({
     return filtered;
   }, [recentAttendance, groupMembers, searchQuery, sortField, sortOrder]);
 
-  // Visible records based on display limit
+  // Visible records (show all processed records)
   const visibleRecords = useMemo(() => {
-    return processedRecords.slice(0, displayLimit);
-  }, [processedRecords, displayLimit]);
-
-  const hasMore = processedRecords.length > displayLimit;
+    return processedRecords;
+  }, [processedRecords]);
 
   if (!attendanceEnabled) {
     return (
@@ -88,7 +86,7 @@ export function AttendancePanel({
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Fixed Header Section - Active Group Selection */}
       {attendanceGroups.length > 0 ? (
-        <div className="p-4 pb-2 flex-shrink-0">
+        <div className="p-2 pb-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <select
@@ -97,7 +95,7 @@ export function AttendancePanel({
                   const group = attendanceGroups.find(g => g.id === e.target.value);
                   if (group) handleSelectGroup(group);
                 }}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 pr-8 text-xs text-white focus:outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 pr-8 text-xs text-white focus:outline-none focus:border-white/20 transition-colors appearance-none cursor-pointer"
                 style={{ colorScheme: 'dark' }}
               >
                 {attendanceGroups.map(group => (
@@ -121,7 +119,7 @@ export function AttendancePanel({
             </div>
             <button
               onClick={() => setShowGroupManagement(true)}
-              className="btn-success text-xs px-2 py-1 flex-shrink-0"
+              className="text-lg px-2 py-1 flex-shrink-0 border-none bg-none"
               title="Create New Group"
             >
               +
@@ -144,7 +142,7 @@ export function AttendancePanel({
 
       {/* Search and Controls */}
       {recentAttendance.length > 0 && (
-        <div className="px-4 pb-2 flex-shrink-0">
+        <div className="px-2 pb-2 flex-shrink-0">
           {/* Search and Sort Controls - Side by Side */}
           <div className="flex items-center gap-3 text-[8px]">
             {/* Search - Left Side */}
@@ -183,14 +181,14 @@ export function AttendancePanel({
       )}
 
       {/* Scrollable Content Section */}
-      <div className="flex-1 overflow-y-auto mx-4 mt-2 mb-4 min-h-0 rounded-md custom-scroll">
+      <div className="flex-1 overflow-y-auto min-h-0 rounded-md custom-scroll">
         {/* Recent Attendance */}
         {visibleRecords.length > 0 ? (
           <>
             {visibleRecords.map(record => {
               const member = groupMembers.find(m => m.person_id === record.person_id);
               return (
-                <div key={record.id} className="text-xs bg-white/[0.02] border border-white/[0.05] p-2">
+                <div key={record.id} className="text-xs bg-white/[0.02] border border-r-0 border-white/[0.05] p-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">{member?.name || record.person_id}</span>
@@ -206,15 +204,7 @@ export function AttendancePanel({
               );
             })}
 
-            {/* Load More Button */}
-            {hasMore && (
-              <button
-                onClick={() => setDisplayLimit(prev => prev + 10)}
-                className="w-full mt-2 py-2 text-xs bg-white/[0.05] border border-white/[0.1] rounded text-white/70"
-              >
-                Load More ({processedRecords.length - displayLimit} more)
-              </button>
-            )}
+            
           </>
         ) : searchQuery ? (
           <div className="text-white/50 text-sm text-center py-8">
