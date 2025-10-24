@@ -5,7 +5,8 @@ import type {
   AttendanceGroup,
   AttendanceMember,
   AttendanceStats,
-  AttendanceRecord
+  AttendanceRecord,
+  AttendanceSession
 } from '../../../types/recognition.js';
 
 interface OverviewProps {
@@ -37,19 +38,28 @@ const formatDate = (value: Date | string): string => {
 export function Overview({ group, members }: OverviewProps) {
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [recentRecords, setRecentRecords] = useState<AttendanceRecord[]>([]);
+  const [activeNow, setActiveNow] = useState<number>(0);
 
   const loadOverviewData = useCallback(async () => {
     try {
-      const [groupStats, records] = await Promise.all([
+      const todayStr = new Date().toISOString().split('T')[0];
+      const [groupStats, records, sessions] = await Promise.all([
         attendanceManager.getGroupStats(group.id, new Date()),
         attendanceManager.getRecords({
           group_id: group.id,
           limit: 100
+        }),
+        attendanceManager.getSessions({
+          group_id: group.id,
+          start_date: todayStr,
+          end_date: todayStr
         })
       ]);
 
       setStats(groupStats);
       setRecentRecords(records);
+      const activeCount = (sessions as AttendanceSession[]).filter(s => s.status === 'present').length;
+      setActiveNow(activeCount);
     } catch (err) {
       console.error('Error loading overview data:', err);
     }
@@ -70,10 +80,15 @@ export function Overview({ group, members }: OverviewProps) {
   return (
     <section className="space-y-4 h-full flex flex-col overflow-hidden">
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3 flex-shrink-0">
-        <StatsCard type="present" value={stats.present_today} total={stats.total_members} />
-        <StatsCard type="absent" value={stats.absent_today} />
-        <StatsCard type="late" value={stats.late_today} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-shrink-0">
+        <StatsCard type="active" value={activeNow} label="Active Now" />
+        <StatsCard type="present" value={stats.present_today} total={stats.total_members} label="Checked-in Today" />
+        <StatsCard
+          type="absent"
+          value={Math.max(0, (stats.total_members ?? 0) - (stats.present_today ?? 0))}
+          label="Not yet checked-in"
+        />
+        <StatsCard type="late" value={stats.late_today} label="Late arrivals" />
       </div>
 
       {/* Recent Activity */}

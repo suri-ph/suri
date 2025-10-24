@@ -1,5 +1,5 @@
 interface StatsCardProps {
-  type: 'present' | 'absent' | 'late';
+  type: 'present' | 'absent' | 'late' | 'active';
   value: number;
   total?: number;
   label?: string;
@@ -8,40 +8,51 @@ interface StatsCardProps {
 export function StatsCard({ type, value, total, label }: StatsCardProps) {
   const config = {
     present: {
-      color: 'emerald',
+      accent: 'bg-emerald-400/70',
       label: label || 'Present Today',
       sublabel: total ? `out of ${total} members` : undefined,
-      gradient: 'from-emerald-500/20 via-emerald-500/10 to-transparent',
-      border: 'border-emerald-500/20',
-      textColor: 'text-emerald-200',
-      subColor: 'text-emerald-100/40'
+      border: 'border-white/10',
+      bg: 'bg-white/5',
+      valueColor: 'text-white',
+      labelColor: 'text-white/60',
+      subColor: 'text-white/40'
     },
     absent: {
-      color: 'rose',
+      accent: 'bg-rose-400/70',
       label: label || 'Absent Today',
       sublabel: 'no check-in record',
-      gradient: 'from-rose-500/20 via-rose-500/10 to-transparent',
-      border: 'border-rose-500/20',
-      textColor: 'text-rose-200',
-      subColor: 'text-rose-100/40'
+      border: 'border-white/10',
+      bg: 'bg-white/5',
+      valueColor: 'text-white',
+      labelColor: 'text-white/60',
+      subColor: 'text-white/40'
     },
     late: {
-      color: 'amber',
+      accent: 'bg-amber-400/80',
       label: label || 'Late Today',
       sublabel: 'exceeded late threshold',
-      gradient: 'from-amber-500/20 via-amber-500/10 to-transparent',
-      border: 'border-amber-500/20',
-      textColor: 'text-amber-200',
-      subColor: 'text-amber-100/40'
+      border: 'border-white/10',
+      bg: 'bg-white/5',
+      valueColor: 'text-white',
+      labelColor: 'text-white/60',
+      subColor: 'text-white/40'
+    },
+    active: {
+      accent: 'bg-sky-400/80',
+      label: label || 'Active Now',
+      sublabel: undefined,
+      border: 'border-white/10',
+      bg: 'bg-white/5',
+      valueColor: 'text-white',
+      labelColor: 'text-white/60',
+      subColor: 'text-white/40'
     }
   }[type];
 
   return (
-    <div className={`rounded-xl border ${config.border} bg-gradient-to-br ${config.gradient} p-4`}>
-      <p className={`text-xs ${config.textColor} opacity-60 uppercase tracking-wider`}>
-        {config.label}
-      </p>
-      <div className={`text-2xl font-semibold ${config.textColor} mt-1`}>{value ?? 0}</div>
+    <div className={`rounded-xl border ${config.border} ${config.bg} p-4`}>
+      <p className={`text-xs ${config.labelColor} uppercase tracking-wider`}>{config.label}</p>
+      <div className={`text-2xl font-semibold ${config.valueColor} mt-1`}>{value ?? 0}</div>
       {config.sublabel && (
         <p className={`text-[10px] ${config.subColor} mt-1`}>{config.sublabel}</p>
       )}
