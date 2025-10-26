@@ -140,7 +140,7 @@ MODEL_CONFIGS = {
     },
     "liveness_detector": {
         "model_path": WEIGHTS_DIR / "validator_standard.onnx",
-        "confidence_threshold": 0.55,
+        "confidence_threshold": 0.50,
         "bbox_inc": 1.5,
         "model_img_size": 128
     },
