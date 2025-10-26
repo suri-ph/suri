@@ -164,7 +164,6 @@ export interface AttendanceSession {
   group_id: string;
   date: string; // YYYY-MM-DD format
   check_in_time?: Date;
-  total_hours?: number;
   status: AttendanceStatus;
   is_late: boolean;
   late_minutes?: number;
@@ -176,8 +175,6 @@ export interface AttendanceStats {
   present_today: number;
   absent_today: number;
   late_today: number;
-  average_hours_today: number;
-  total_hours_today: number;
 }
 
 export interface AttendanceReport {
@@ -193,14 +190,11 @@ export interface AttendanceReport {
     present_days: number;
     absent_days: number;
     late_days: number;
-    total_hours: number;
-    average_hours: number;
     attendance_rate: number;
   }[];
   summary: {
     total_working_days: number;
     average_attendance_rate: number;
-    total_hours_logged: number;
     most_punctual: string;
     most_absent: string;
   };

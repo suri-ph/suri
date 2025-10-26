@@ -95,7 +95,6 @@ class AttendanceSessionResponse(BaseModel):
     group_id: str
     date: str  # YYYY-MM-DD format
     check_in_time: Optional[datetime]
-    total_hours: Optional[float]
     status: AttendanceStatus
     is_late: bool
     late_minutes: Optional[int]
@@ -141,8 +140,6 @@ class AttendanceStatsResponse(BaseModel):
     present_today: int
     absent_today: int
     late_today: int
-    average_hours_today: float
-    total_hours_today: float
 
 
 class MemberReportData(BaseModel):
@@ -152,15 +149,12 @@ class MemberReportData(BaseModel):
     present_days: int
     absent_days: int
     late_days: int
-    total_hours: float
-    average_hours: float
     attendance_rate: float
 
 
 class ReportSummary(BaseModel):
     total_working_days: int
     average_attendance_rate: float
-    total_hours_logged: float
     most_punctual: str
     most_absent: str
 

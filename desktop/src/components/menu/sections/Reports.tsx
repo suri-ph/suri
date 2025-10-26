@@ -23,7 +23,7 @@ export function Reports({ group }: ReportsProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Advanced, offline-first editable reports (field picker, filters, grouping, saved views)
-  type ColumnKey = 'name' | 'date' | 'check_in_time' | 'status' | 'is_late' | 'late_minutes' | 'total_hours' | 'notes';
+  type ColumnKey = 'name' | 'date' | 'check_in_time' | 'status' | 'is_late' | 'late_minutes' | 'notes';
   const allColumns: Array<{ key: ColumnKey; label: string; align?: 'left' | 'center' }> = [
     { key: 'name', label: 'Name', align: 'left' },
     { key: 'date', label: 'Date', align: 'left' },
@@ -31,7 +31,6 @@ export function Reports({ group }: ReportsProps) {
     { key: 'status', label: 'Status', align: 'center' },
     { key: 'is_late', label: 'Late', align: 'center' },
     { key: 'late_minutes', label: 'Late (min)', align: 'center' },
-    { key: 'total_hours', label: 'Hours', align: 'center' },
     { key: 'notes', label: 'Notes', align: 'left' }
   ];
 
@@ -249,7 +248,6 @@ export function Reports({ group }: ReportsProps) {
       status: s.status,
       is_late: s.is_late,
       late_minutes: s.late_minutes ?? 0,
-      total_hours: s.total_hours ?? 0,
       notes: s.notes || ''
     }));
 
@@ -546,9 +544,6 @@ export function Reports({ group }: ReportsProps) {
                           )}
                           {visibleColumns.includes('late_minutes') && (
                             <td className="px-4 py-3 text-sm text-center">{r.late_minutes}</td>
-                          )}
-                          {visibleColumns.includes('total_hours') && (
-                            <td className="px-4 py-3 text-sm text-center">{(r.total_hours ?? 0).toFixed(2)}</td>
                           )}
                           {visibleColumns.includes('notes') && (
                             <td className="px-4 py-3 text-sm text-white/80">{r.notes}</td>

@@ -89,11 +89,11 @@ export function Overview({ group, members }: OverviewProps) {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-shrink-0">
         <StatsCard type="active" value={activeNow} label="Active Now" />
-        <StatsCard type="present" value={stats.present_today} total={stats.total_members} label="Checked-in Today" />
+        <StatsCard type="present" value={stats.present_today} total={stats.total_members} label="Timed-in Today" />
         <StatsCard
           type="absent"
           value={Math.max(0, (stats.total_members ?? 0) - (stats.present_today ?? 0))}
-          label="Not yet checked-in"
+          label="Not yet timed-in"
         />
         <StatsCard type="late" value={stats.late_today} label="Late arrivals" />
       </div>

@@ -713,7 +713,6 @@ async def process_attendance_event(
             "group_id": member["group_id"],
             "date": today_str,
             "check_in_time": timestamp.isoformat(),  # Convert to string for SQLite
-            "total_hours": None,
             "status": "present",  # Status is always "present" if they checked in, "late" is tracked separately via is_late field
             "is_late": is_late,
             "late_minutes": late_minutes if is_late else None,
@@ -1155,7 +1154,6 @@ def _compute_sessions_from_records(
                 "group_id": member["group_id"],
                 "date": target_date,
                 "check_in_time": None,
-                "total_hours": None,
                 "status": "absent",
                 "is_late": False,
                 "late_minutes": None,
@@ -1197,7 +1195,6 @@ def _compute_sessions_from_records(
             "group_id": member["group_id"],
             "date": target_date,
             "check_in_time": timestamp,  # Store the actual check-in timestamp
-            "total_hours": None,  # Could be calculated if we track check-out
             "status": "present",  # Status is always "present" if they checked in, "late" is tracked separately via is_late field
             "is_late": is_late,
             "late_minutes": late_minutes if is_late else None,
@@ -1213,8 +1210,6 @@ def _calculate_group_stats(members: List[dict], sessions: List[dict]) -> dict:
     present_today = 0
     absent_today = 0
     late_today = 0
-    total_hours = 0.0
-    members_with_hours = 0
     
     # Create a map of sessions by person_id
     session_map = {session["person_id"]: session for session in sessions}
@@ -1232,23 +1227,14 @@ def _calculate_group_stats(members: List[dict], sessions: List[dict]) -> dict:
                     late_today += 1
             else:
                 absent_today += 1
-            
-            # Add to total hours if available
-            if session.get("total_hours"):
-                total_hours += session["total_hours"]
-                members_with_hours += 1
         else:
             absent_today += 1
-    
-    average_hours = total_hours / members_with_hours if members_with_hours > 0 else 0.0
     
     return {
         "total_members": total_members,
         "present_today": present_today,
         "absent_today": absent_today,
-        "late_today": late_today,
-        "average_hours_today": round(average_hours, 2),
-        "total_hours_today": round(total_hours, 2)
+        "late_today": late_today
     }
 
 

@@ -352,9 +352,7 @@ export class AttendanceManager {
         total_members: 0,
         present_today: 0,
         absent_today: 0,
-        late_today: 0,
-        average_hours_today: 0,
-        total_hours_today: 0
+        late_today: 0
       };
     }
   }
@@ -392,8 +390,6 @@ export class AttendanceManager {
         const presentDays = memberSessions.filter(s => s.status !== 'absent').length;
         const absentDays = totalDaysInRange - presentDays; // Use total days in range, not just days with attendance
         const lateDays = memberSessions.filter(s => s.is_late).length;
-        const totalHours = memberSessions.reduce((sum, s) => sum + (s.total_hours || 0), 0);
-        const averageHours = presentDays > 0 ? totalHours / presentDays : 0;
         const attendanceRate = totalDaysInRange > 0 ? (presentDays / totalDaysInRange) * 100 : 0;
 
         return {
@@ -403,13 +399,10 @@ export class AttendanceManager {
           present_days: presentDays,
           absent_days: absentDays,
           late_days: lateDays,
-          total_hours: Math.round(totalHours * 100) / 100,
-          average_hours: Math.round(averageHours * 100) / 100,
           attendance_rate: Math.round(attendanceRate * 100) / 100
         };
       });
 
-      const totalHoursLogged = memberReports.reduce((sum, m) => sum + m.total_hours, 0);
       const averageAttendanceRate = memberReports.length > 0 ?
         memberReports.reduce((sum, m) => sum + m.attendance_rate, 0) / memberReports.length : 0;
 
@@ -426,7 +419,6 @@ export class AttendanceManager {
         summary: {
           total_working_days: totalDaysInRange, // Use the total days in the selected range
           average_attendance_rate: Math.round(averageAttendanceRate * 100) / 100,
-          total_hours_logged: Math.round(totalHoursLogged * 100) / 100,
           most_punctual: mostPunctual,
           most_absent: mostAbsent
         }
