@@ -27,7 +27,7 @@ export function Reports({ group }: ReportsProps) {
     { key: 'name', label: 'Name', align: 'left' },
     { key: 'person_id', label: 'Person ID', align: 'left' },
     { key: 'date', label: 'Date', align: 'left' },
-    { key: 'check_in_time', label: 'Check-in Time', align: 'center' },
+    { key: 'check_in_time', label: 'Time In', align: 'center' },
     { key: 'status', label: 'Status', align: 'center' },
     { key: 'is_late', label: 'Late', align: 'center' },
     { key: 'late_minutes', label: 'Late (min)', align: 'center' },
