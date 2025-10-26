@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { attendanceManager } from '../../../services/AttendanceManager.js';
 import { getLocalDateString } from '../../../utils/dateUtils.js';
 import { StatsCard } from '../shared/StatsCard.js';
+import { createDisplayNameMap } from '../../../utils/displayNameUtils.js';
 import type {
   AttendanceGroup,
   AttendanceMember,
@@ -40,6 +41,11 @@ export function Overview({ group, members }: OverviewProps) {
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [recentRecords, setRecentRecords] = useState<AttendanceRecord[]>([]);
   const [activeNow, setActiveNow] = useState<number>(0);
+
+  // Create display name map for members
+  const displayNameMap = useMemo(() => {
+    return createDisplayNameMap(members);
+  }, [members]);
 
   const loadOverviewData = useCallback(async () => {
     try {
@@ -98,14 +104,14 @@ export function Overview({ group, members }: OverviewProps) {
         <div className="flex-1 overflow-y-auto custom-scroll overflow-x-hidden pr-2 space-y-2 text-sm">
           {recentRecords.length > 0 ? (
             recentRecords.slice(0, 24).map(record => {
-              const member = members.find(item => item.person_id === record.person_id);
+              const displayName = displayNameMap.get(record.person_id) || 'Unknown';
               return (
                 <div
                   key={record.id}
                   className="flex items-center justify-between py-2 border-b border-white/5 last:border-b-0"
                 >
                   <div>
-                    <div className="font-medium text-white text-sm">{member?.name ?? record.person_id}</div>
+                    <div className="font-medium text-white text-sm">{displayName}</div>
                     <div className="text-xs text-white/40">
                       {formatDate(record.timestamp)} · {formatTime(record.timestamp)}
                     </div>

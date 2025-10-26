@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createDisplayNameMap } from '../../../utils/displayNameUtils.js';
 import type { AttendanceGroup, AttendanceMember, AttendanceRecord } from '../types';
 
 interface AttendancePanelProps {
@@ -27,6 +28,10 @@ export function AttendancePanel({
   const [sortField, setSortField] = useState<SortField>('time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   
+  // Create display name map for members
+  const displayNameMap = useMemo(() => {
+    return createDisplayNameMap(groupMembers);
+  }, [groupMembers]);
 
   // Filtered and sorted attendance records (memoized for performance)
   const processedRecords = useMemo(() => {
@@ -36,9 +41,8 @@ export function AttendancePanel({
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record => {
-        const member = groupMembers.find(m => m.person_id === record.person_id);
-        const name = member?.name || record.person_id;
-        return name.toLowerCase().includes(query);
+        const displayName = displayNameMap.get(record.person_id) || 'Unknown';
+        return displayName.toLowerCase().includes(query);
       });
     }
 
@@ -51,8 +55,8 @@ export function AttendancePanel({
           comparison = a.timestamp.getTime() - b.timestamp.getTime();
           break;
         case 'name': {
-          const nameA = (groupMembers.find(m => m.person_id === a.person_id)?.name || a.person_id).toLowerCase();
-          const nameB = (groupMembers.find(m => m.person_id === b.person_id)?.name || b.person_id).toLowerCase();
+          const nameA = (displayNameMap.get(a.person_id) || 'Unknown').toLowerCase();
+          const nameB = (displayNameMap.get(b.person_id) || 'Unknown').toLowerCase();
           comparison = nameA.localeCompare(nameB);
           break;
         }
@@ -62,7 +66,7 @@ export function AttendancePanel({
     });
 
     return filtered;
-  }, [recentAttendance, groupMembers, searchQuery, sortField, sortOrder]);
+  }, [recentAttendance, displayNameMap, searchQuery, sortField, sortOrder]);
 
   // Visible records (show all processed records)
   const visibleRecords = useMemo(() => {
@@ -186,12 +190,12 @@ export function AttendancePanel({
         {visibleRecords.length > 0 ? (
           <>
             {visibleRecords.map(record => {
-              const member = groupMembers.find(m => m.person_id === record.person_id);
+              const displayName = displayNameMap.get(record.person_id) || 'Unknown';
               return (
                 <div key={record.id} className="text-xs bg-white/[0.02] border-b border-white/[0.05] p-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
-                      <span className="font-medium">{member?.name || record.person_id}</span>
+                      <span className="font-medium">{displayName}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${record.is_manual ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30' : 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'}`}>
                         {record.is_manual ? 'Manual' : 'Auto'}
                       </span>

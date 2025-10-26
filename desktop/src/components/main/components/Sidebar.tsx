@@ -92,6 +92,7 @@ export function Sidebar({
               trackedFaces={trackedFaces}
               trackingMode={trackingMode}
               handleManualLog={handleManualLog}
+              groupMembers={groupMembers}
             />
           </div>
         </div>

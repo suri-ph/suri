@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
+import { createDisplayNameMap } from '../../../utils/displayNameUtils.js';
 import type { DetectionResult, TrackedFace } from '../types';
-import type { FaceRecognitionResponse } from '../../../types/recognition';
+import type { FaceRecognitionResponse, AttendanceMember } from '../../../types/recognition';
 
 interface DetectionPanelProps {
   currentDetections: DetectionResult | null;
@@ -8,6 +10,7 @@ interface DetectionPanelProps {
   trackedFaces: Map<string, TrackedFace>;
   trackingMode: 'auto' | 'manual';
   handleManualLog: (personId: string, name: string, confidence: number) => void;
+  groupMembers: AttendanceMember[];
 }
 
 export function DetectionPanel({
@@ -17,7 +20,13 @@ export function DetectionPanel({
   trackedFaces,
   trackingMode,
   handleManualLog,
+  groupMembers,
 }: DetectionPanelProps) {
+  // Create display name map for members
+  const displayNameMap = useMemo(() => {
+    return createDisplayNameMap(groupMembers);
+  }, [groupMembers]);
+
   if (!currentDetections?.faces?.length) {
     return (
       <div className="text-white/40 text-xs text-center flex items-center justify-center h-full">
@@ -32,6 +41,9 @@ export function DetectionPanel({
         const trackId = face.track_id!;
         const recognitionResult = currentRecognitionResults.get(trackId);
         const isRecognized = recognitionEnabled && recognitionResult?.person_id;
+        const displayName = recognitionResult?.person_id 
+          ? displayNameMap.get(recognitionResult.person_id) || 'Unknown'
+          : '';
 
         const trackedFace = Array.from(trackedFaces.values()).find(track =>
           track.personId === recognitionResult?.person_id ||
@@ -44,8 +56,7 @@ export function DetectionPanel({
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
                   <div className="font-medium text-sm">
-                    {isRecognized && recognitionResult?.person_id &&
-                      (recognitionResult.name || recognitionResult.person_id)
+                    {isRecognized && recognitionResult?.person_id && displayName
                     }
                   </div>
                   {isRecognized && recognitionResult?.similarity && (
@@ -94,7 +105,7 @@ export function DetectionPanel({
                   <button
                     onClick={() => handleManualLog(
                       recognitionResult.person_id!,
-                      recognitionResult.name || recognitionResult.person_id!,
+                      displayName,
                       face.confidence
                     )}
                     className="btn-warning text-xs mt-2 w-full px-2 py-1 font-medium"

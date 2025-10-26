@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { attendanceManager } from '../../../services/AttendanceManager.js';
 import { getLocalDateString } from '../../../utils/dateUtils.js';
+import { createDisplayNameMap } from '../../../utils/displayNameUtils.js';
 import type {
   AttendanceGroup,
   AttendanceReport,
@@ -22,10 +23,9 @@ export function Reports({ group }: ReportsProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Advanced, offline-first editable reports (field picker, filters, grouping, saved views)
-  type ColumnKey = 'name' | 'person_id' | 'date' | 'check_in_time' | 'status' | 'is_late' | 'late_minutes' | 'total_hours' | 'notes';
+  type ColumnKey = 'name' | 'date' | 'check_in_time' | 'status' | 'is_late' | 'late_minutes' | 'total_hours' | 'notes';
   const allColumns: Array<{ key: ColumnKey; label: string; align?: 'left' | 'center' }> = [
     { key: 'name', label: 'Name', align: 'left' },
-    { key: 'person_id', label: 'Person ID', align: 'left' },
     { key: 'date', label: 'Date', align: 'left' },
     { key: 'check_in_time', label: 'Time In', align: 'center' },
     { key: 'status', label: 'Status', align: 'center' },
@@ -227,16 +227,14 @@ export function Reports({ group }: ReportsProps) {
   };
 
   // Build table rows from sessions + members
-  const personMap = useMemo(() => {
-    const m = new Map<string, AttendanceMember>();
-    for (const mem of members) m.set(mem.person_id, mem);
-    return m;
+  const displayNameMap = useMemo(() => {
+    return createDisplayNameMap(members);
   }, [members]);
 
   const filteredRows = useMemo(() => {
     const rows = sessions.map(s => ({
       person_id: s.person_id,
-      name: personMap.get(s.person_id)?.name || s.person_id,
+      name: displayNameMap.get(s.person_id) || 'Unknown',
       date: s.date,
       check_in_time: s.check_in_time,
       status: s.status,
@@ -256,12 +254,12 @@ export function Reports({ group }: ReportsProps) {
       if (statusFilter.length && !statusFilter.includes(r.status)) return false;
       if (search) {
         const q = search.toLowerCase();
-        const hay = `${r.name} ${r.person_id} ${r.status} ${r.notes}`.toLowerCase();
+        const hay = `${r.name} ${r.status} ${r.notes}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [sessions, personMap, reportStartDate, reportEndDate, statusFilter, search]);
+  }, [sessions, displayNameMap, reportStartDate, reportEndDate, statusFilter, search]);
 
   const groupedRows = useMemo(() => {
     if (groupBy === 'none') return { '__all__': filteredRows } as Record<string, typeof filteredRows>;
@@ -519,9 +517,6 @@ export function Reports({ group }: ReportsProps) {
                         <tr key={`${r.person_id}-${r.date}-${index}`} className={index % 2 === 0 ? 'bg-white/5' : ''}>
                           {visibleColumns.includes('name') && (
                             <td className="px-4 py-3 text-sm font-medium text-white">{r.name}</td>
-                          )}
-                          {visibleColumns.includes('person_id') && (
-                            <td className="px-4 py-3 text-sm text-white/80">{r.person_id}</td>
                           )}
                           {visibleColumns.includes('date') && (
                             <td className="px-4 py-3 text-sm text-white/80">{r.date}</td>
