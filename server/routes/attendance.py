@@ -1154,6 +1154,7 @@ def _compute_sessions_from_records(
                 "person_id": person_id,
                 "group_id": member["group_id"],
                 "date": target_date,
+                "check_in_time": None,
                 "total_hours": None,
                 "status": "absent",
                 "is_late": False,

@@ -101,8 +101,13 @@ export function Reports({ group }: ReportsProps) {
 
   // Removed separate summary export to avoid confusion; main export is current view CSV below
 
+  // Debounce report generation to avoid spamming API on date changes
   useEffect(() => {
-    generateReport();
+    const timer = setTimeout(() => {
+      generateReport();
+    }, 300); // Wait 300ms after last change
+
+    return () => clearTimeout(timer);
   }, [generateReport]);
 
   
@@ -244,13 +249,8 @@ export function Reports({ group }: ReportsProps) {
       notes: s.notes || ''
     }));
 
-    // Parse dates as strings to avoid timezone issues
-    const start = reportStartDate;
-    const end = reportEndDate;
-
+    // Backend already filters by date range, so we only filter by status and search
     return rows.filter(r => {
-      // Compare date strings directly (YYYY-MM-DD format)
-      if (r.date < start || r.date > end) return false;
       if (statusFilter.length && !statusFilter.includes(r.status)) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -259,7 +259,7 @@ export function Reports({ group }: ReportsProps) {
       }
       return true;
     });
-  }, [sessions, displayNameMap, reportStartDate, reportEndDate, statusFilter, search]);
+  }, [sessions, displayNameMap, statusFilter, search]);
 
   const groupedRows = useMemo(() => {
     if (groupBy === 'none') return { '__all__': filteredRows } as Record<string, typeof filteredRows>;
