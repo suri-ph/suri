@@ -30,7 +30,7 @@ export function Reports({ group }: ReportsProps) {
     { key: 'check_in_time', label: 'Time In', align: 'center' },
     { key: 'status', label: 'Status', align: 'center' },
     { key: 'is_late', label: 'Late', align: 'center' },
-    { key: 'late_minutes', label: 'Late (min)', align: 'center' },
+    { key: 'late_minutes', label: 'Minutes Late', align: 'center' },
     { key: 'notes', label: 'Notes', align: 'left' }
   ];
 
@@ -535,7 +535,7 @@ export function Reports({ group }: ReportsProps) {
                                 r.status === 'present' ? 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30' :
                                 'bg-rose-500/15 text-rose-200 border-rose-400/30'
                               }`}>
-                                {r.status === 'present' && r.is_late ? `late (${r.late_minutes}m)` : r.status}
+                                {r.status === 'present' && r.is_late ? 'late' : r.status}
                               </span>
                             </td>
                           )}
