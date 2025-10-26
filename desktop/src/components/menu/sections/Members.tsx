@@ -18,6 +18,7 @@ interface MembersProps {
 
 export function Members({ group, members, onMembersChange, onEdit, onAdd }: MembersProps) {
   const [todaySessions, setTodaySessions] = useState<AttendanceSession[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
 
   // Generate display names with auto-differentiation for duplicates
   const membersWithDisplayNames = useMemo(() => {
@@ -25,6 +26,7 @@ export function Members({ group, members, onMembersChange, onEdit, onAdd }: Memb
   }, [members]);
 
   const loadSessions = useCallback(async () => {
+    setIsLoadingSessions(true);
     try {
       const todayStr = getLocalDateString();
       const sessions = await attendanceManager.getSessions({
@@ -35,6 +37,8 @@ export function Members({ group, members, onMembersChange, onEdit, onAdd }: Memb
       setTodaySessions(sessions);
     } catch (err) {
       console.error('Error loading sessions:', err);
+    } finally {
+      setIsLoadingSessions(false);
     }
   }, [group.id]);
 
@@ -74,23 +78,28 @@ export function Members({ group, members, onMembersChange, onEdit, onAdd }: Memb
             {membersWithDisplayNames.map(member => {
             const session = todaySessions.find(item => item.person_id === member.person_id);
 
-            const statusLabel = session?.status === 'present'
-              ? 'Present'
-              : session?.status === 'late'
-                ? `Late (${session.late_minutes ?? 0}m)`
-                : session?.status === 'checked_out'
-                  ? 'Checked out'
-                  : session?.status === 'absent'
-                    ? 'Absent'
-                    : 'No record';
+            // While loading, show loading state
+            const statusLabel = isLoadingSessions
+              ? '...'
+              : session?.status === 'present'
+                ? 'Present'
+                : session?.status === 'late'
+                  ? `Late (${session.late_minutes ?? 0}m)`
+                  : session?.status === 'checked_out'
+                    ? 'Checked out'
+                    : session?.status === 'absent'
+                      ? 'Absent'
+                      : 'No record';
 
-            const statusClass = session?.status === 'present'
-              ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
-              : session?.status === 'late'
-                ? 'bg-amber-500/20 text-amber-200 border border-amber-400/40'
-                : session?.status === 'checked_out'
-                  ? 'bg-white/10 text-white/70 border border-white/20'
-                  : 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
+            const statusClass = isLoadingSessions
+              ? 'bg-white/5 text-white/30 border border-white/10'
+              : session?.status === 'present'
+                ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
+                : session?.status === 'late'
+                  ? 'bg-amber-500/20 text-amber-200 border border-amber-400/40'
+                  : session?.status === 'checked_out'
+                    ? 'bg-white/10 text-white/70 border border-white/20'
+                    : 'bg-rose-500/20 text-rose-200 border border-rose-400/40';
 
             return (
               <div key={member.person_id} className="rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3">

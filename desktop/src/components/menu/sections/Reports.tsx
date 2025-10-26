@@ -78,10 +78,9 @@ export function Reports({ group }: ReportsProps) {
     setLoading(true);
     try {
       setError(null);
-      const generatedReport = await attendanceManager.generateReport(group.id, startDate, endDate);
-      setReport(generatedReport);
-      // Also load raw sessions and members for editable table
-      const [loadedSessions, loadedMembers] = await Promise.all([
+      // Load everything in parallel for faster response
+      const [generatedReport, loadedSessions, loadedMembers] = await Promise.all([
+        attendanceManager.generateReport(group.id, startDate, endDate),
         attendanceManager.getSessions({
           group_id: group.id,
           start_date: getLocalDateString(startDate),
@@ -89,6 +88,7 @@ export function Reports({ group }: ReportsProps) {
         }),
         attendanceManager.getGroupMembers(group.id)
       ]);
+      setReport(generatedReport);
       setSessions(loadedSessions);
       setMembers(loadedMembers);
     } catch (err) {
