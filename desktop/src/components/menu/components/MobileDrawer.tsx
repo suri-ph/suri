@@ -85,8 +85,16 @@ export function MobileDrawer({
             </svg>
           </button>
 
-          {/* Group Selector & Actions */}
+          {/* Menu Header */}
           <div className="px-4 pt-1 pb-3 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <img src="/suri_icon.png" alt="Suri" className="w-6 h-6" />
+              <h1 className="text-lg font-semibold text-white">Menu</h1>
+            </div>
+          </div>
+
+          {/* Group Selector & Actions - Above Navigation */}
+          <div className="px-4 py-3 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <select
@@ -111,7 +119,7 @@ export function MobileDrawer({
               </div>
               <button
                 onClick={onCreateGroup}
-                className="h-10 px-3 rounded-lg text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors border border-white/10"
+                className="h-10 px-3 rounded-lg text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors border border-white/10 flex-shrink-0"
                 aria-label="New Group"
                 title="New Group"
               >

@@ -16,6 +16,7 @@ export interface PersonWithDisplayName extends PersonWithName {
 /**
  * Generates display names for a list of people, automatically adding
  * numeric suffixes for duplicates (e.g., "John Smith (2)")
+ * Note: Duplicate detection is case-insensitive (e.g., "John" and "john" are treated as duplicates)
  * 
  * @param persons - Array of persons with at least person_id and name
  * @returns Array of persons with added displayName property
@@ -24,31 +25,33 @@ export interface PersonWithDisplayName extends PersonWithName {
  * const members = [
  *   { person_id: '1', name: 'John Smith' },
  *   { person_id: '2', name: 'Jane Doe' },
- *   { person_id: '3', name: 'John Smith' }
+ *   { person_id: '3', name: 'john smith' }
  * ];
  * const withDisplayNames = generateDisplayNames(members);
  * // Result:
  * // [
  * //   { person_id: '1', name: 'John Smith', displayName: 'John Smith' },
  * //   { person_id: '2', name: 'Jane Doe', displayName: 'Jane Doe' },
- * //   { person_id: '3', name: 'John Smith', displayName: 'John Smith (2)' }
+ * //   { person_id: '3', name: 'john smith', displayName: 'john smith (2)' }
  * // ]
  */
 export function generateDisplayNames<T extends PersonWithName>(
   persons: T[]
 ): (T & { displayName: string })[] {
-  // Count occurrences of each name
+  // Count occurrences of each name (case-insensitive)
   const nameOccurrences = new Map<string, number>();
   persons.forEach(person => {
-    const count = nameOccurrences.get(person.name) || 0;
-    nameOccurrences.set(person.name, count + 1);
+    const normalizedName = person.name.toLowerCase();
+    const count = nameOccurrences.get(normalizedName) || 0;
+    nameOccurrences.set(normalizedName, count + 1);
   });
 
-  // Track which number we're on for each duplicate name
+  // Track which number we're on for each duplicate name (case-insensitive)
   const nameCounters = new Map<string, number>();
 
   return persons.map(person => {
-    const occurrences = nameOccurrences.get(person.name) || 1;
+    const normalizedName = person.name.toLowerCase();
+    const occurrences = nameOccurrences.get(normalizedName) || 1;
     
     // If name only appears once, use it as-is
     if (occurrences === 1) {
@@ -59,8 +62,8 @@ export function generateDisplayNames<T extends PersonWithName>(
     }
 
     // For duplicates, add numbering starting from (2)
-    const currentCount = nameCounters.get(person.name) || 0;
-    nameCounters.set(person.name, currentCount + 1);
+    const currentCount = nameCounters.get(normalizedName) || 0;
+    nameCounters.set(normalizedName, currentCount + 1);
 
     // First occurrence gets no suffix, subsequent ones get (2), (3), etc.
     const displayName = currentCount === 0 

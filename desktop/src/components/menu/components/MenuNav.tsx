@@ -13,7 +13,6 @@ interface SectionConfig {
   label: string;
   icon: string;
   shortcut: string;
-  description: string;
 }
 
 const SECTIONS: SectionConfig[] = [
@@ -21,36 +20,31 @@ const SECTIONS: SectionConfig[] = [
     id: 'overview', 
     label: 'Overview', 
     icon: '',
-    shortcut: '1',
-    description: 'Group statistics and activity'
+    shortcut: '1'
   },
   { 
     id: 'members', 
     label: 'Members', 
     icon: '',
-    shortcut: '2',
-    description: 'Manage group members'
+    shortcut: '2'
   },
   { 
     id: 'reports', 
     label: 'Reports', 
     icon: '',
-    shortcut: '3',
-    description: 'View attendance reports'
+    shortcut: '3'
   },
   { 
     id: 'registration', 
     label: 'Registration', 
     icon: '',
-    shortcut: '4',
-    description: 'Register faces'
+    shortcut: '4'
   },
   { 
     id: 'settings', 
     label: 'Settings', 
     icon: '',
-    shortcut: '5',
-    description: 'Group configuration'
+    shortcut: '5'
   },
 ];
 
@@ -85,7 +79,7 @@ export function MenuNav({ activeSection, onSectionChange, selectedGroup, isColla
       <ul className="space-y-1 px-2">
         {SECTIONS.map((section) => {
           const isActive = activeSection === section.id;
-          const isHovered = hoveredSection === section.id;
+          const isHovered = isCollapsed && hoveredSection === section.id;
           const isDisabled = !selectedGroup;
 
           return (
@@ -115,11 +109,6 @@ export function MenuNav({ activeSection, onSectionChange, selectedGroup, isColla
                     <div className="font-medium text-sm truncate">
                       {section.label}
                     </div>
-                    {isHovered && !isDisabled && (
-                      <div className="text-xs text-white/50 mt-0.5 truncate">
-                        {section.description}
-                      </div>
-                    )}
                   </div>
                 )}
 

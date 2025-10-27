@@ -42,24 +42,12 @@ export function Registration({ group, members, onRefresh }: RegistrationProps) {
 
   if (mode === 'single') {
     return (
-      <div className="h-full flex flex-col overflow-hidden space-y-4">
-        <button
-          onClick={() => setMode(null)}
-          className="group flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors text-sm flex-shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
-        <div className="flex-1 overflow-hidden min-h-0">
-          <FaceCapture
-            group={group}
-            members={members}
-            onRefresh={onRefresh}
-          />
-        </div>
-      </div>
+      <FaceCapture
+        group={group}
+        members={members}
+        onRefresh={onRefresh}
+        onBack={() => setMode(null)}
+      />
     );
   }
 

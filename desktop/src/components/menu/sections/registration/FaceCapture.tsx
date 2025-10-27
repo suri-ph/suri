@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { attendanceManager } from '../../../../services/AttendanceManager';
 import { backendService } from '../../../../services/BackendService';
+import { generateDisplayNames } from '../../../../utils/displayNameUtils';
 import type { AttendanceGroup, AttendanceMember } from '../../../../types/recognition';
 
 type CaptureSource = 'upload' | 'live';
@@ -27,6 +28,7 @@ interface FaceCaptureProps {
   group: AttendanceGroup | null;
   members: AttendanceMember[];
   onRefresh?: () => Promise<void> | void;
+  onBack?: () => void;
 }
 
 const REQUIRED_ANGLE = 'Front';
@@ -57,7 +59,7 @@ const getImageDimensions = (dataUrl: string) => new Promise<{ width: number; hei
   img.src = dataUrl;
 });
 
-export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
+export function FaceCapture({ group, members, onRefresh, onBack }: FaceCaptureProps) {
   const [source, setSource] = useState<CaptureSource>('upload');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
@@ -75,14 +77,20 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
   const streamRef = useRef<MediaStream | null>(null);
 
 
+  // Generate display names with auto-differentiation for duplicates
+  const membersWithDisplayNames = useMemo(() => {
+    return generateDisplayNames(members);
+  }, [members]);
+
   const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return members;
+    if (!memberSearch.trim()) return membersWithDisplayNames;
     const query = memberSearch.toLowerCase();
-    return members.filter(member =>
+    return membersWithDisplayNames.filter(member =>
       member.name.toLowerCase().includes(query) ||
+      member.displayName.toLowerCase().includes(query) ||
       member.person_id.toLowerCase().includes(query)
     );
-  }, [memberSearch, members]);
+  }, [memberSearch, membersWithDisplayNames]);
 
   const resetFrames = useCallback(() => {
     setFrames([]);
@@ -291,10 +299,6 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     }
   }, [captureProcessedFrame]);
 
-  const handleRemoveFrame = useCallback((angle: string) => {
-    setFrames(prev => prev.filter(frame => frame.angle !== angle));
-  }, []);
-
   const framesReady = (() => {
     const frame = frames.find(item => item.angle === REQUIRED_ANGLE);
     return frame && (frame.status === 'ready' || frame.status === 'registered');
@@ -374,9 +378,9 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
     }
   }, [group, selectedMemberId, framesReady, frames, loadMemberStatus, onRefresh, updateFrame, members]);
 
-  const handleRemoveFaceData = useCallback(async (member: AttendanceMember) => {
+  const handleRemoveFaceData = useCallback(async (member: AttendanceMember & { displayName: string }) => {
     if (!group) return;
-    const confirmation = window.confirm(`Remove all face embeddings for ${member.name}?`);
+    const confirmation = window.confirm(`Remove all face embeddings for ${member.displayName}?`);
     if (!confirmation) return;
 
     try {
@@ -388,7 +392,7 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
       if (onRefresh) {
         await onRefresh();
       }
-      setSuccessMessage(`Embeddings purged for ${member.name}.`);
+      setSuccessMessage(`Embeddings purged for ${member.displayName}.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to remove face data.';
       setGlobalError(message);
@@ -432,24 +436,35 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
         {/* Show member list only when no member selected */}
         {!selectedMemberId && (
           <div className="space-y-3 flex flex-col overflow-hidden min-h-0 h-full">
-            <div className="flex items-center gap-2 text-white/60 flex-shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span className="text-xs uppercase tracking-wide">Select Member</span>
+            {/* Header Row with Search and Back Button */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="search"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Search members..."
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* Back Button */}
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="group flex items-center gap-1.5 text-white/40 hover:text-white/80 transition-colors text-sm flex-shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>Back</span>
+                </button>
+              )}
             </div>
-            <div className="relative flex-shrink-0">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="search"
-              value={memberSearch}
-              onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="Search members..."
-              className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
-            />
-          </div>
 
           <div className="flex-1 space-y-1.5 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2">
             {members.length === 0 && (
@@ -464,58 +479,59 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
               </div>
             )}
 
-            {filteredMembers.map(member => {
-              const isSelected = selectedMemberId === member.person_id;
-              const hasEmbeddings = memberStatus.get(member.person_id) ?? false;
-              return (
-                <button
-                  key={member.person_id}
-                  onClick={() => setSelectedMemberId(member.person_id)}
-                  className={`group relative w-full rounded-xl border px-3 py-3 text-left transition-all ${
-                    isSelected 
-                      ? 'border-white/20 bg-gradient-to-br from-white/5 to-white/2' 
-                      : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg ${
-                      hasEmbeddings ? 'bg-emerald-500/20' : 'bg-white/5'
-                    }`}>
-                      {hasEmbeddings ? '✓' : '👤'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{member.name}</div>
-                      {member.role && (
-                        <div className="text-xs text-white/40 truncate">{member.role}</div>
-                      )}
-                    </div>
-                    {isSelected && (
-                      <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                    )}
-                  </div>
-                  {hasEmbeddings && isSelected && (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveFaceData(member);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleRemoveFaceData(member);
-                        }
-                      }}
-                      className="mt-2 w-full rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors cursor-pointer"
-                    >
-                      Remove Face Data
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+             {filteredMembers.map(member => {
+               const isSelected = selectedMemberId === member.person_id;
+               const hasEmbeddings = memberStatus.get(member.person_id) ?? false;
+               return (
+                 <button
+                   key={member.person_id}
+                   onClick={() => setSelectedMemberId(member.person_id)}
+                   className={`group relative w-full rounded-xl border px-3 py-3 text-left transition-all ${
+                     isSelected 
+                       ? 'border-cyan-400/50 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 shadow-lg shadow-cyan-500/10' 
+                       : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
+                   }`}
+                 >
+                   <div className="flex items-center gap-3">
+                     <div className="flex-1 min-w-0">
+                       <div className={`text-sm font-medium truncate transition-colors ${
+                         isSelected ? 'text-cyan-100' : 'text-white'
+                       }`}>
+                         {member.displayName}
+                       </div>
+                       {member.role && (
+                         <div className="text-xs text-white/40 truncate">{member.role}</div>
+                       )}
+                     </div>
+                     {isSelected && (
+                       <div className="flex-shrink-0">
+                         <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                       </div>
+                     )}
+                   </div>
+                   {hasEmbeddings && isSelected && (
+                     <div
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         handleRemoveFaceData(member);
+                       }}
+                       role="button"
+                       tabIndex={0}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' || e.key === ' ') {
+                           e.preventDefault();
+                           e.stopPropagation();
+                           handleRemoveFaceData(member);
+                         }
+                       }}
+                       className="mt-2 w-full rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors cursor-pointer"
+                     >
+                       Remove Face Data
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
             </div>
           </div>
         )}
@@ -523,26 +539,25 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
         {/* Registration Panel - Show only when member selected */}
         {selectedMemberId && (
           <div className="space-y-4 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2 h-full">
-            {/* Header with Change Member button */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-lg font-medium text-white truncate">
-                    {members.find(m => m.person_id === selectedMemberId)?.name}
-                  </div>
-                  <div className="text-xs text-white/40">{group?.name}</div>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedMemberId('');
-                    resetFrames();
-                  }}
-                  className="rounded-lg px-3 py-1.5 text-xs text-white/60 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all"
-                >
-                  Change
-                </button>
-              </div>
-            </div>
+             {/* Header with Change Member button */}
+             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+               <div className="flex items-center gap-3">
+                 <div className="flex-1 min-w-0">
+                   <div className="text-lg font-medium text-white truncate">
+                     {membersWithDisplayNames.find(m => m.person_id === selectedMemberId)?.displayName}
+                   </div>
+                 </div>
+                 <button
+                   onClick={() => {
+                     setSelectedMemberId('');
+                     resetFrames();
+                   }}
+                   className="rounded-lg px-3 py-1.5 text-xs text-white/60 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all"
+                 >
+                   Change
+                 </button>
+               </div>
+             </div>
 
             <div className="flex gap-2">
               {(['upload', 'live'] as CaptureSource[]).map(option => (
@@ -560,76 +575,77 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
               ))}
             </div>
 
-            {/* Capture Area */}
-            <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-                {source === 'live' ? (
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${cameraReady ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                        <span className="text-xs text-white/60">
-                          {cameraReady ? 'Ready' : 'Initializing...'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
-                      <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
-                      {!cameraReady && !cameraError && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
-                            <span className="text-xs text-white/40">Loading...</span>
-                          </div>
-                        </div>
-                      )}
-                      {cameraError && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
-                          <div className="space-y-2">
-                            <div className="text-xs text-red-300">{cameraError}</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
-                      disabled={!cameraReady || !!cameraError}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
-                    >
-                      Capture Face
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex h-96 cursor-pointer flex-col items-center justify-center p-8 text-center hover:bg-white/5 transition-all group">
-                    <div className="flex flex-col items-center gap-4">
-                      <div>
-                        <div className="text-sm text-white/60 mb-1">Drop image or click to browse</div>
-                        <div className="text-xs text-white/30">PNG, JPG up to 10MB</div>
-                      </div>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        void handleFileSelected(REQUIRED_ANGLE, e.target.files);
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
+             {/* Capture Area */}
+             {source === 'live' ? (
+               <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                 <div className="p-4 space-y-3">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                       <div className={`h-2 w-2 rounded-full ${cameraReady ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                       <span className="text-xs text-white/60">
+                         {cameraReady ? 'Ready' : 'Initializing...'}
+                       </span>
+                     </div>
+                   </div>
+                   <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
+                     <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
+                     {!cameraReady && !cameraError && (
+                       <div className="absolute inset-0 flex items-center justify-center">
+                         <div className="flex flex-col items-center gap-2">
+                           <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+                           <span className="text-xs text-white/40">Loading...</span>
+                         </div>
+                       </div>
+                     )}
+                     {cameraError && (
+                       <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
+                         <div className="space-y-2">
+                           <div className="text-xs text-red-300">{cameraError}</div>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                   <button
+                     onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
+                     disabled={!cameraReady || !!cameraError}
+                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+                   >
+                     Capture Face
+                   </button>
+                 </div>
+               </div>
+             ) : (
+               // Upload mode - only show upload area if no frame exists
+               !frames.find(f => f.angle === REQUIRED_ANGLE) && (
+                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                   <label className="flex h-96 cursor-pointer flex-col items-center justify-center p-8 text-center hover:bg-white/5 transition-all group">
+                     <div className="flex flex-col items-center gap-4">
+                       <div>
+                         <div className="text-sm text-white/60 mb-1">Drop image or click to browse</div>
+                         <div className="text-xs text-white/30">PNG, JPG up to 10MB</div>
+                       </div>
+                     </div>
+                     <input
+                       type="file"
+                       accept="image/*"
+                       className="hidden"
+                       onChange={(e) => {
+                         void handleFileSelected(REQUIRED_ANGLE, e.target.files);
+                         e.target.value = '';
+                       }}
+                     />
+                   </label>
+                 </div>
+               )
+             )}
 
-              {/* Face Preview */}
-              <div className="space-y-3">
-
-                {/* Preview */}
-                <div className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
-                  <div className="p-2 border-b border-white/10">
-                    <div className="text-xs text-white/40">Front View</div>
-                  </div>
-                  <div className="p-3">
-                    {frames.find(f => f.angle === REQUIRED_ANGLE) ? (
-                      frames.filter(f => f.angle === REQUIRED_ANGLE).map(frame => {
+              {/* Face Preview - Only show when frame exists */}
+              {frames.find(f => f.angle === REQUIRED_ANGLE) && (
+                <div className="space-y-3">
+                  {/* Preview */}
+                  <div className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
+                    <div className="p-3">
+                      {frames.filter(f => f.angle === REQUIRED_ANGLE).map(frame => {
                         const left = frame.bbox ? (frame.bbox[0] / frame.width) * 100 : 0;
                         const top = frame.bbox ? (frame.bbox[1] / frame.height) * 100 : 0;
                         const width = frame.bbox ? (frame.bbox[2] / frame.width) * 100 : 0;
@@ -673,25 +689,13 @@ export function FaceCapture({ group, members, onRefresh }: FaceCaptureProps) {
                                 <span className="text-emerald-300">{(frame.confidence * 100).toFixed(0)}%</span>
                               </div>
                             )}
-                            <button
-                              onClick={() => handleRemoveFrame(frame.angle)}
-                              className="w-full rounded-lg bg-white/5 px-3 py-2 text-xs text-white/50 hover:bg-red-500/20 hover:text-red-300 transition-colors"
-                            >
-                              Retake
-                            </button>
                           </div>
                         );
-                      })
-                    ) : (
-                      <div className="flex h-40 items-center justify-center text-center">
-                        <div className="space-y-2">
-                          <div className="text-xs text-white/30">No capture</div>
-                        </div>
-                      </div>
-                    )}
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2">
