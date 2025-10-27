@@ -179,6 +179,14 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
     stopCamera();
   }, [source, startCamera, stopCamera]);
 
+  // Restart camera when frames are cleared and source is 'live'
+  useEffect(() => {
+    const hasFrame = frames.find(f => f.angle === REQUIRED_ANGLE);
+    if (source === 'live' && !hasFrame && !cameraReady) {
+      startCamera();
+    }
+  }, [source, frames, cameraReady, startCamera]);
+
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   const updateFrame = useCallback((frameId: string, updater: (frame: CapturedFrame) => CapturedFrame) => {
@@ -274,11 +282,19 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
       return;
     }
 
-    ctx.drawImage(video, 0, 0, width, height);
+    // Mirror the canvas to match the mirrored video preview
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, -width, 0, width, height);
+    ctx.restore();
+    
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     await captureProcessedFrame(angle, dataUrl, width, height);
     
-  }, [captureProcessedFrame]);
+    // Stop camera after successful capture since the camera container will be hidden
+    stopCamera();
+    
+  }, [captureProcessedFrame, stopCamera]);
 
   const handleFileSelected = useCallback(async (angle: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -564,11 +580,12 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
                 <button
                   key={option}
                   onClick={() => setSource(option)}
+                  disabled={!!frames.find(f => f.angle === REQUIRED_ANGLE)}
                   className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     source === option 
                       ? 'bg-white/10 text-white border border-white/20' 
                       : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {option === 'upload' ? 'Upload' : 'Camera'}
                 </button>
@@ -577,43 +594,46 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
 
              {/* Capture Area */}
              {source === 'live' ? (
-               <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-                 <div className="p-4 space-y-3">
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                       <div className={`h-2 w-2 rounded-full ${cameraReady ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                       <span className="text-xs text-white/60">
-                         {cameraReady ? 'Ready' : 'Initializing...'}
-                       </span>
+               // Camera mode - only show camera if no frame exists
+               !frames.find(f => f.angle === REQUIRED_ANGLE) && (
+                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                   <div className="p-4 space-y-3">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <div className={`h-2 w-2 rounded-full ${cameraReady ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                         <span className="text-xs text-white/60">
+                           {cameraReady ? 'Ready' : 'Initializing...'}
+                         </span>
+                       </div>
                      </div>
-                   </div>
-                   <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
-                     <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
-                     {!cameraReady && !cameraError && (
-                       <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="flex flex-col items-center gap-2">
-                           <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
-                           <span className="text-xs text-white/40">Loading...</span>
+                     <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
+                       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
+                       {!cameraReady && !cameraError && (
+                         <div className="absolute inset-0 flex items-center justify-center">
+                           <div className="flex flex-col items-center gap-2">
+                             <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+                             <span className="text-xs text-white/40">Loading...</span>
+                           </div>
                          </div>
-                       </div>
-                     )}
-                     {cameraError && (
-                       <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
-                         <div className="space-y-2">
-                           <div className="text-xs text-red-300">{cameraError}</div>
+                       )}
+                       {cameraError && (
+                         <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
+                           <div className="space-y-2">
+                             <div className="text-xs text-red-300">{cameraError}</div>
+                           </div>
                          </div>
-                       </div>
-                     )}
+                       )}
+                     </div>
+                     <button
+                       onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
+                       disabled={!cameraReady || !!cameraError}
+                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+                     >
+                       Capture Face
+                     </button>
                    </div>
-                   <button
-                     onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
-                     disabled={!cameraReady || !!cameraError}
-                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
-                   >
-                     Capture Face
-                   </button>
                  </div>
-               </div>
+               )
              ) : (
                // Upload mode - only show upload area if no frame exists
                !frames.find(f => f.angle === REQUIRED_ANGLE) && (
