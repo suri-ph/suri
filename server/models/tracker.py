@@ -683,12 +683,6 @@ class FaceTracker:
             matching_weights=matching_weights
         )
         self.max_iou_distance = max_iou_distance
-        
-        # Set matching weights with defaults
-        if matching_weights is None:
-            matching_weights = {"appearance": 0.7, "motion": 0.3}
-        self.appearance_weight = matching_weights.get("appearance", 0.7)
-        self.motion_weight = matching_weights.get("motion", 0.3)
     
     def update(
         self,

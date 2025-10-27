@@ -98,21 +98,8 @@ class FaceDetector:
                 landmarks_5[:, 0] *= scale_x
                 landmarks_5[:, 1] *= scale_y
                 
-                # 🎯 LIVENESS DETECTION SIZE FILTER: Ensure face meets minimum size for liveness detection
-                # Liveness detection model was trained with 1.5x expanded bboxes resized to 128x128
-                # Minimum face size of 80px ensures adequate texture density after 1.5x expansion
                 is_face_too_small = face_width_orig < self.min_face_size or face_height_orig < self.min_face_size
                 
-                # 🚀 OPTIMIZATION: Remove bbox expansion here
-                # Anti-spoofing already handles bbox expansion with its bbox_inc parameter (1.2)
-                # This eliminates redundant expansion that was applied TWICE (30% perf loss)
-                
-                
-                # Confidence is already normalized (0.0 - 1.0)
-                normalized_conf = float(conf)
-                
-                # 🚀 OPTIMIZATION: Use original bbox as primary (no expansion)
-                # This removes redundant bbox expansion that was causing 30% performance loss
                 detection = {
                     'bbox': {
                         'x': x1_orig,
@@ -120,13 +107,7 @@ class FaceDetector:
                         'width': face_width_orig,
                         'height': face_height_orig
                     },
-                    'bbox_original': {
-                        'x': x1_orig,
-                        'y': y1_orig,
-                        'width': face_width_orig,
-                        'height': face_height_orig
-                    },
-                    'confidence': normalized_conf
+                    'confidence': float(conf)
                 }
                 
                 # Add liveness status for small faces
@@ -178,7 +159,6 @@ class FaceDetector:
     def set_min_face_size(self, min_size: int):
         """Set minimum face size for liveness detection compatibility"""
         self.min_face_size = min_size
-        # Minimum face size updated for liveness detection compatibility
 
     def get_model_info(self):
         """Get model information"""
