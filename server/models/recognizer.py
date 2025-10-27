@@ -12,30 +12,15 @@ from utils.database_manager import FaceDatabaseManager
 logger = logging.getLogger(__name__)
 
 class FaceRecognizer:
-    """
-    Face recognition model wrapper with async support and database management
-    """
-    
     def __init__(
         self,
         model_path: str,
-        input_size: Tuple[int, int] = (112, 112),
-        similarity_threshold: float = 0.6,
-        providers: Optional[List[str]] = None,
-        database_path: Optional[str] = None,
-        session_options: Optional[Dict[str, Any]] = None
+        input_size: Tuple[int, int],
+        similarity_threshold: float,
+        providers: Optional[List[str]],
+        database_path: Optional[str],
+        session_options: Optional[Dict[str, Any]]
     ):
-        """
-        Initialize face recognizer
-        
-        Args:
-            model_path: Path to the ONNX model file
-            input_size: Input size (width, height) - face recognizer uses 112x112
-            similarity_threshold: Similarity threshold for recognition
-            providers: ONNX runtime providers
-            database_path: Path to face database JSON file
-            session_options: ONNX runtime session options for optimization
-        """
         self.model_path = model_path
         self.input_size = input_size
         self.similarity_threshold = similarity_threshold
