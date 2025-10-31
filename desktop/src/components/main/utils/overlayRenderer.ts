@@ -1,7 +1,7 @@
 // Canvas overlay rendering utilities
 
 import type { DetectionResult } from '../types';
-import type { FaceRecognitionResponse } from '../../../types/recognition';
+import type { ExtendedFaceRecognitionResponse } from '../index';
 import type { QuickSettings } from '../../settings';
 
 export const getFaceColor = (
@@ -135,7 +135,7 @@ interface DrawOverlaysParams {
   overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   currentDetections: DetectionResult | null;
   isStreaming: boolean;
-  currentRecognitionResults: Map<number, FaceRecognitionResponse>;
+  currentRecognitionResults: Map<number, ExtendedFaceRecognitionResponse>;
   recognitionEnabled: boolean;
   persistentCooldowns: Map<string, { personId: string; memberName?: string; startTime: number; lastKnownBbox?: { x: number; y: number; width: number; height: number } }>;
   attendanceCooldownSeconds: number;
@@ -162,9 +162,11 @@ export const drawOverlays = ({
 
   if (!video || !overlayCanvas || !currentDetections) return;
 
+  // OPTIMIZATION: Reuse canvas context with optimal settings
   const ctx = overlayCanvas.getContext('2d', {
     alpha: true,
-    willReadFrequently: false
+    willReadFrequently: false,
+    desynchronized: true // Enable desynchronized hint for better performance
   });
   if (!ctx) return;
 
@@ -179,6 +181,7 @@ export const drawOverlays = ({
   const displayWidth = Math.round(rect.width);
   const displayHeight = Math.round(rect.height);
 
+  // OPTIMIZATION: Batch DOM writes - only update if size changed
   if (overlayCanvas.width !== displayWidth || overlayCanvas.height !== displayHeight) {
     overlayCanvas.width = displayWidth;
     overlayCanvas.height = displayHeight;
@@ -186,6 +189,9 @@ export const drawOverlays = ({
     overlayCanvas.style.height = `${displayHeight}px`;
   }
 
+  // OPTIMIZATION: Save/restore context state only once at start
+  ctx.save();
+  
   ctx.clearRect(0, 0, displayWidth, displayHeight);
 
   const scaleFactors = calculateScaleFactors();
@@ -267,4 +273,7 @@ export const drawOverlays = ({
 
     ctx.shadowBlur = 0;
   });
+  
+  // OPTIMIZATION: Restore context state once at end
+  ctx.restore();
 };

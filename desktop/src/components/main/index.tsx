@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useDeferredValue, startTransition } from 'react';
 import { BackendService } from '../../services/BackendService';
 import { Settings, type QuickSettings } from '../settings';
 import { attendanceManager } from '../../services/AttendanceManager';
@@ -18,6 +18,56 @@ import { GroupManagementModal } from './components/GroupManagementModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 
 const NON_LOGGING_ANTISPOOF_STATUSES = new Set<'real' | 'fake' | 'uncertain' | 'error' | 'insufficient_quality'>(['fake', 'uncertain', 'error', 'insufficient_quality']);
+
+const TRACKING_HISTORY_LIMIT = 20;
+
+// Extended recognition response with additional UI properties
+export interface ExtendedFaceRecognitionResponse extends FaceRecognitionResponse {
+  memberName?: string;
+  cooldownRemaining?: number;
+}
+
+const trimTrackingHistory = <T,>(history: T[]): T[] => {
+  if (history.length <= TRACKING_HISTORY_LIMIT) {
+    return history;
+  }
+  return history.slice(history.length - TRACKING_HISTORY_LIMIT);
+};
+
+const isRecognitionResponseEqual = (
+  a: ExtendedFaceRecognitionResponse | undefined,
+  b: ExtendedFaceRecognitionResponse | undefined
+): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+
+  return (
+    a.success === b.success &&
+    a.person_id === b.person_id &&
+    a.name === b.name &&
+    a.similarity === b.similarity &&
+    a.error === b.error &&
+    a.memberName === b.memberName &&
+    a.cooldownRemaining === b.cooldownRemaining
+  );
+};
+
+const areRecognitionMapsEqual = (
+  prev: Map<number, ExtendedFaceRecognitionResponse>,
+  next: Map<number, ExtendedFaceRecognitionResponse>
+): boolean => {
+  if (prev === next) return true;
+  if (prev.size !== next.size) return false;
+
+  for (const [key, nextValue] of next) {
+    const prevValue = prev.get(key);
+    if (!isRecognitionResponseEqual(prevValue, nextValue)) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 export default function Main() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -138,7 +188,7 @@ export default function Main() {
 
   // Command hub state
   const [menuInitialSection, setMenuInitialSection] = useState<MenuSection>('overview');
-  const [currentRecognitionResults, setCurrentRecognitionResults] = useState<Map<number, FaceRecognitionResponse>>(new Map());
+  const [currentRecognitionResults, setCurrentRecognitionResults] = useState<Map<number, ExtendedFaceRecognitionResponse>>(new Map());
 
   // ACCURATE FPS tracking with rolling average
   const fpsTrackingRef = useRef({
@@ -165,11 +215,13 @@ export default function Main() {
   const attendanceEnabled = true;
   const [currentGroup, setCurrentGroupInternal] = useState<AttendanceGroup | null>(null);
   const currentGroupRef = useRef<AttendanceGroup | null>(null);
+  const memberCacheRef = useRef<Map<string, AttendanceMember | null>>(new Map());
   
   // Debug wrapper for setCurrentGroup with localStorage persistence
   const setCurrentGroup = useCallback((group: AttendanceGroup | null) => {
     setCurrentGroupInternal(group);
     currentGroupRef.current = group; // Keep ref in sync
+    memberCacheRef.current.clear();
     
     // Save group selection to localStorage for persistence
     if (group) {
@@ -205,6 +257,9 @@ export default function Main() {
   
   // Persistent cooldown tracking (for recognized faces)
   const [persistentCooldowns, setPersistentCooldowns] = useState<Map<string, CooldownInfo>>(new Map());
+
+  // Defer non-critical UI updates to prevent blocking - must be after state declarations
+  const deferredCurrentRecognitionResults = useDeferredValue(currentRecognitionResults);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -264,86 +319,106 @@ export default function Main() {
     };
   }, [isStartingRef.current, isStoppingRef.current, emergencyRecovery]);
 
-  // Real-time countdown updater
+  // Real-time countdown updater - optimized to reduce state update frequency
   useEffect(() => {
-    const interval = setInterval(() => {
+    let lastUpdateTime = 0;
+    const updateInterval = 1000; // Update every second
+    
+    const updateCooldowns = () => {
       const now = Date.now();
       
-      // Update tracked faces with current cooldown remaining
-      setTrackedFaces(prev => {
-        const newTracked = new Map(prev);
-        let hasChanges = false;
-        
-        for (const [trackId, track] of newTracked) {
-          if (track.personId) {
-            const lastAttendanceTime = attendanceCooldowns.get(track.personId);
-            if (lastAttendanceTime) {
-              const timeSinceLastAttendance = now - lastAttendanceTime;
-              const cooldownMs = attendanceCooldownSeconds * 1000;
-              
-              if (timeSinceLastAttendance < cooldownMs) {
-                const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
-                if (track.cooldownRemaining !== remainingCooldown) {
-                  newTracked.set(trackId, {
-                    ...track,
-                    cooldownRemaining: remainingCooldown
-                  });
+      // Batch all updates in a single transition to prevent blocking
+      startTransition(() => {
+        // Update tracked faces with current cooldown remaining
+        setTrackedFaces(prev => {
+          const newTracked = new Map(prev);
+          let hasChanges = false;
+          
+          for (const [trackId, track] of newTracked) {
+            if (track.personId) {
+              const lastAttendanceTime = attendanceCooldowns.get(track.personId);
+              if (lastAttendanceTime) {
+                const timeSinceLastAttendance = now - lastAttendanceTime;
+                const cooldownMs = attendanceCooldownSeconds * 1000;
+                
+                if (timeSinceLastAttendance < cooldownMs) {
+                  const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
+                  if (track.cooldownRemaining !== remainingCooldown) {
+                    newTracked.set(trackId, {
+                      ...track,
+                      cooldownRemaining: remainingCooldown
+                    });
+                    hasChanges = true;
+                  }
+                } else if (track.cooldownRemaining !== undefined) {
+                  // Cooldown expired, remove it
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const { cooldownRemaining: _, ...trackWithoutCooldown } = track;
+                  newTracked.set(trackId, trackWithoutCooldown);
                   hasChanges = true;
                 }
-              } else if (track.cooldownRemaining !== undefined) {
-                // Cooldown expired, remove it
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { cooldownRemaining: _, ...trackWithoutCooldown } = track;
-                newTracked.set(trackId, trackWithoutCooldown);
-                hasChanges = true;
               }
             }
           }
-        }
-        
-        return hasChanges ? newTracked : prev;
-      });
-      
-      // Update persistent cooldowns
-      setPersistentCooldowns(prev => {
-        const newPersistent = new Map(prev);
-        let hasChanges = false;
-        
-        for (const [personId, cooldownInfo] of newPersistent) {
-          const timeSinceStart = now - cooldownInfo.startTime;
-          const cooldownMs = attendanceCooldownSeconds * 1000;
           
-          if (timeSinceStart >= cooldownMs) {
-            // Cooldown expired, remove it
-            newPersistent.delete(personId);
-            hasChanges = true;
-          }
-        }
+          return hasChanges ? newTracked : prev;
+        });
         
-        return hasChanges ? newPersistent : prev;
-      });
-      
-      // Clean up expired cooldowns in both ref and state
-      setAttendanceCooldowns(prev => {
-        const newCooldowns = new Map(prev);
-        let hasExpired = false;
-        
-        for (const [personId, timestamp] of newCooldowns) {
-          const timeSinceLastAttendance = now - timestamp;
-          const cooldownMs = attendanceCooldownSeconds * 1000;
+        // Update persistent cooldowns
+        setPersistentCooldowns(prev => {
+          const newPersistent = new Map(prev);
+          let hasChanges = false;
           
-          if (timeSinceLastAttendance >= cooldownMs) {
-            newCooldowns.delete(personId);
-            cooldownTimestampsRef.current.delete(personId); // Also clean from ref
-            hasExpired = true;
+          for (const [personId, cooldownInfo] of newPersistent) {
+            const timeSinceStart = now - cooldownInfo.startTime;
+            const cooldownMs = attendanceCooldownSeconds * 1000;
+            
+            if (timeSinceStart >= cooldownMs) {
+              // Cooldown expired, remove it
+              newPersistent.delete(personId);
+              hasChanges = true;
+            }
           }
-        }
+          
+          return hasChanges ? newPersistent : prev;
+        });
         
-        return hasExpired ? newCooldowns : prev;
+        // Clean up expired cooldowns in both ref and state
+        setAttendanceCooldowns(prev => {
+          const newCooldowns = new Map(prev);
+          let hasExpired = false;
+          
+          for (const [personId, timestamp] of newCooldowns) {
+            const timeSinceLastAttendance = now - timestamp;
+            const cooldownMs = attendanceCooldownSeconds * 1000;
+            
+            if (timeSinceLastAttendance >= cooldownMs) {
+              newCooldowns.delete(personId);
+              cooldownTimestampsRef.current.delete(personId); // Also clean from ref
+              hasExpired = true;
+            }
+          }
+          
+          return hasExpired ? newCooldowns : prev;
+        });
       });
-    }, 1000); // Update every second
+    };
     
-    return () => clearInterval(interval);
+    // Use requestAnimationFrame for smoother updates aligned with frame rate
+    const scheduleUpdate = () => {
+      const now = Date.now();
+      if (now - lastUpdateTime >= updateInterval) {
+        updateCooldowns();
+        lastUpdateTime = now;
+      }
+      requestAnimationFrame(scheduleUpdate);
+    };
+    
+    const rafId = requestAnimationFrame(scheduleUpdate);
+    
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
   }, [attendanceCooldowns, attendanceCooldownSeconds, persistentCooldowns]);
 
 
@@ -466,10 +541,18 @@ export default function Main() {
           if (response.success && response.person_id) {
             
             // Group-based filtering: Only process faces that belong to the current group (by name)
+            // OPTIMIZATION: Use member cache to prevent repeated async calls
             let memberName = response.person_id; // Default to person_id if no member found
             if (currentGroupValue) {
               try {
-                const member = await attendanceManager.getMember(response.person_id);
+                // Check cache first
+                let member = memberCacheRef.current.get(response.person_id);
+                if (!member && member !== null) {
+                  // Cache miss - fetch and cache
+                  member = await attendanceManager.getMember(response.person_id);
+                  memberCacheRef.current.set(response.person_id, member || null);
+                }
+                
                 if (!member) {
                   return null; // Filter out this face completely
                 }
@@ -482,16 +565,26 @@ export default function Main() {
                   return null; // Filter out this face completely
                 }
               } catch {
+                // Cache null to prevent repeated failures
+                memberCacheRef.current.set(response.person_id, null);
                 return null; // Filter out on error
               }
             } else {
               // When no group is selected, still try to get the member name for display
               try {
-                const member = await attendanceManager.getMember(response.person_id);
+                // Check cache first
+                let member = memberCacheRef.current.get(response.person_id);
+                if (!member && member !== null) {
+                  // Cache miss - fetch and cache
+                  member = await attendanceManager.getMember(response.person_id);
+                  memberCacheRef.current.set(response.person_id, member || null);
+                }
                 if (member && member.name) {
                   memberName = member.name;
                 }
               } catch {
+                // Cache null to prevent repeated failures
+                memberCacheRef.current.set(response.person_id, null);
                 // Silently fail and use person_id as fallback
               }
             }
@@ -501,48 +594,52 @@ export default function Main() {
             const trackedFaceId = `track_${face.track_id}`;
             const currentTime = Date.now();
             
-            // Update tracking data
-            setTrackedFaces(prev => {
-              const newTracked = new Map(prev);
-              const currentLivenessStatus = face.liveness?.status;
-              
-              // Find existing track using track_id (from SORT) for consistent identity
-              const existingTrack = newTracked.get(trackedFaceId);
-              
-              if (existingTrack) {
-                // Update existing track
-                existingTrack.lastSeen = currentTime;
-                existingTrack.confidence = Math.max(existingTrack.confidence, face.confidence);
-                existingTrack.trackingHistory.push({
-                  timestamp: currentTime,
-                  bbox: face.bbox,
-                  confidence: face.confidence
-                });
-                existingTrack.occlusionCount = 0; // Reset occlusion count
-                existingTrack.angleConsistency = calculateAngleConsistency(existingTrack.trackingHistory);
+            // Batch tracking updates in a transition to prevent blocking
+            startTransition(() => {
+              setTrackedFaces(prev => {
+                const newTracked = new Map(prev);
+                const currentLivenessStatus = face.liveness?.status;
                 
-                // CRITICAL FIX: Always use CURRENT frame's liveness status
-                // Remove "once real, stay real" logic to prevent spoofed faces from staying "live"
-                existingTrack.livenessStatus = currentLivenessStatus;
+                // Find existing track using track_id (from SORT) for consistent identity
+                const existingTrack = newTracked.get(trackedFaceId);
                 
-                newTracked.set(existingTrack.id, existingTrack);
-              } else {
-                // Create new track using track_id as the key
-                newTracked.set(trackedFaceId, {
-                  id: trackedFaceId,
-                  bbox: face.bbox,
-                  confidence: face.confidence,
-                  lastSeen: currentTime,
-                  trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
-                  isLocked: trackingMode === 'auto',
-                  personId: response.person_id,
-                  occlusionCount: 0,
-                  angleConsistency: 1.0,
-                  livenessStatus: currentLivenessStatus
-                });
-              }
-              
-              return newTracked;
+                if (existingTrack) {
+                  // Update existing track
+                  existingTrack.lastSeen = currentTime;
+                  existingTrack.confidence = Math.max(existingTrack.confidence, face.confidence);
+                  existingTrack.trackingHistory.push({
+                    timestamp: currentTime,
+                    bbox: face.bbox,
+                    confidence: face.confidence
+                  });
+                  // Trim tracking history to prevent unbounded growth
+                  existingTrack.trackingHistory = trimTrackingHistory(existingTrack.trackingHistory);
+                  existingTrack.occlusionCount = 0; // Reset occlusion count
+                  existingTrack.angleConsistency = calculateAngleConsistency(existingTrack.trackingHistory);
+                  
+                  // CRITICAL FIX: Always use CURRENT frame's liveness status
+                  // Remove "once real, stay real" logic to prevent spoofed faces from staying "live"
+                  existingTrack.livenessStatus = currentLivenessStatus;
+                  
+                  newTracked.set(existingTrack.id, existingTrack);
+                } else {
+                  // Create new track using track_id as the key
+                  newTracked.set(trackedFaceId, {
+                    id: trackedFaceId,
+                    bbox: face.bbox,
+                    confidence: face.confidence,
+                    lastSeen: currentTime,
+                    trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
+                    isLocked: trackingMode === 'auto',
+                    personId: response.person_id,
+                    occlusionCount: 0,
+                    angleConsistency: 1.0,
+                    livenessStatus: currentLivenessStatus
+                  });
+                }
+                
+                return newTracked;
+              });
             });
             
             // Enhanced Attendance Processing with comprehensive error handling
@@ -582,7 +679,8 @@ export default function Main() {
                     if (timeSinceLastAttendance < cooldownMs) {
                       const remainingCooldown = Math.ceil((cooldownMs - timeSinceLastAttendance) / 1000);
 
-                      // Update lastKnownBbox in persistentCooldowns for display even when face disappears
+                    // Update lastKnownBbox in persistentCooldowns for display even when face disappears
+                    startTransition(() => {
                       setPersistentCooldowns(prev => {
                         const newPersistent = new Map(prev);
                         const existing = newPersistent.get(cooldownKey);
@@ -608,6 +706,7 @@ export default function Main() {
                         }
                         return newTracked;
                       });
+                    });
 
                       // Use trackId instead of index for stable mapping
                       return { trackId, result: { ...response, name: memberName, memberName, cooldownRemaining: remainingCooldown } };
@@ -618,22 +717,25 @@ export default function Main() {
                     const logTime = Date.now();
                     cooldownTimestampsRef.current.set(cooldownKey, logTime); // SYNC update - immediate effect!
 
-                    setAttendanceCooldowns(prev => {
-                      const newCooldowns = new Map(prev);
-                      newCooldowns.set(cooldownKey, logTime);
-                      return newCooldowns;
-                    });
-
-                    // Add persistent cooldown for visual display using person_id as key
-                    setPersistentCooldowns(prev => {
-                      const newPersistent = new Map(prev);
-                      newPersistent.set(cooldownKey, {
-                        personId: response.person_id!,
-                        startTime: logTime,
-                        memberName: memberName,
-                        lastKnownBbox: face.bbox
+                    // Batch state updates in transition to prevent blocking
+                    startTransition(() => {
+                      setAttendanceCooldowns(prev => {
+                        const newCooldowns = new Map(prev);
+                        newCooldowns.set(cooldownKey, logTime);
+                        return newCooldowns;
                       });
-                      return newPersistent;
+
+                      // Add persistent cooldown for visual display using person_id as key
+                      setPersistentCooldowns(prev => {
+                        const newPersistent = new Map(prev);
+                        newPersistent.set(cooldownKey, {
+                          personId: response.person_id!,
+                          startTime: logTime,
+                          memberName: memberName,
+                          lastKnownBbox: face.bbox
+                        });
+                        return newPersistent;
+                      });
                     });
                     
                     // AUTO MODE: Process attendance event immediately
@@ -647,12 +749,20 @@ export default function Main() {
                       );
 
                       if (attendanceEvent) {
-
-                        // Force immediate refresh of attendance data
-                        // Use a small delay to ensure backend has committed the transaction
-                        setTimeout(async () => {
-                          await loadAttendanceData();
-                        }, 100);
+                        // Defer attendance data refresh to prevent blocking
+                        // Use requestIdleCallback if available, otherwise setTimeout
+                        const scheduleRefresh = () => {
+                          if ('requestIdleCallback' in window) {
+                            requestIdleCallback(() => {
+                              loadAttendanceData().catch(err => console.error('Failed to refresh attendance:', err));
+                            }, { timeout: 500 });
+                          } else {
+                            setTimeout(async () => {
+                              await loadAttendanceData();
+                            }, 100);
+                          }
+                        };
+                        scheduleRefresh();
                       }
 
                       // Show success notification
@@ -680,21 +790,23 @@ export default function Main() {
             const faceId = `unknown_track_${face.track_id}`;
             const currentTime = Date.now();
             
-            setTrackedFaces(prev => {
-              const newTracked = new Map(prev);
-              newTracked.set(faceId, {
-                id: faceId,
-                bbox: face.bbox,
-                confidence: face.confidence,
-                lastSeen: currentTime,
-                trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
-                isLocked: false,
-                personId: undefined,
-                occlusionCount: 0,
-                angleConsistency: 1.0,
-                livenessStatus: face.liveness?.status
+            startTransition(() => {
+              setTrackedFaces(prev => {
+                const newTracked = new Map(prev);
+                newTracked.set(faceId, {
+                  id: faceId,
+                  bbox: face.bbox,
+                  confidence: face.confidence,
+                  lastSeen: currentTime,
+                  trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
+                  isLocked: false,
+                  personId: undefined,
+                  occlusionCount: 0,
+                  angleConsistency: 1.0,
+                  livenessStatus: face.liveness?.status
+                });
+                return newTracked;
               });
-              return newTracked;
             });
           }
         } catch {
@@ -712,7 +824,7 @@ export default function Main() {
       
       // Update recognition results map - start fresh to avoid persisting old group results
       // Use trackId as key (not array index) to handle filtered faces correctly
-      const newRecognitionResults = new Map<number, FaceRecognitionResponse>();
+      const newRecognitionResults = new Map<number, ExtendedFaceRecognitionResponse>();
       recognitionResults.forEach((result) => {
         if (result) {
           // Handle spoofed faces that skip recognition
@@ -731,32 +843,40 @@ export default function Main() {
         }
       });
       
-      setCurrentRecognitionResults(newRecognitionResults);
+      // Only update if recognition results actually changed to prevent unnecessary re-renders
+      setCurrentRecognitionResults(prev => {
+        if (areRecognitionMapsEqual(prev, newRecognitionResults)) {
+          return prev; // Return previous value to prevent re-render
+        }
+        return newRecognitionResults;
+      });
 
       // Handle spoofed faces that skipped recognition but should still be displayed
-      recognitionResults.forEach((result) => {
-        if (result && result.skipRecognition) {
-          const face = result.face;
-          const faceId = `spoofed_track_${face.track_id}`;
-          const currentTime = Date.now();
-          
-          setTrackedFaces(prev => {
-            const newTracked = new Map(prev);
-            newTracked.set(faceId, {
-              id: faceId,
-              bbox: face.bbox,
-              confidence: face.confidence,
-              lastSeen: currentTime,
-              trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
-              isLocked: false,
-              personId: undefined,
-              occlusionCount: 0,
-              angleConsistency: 1.0,
-              livenessStatus: face.liveness?.status
+      startTransition(() => {
+        recognitionResults.forEach((result) => {
+          if (result && result.skipRecognition) {
+            const face = result.face;
+            const faceId = `spoofed_track_${face.track_id}`;
+            const currentTime = Date.now();
+            
+            setTrackedFaces(prev => {
+              const newTracked = new Map(prev);
+              newTracked.set(faceId, {
+                id: faceId,
+                bbox: face.bbox,
+                confidence: face.confidence,
+                lastSeen: currentTime,
+                trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
+                isLocked: false,
+                personId: undefined,
+                occlusionCount: 0,
+                angleConsistency: 1.0,
+                livenessStatus: face.liveness?.status
+              });
+              return newTracked;
             });
-            return newTracked;
-          });
-        }
+          }
+        });
       });
 
     } catch (error) {
@@ -881,18 +1001,21 @@ export default function Main() {
             model_used: data.model_used || 'unknown',
           };
           
+          // Update detections immediately for smooth rendering
           setCurrentDetections(detectionResult);
           lastDetectionRef.current = detectionResult;
-
-          // 🚀 PERFORMANCE: No processing flag - continuous frame sending
-
-          // Perform face recognition if enabled
+          
+          // Batch recognition processing in transition to prevent blocking
           if (recognitionEnabled && backendServiceReadyRef.current && detectionResult.faces.length > 0) {
-            // Perform face recognition asynchronously without blocking next frame processing
-            performFaceRecognition(detectionResult).catch(error => {
-              console.error('Face recognition failed:', error);
+            startTransition(() => {
+              // Perform face recognition asynchronously without blocking next frame processing
+              performFaceRecognition(detectionResult).catch(error => {
+                console.error('Face recognition failed:', error);
+              });
             });
           }
+
+          // 🚀 PERFORMANCE: Recognition processing is now handled above in transition
 
           // Trigger next frame for continuous processing (IPC continuous loop)
           if (detectionEnabledRef.current && isStreamingRef.current) {
@@ -1431,11 +1554,14 @@ export default function Main() {
     });
   }, [currentDetections, isStreaming, currentRecognitionResults, recognitionEnabled, persistentCooldowns, attendanceCooldownSeconds, quickSettings, getVideoRect, calculateScaleFactors]);
 
-  // OPTIMIZED animation loop with better performance
+  // OPTIMIZED animation loop with better performance - uses deferred values for non-critical updates
   const animate = useCallback(() => {
+    // Use immediate detections for critical rendering, but deferred for non-critical comparisons
+    const detectionsToRender = currentDetections; // Use immediate for smooth rendering
+    
     // Clear canvas when there are no detections
     const overlayCanvas = overlayCanvasRef.current;
-    if (overlayCanvas && (!currentDetections || !isStreaming)) {
+    if (overlayCanvas && (!detectionsToRender || !isStreaming)) {
       const ctx = overlayCanvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1443,8 +1569,13 @@ export default function Main() {
     }
 
     // Only redraw if detection results or recognition results changed
-    const currentHash = currentDetections ? 
-      `${currentDetections.faces.length}-${currentDetections.faces.map(f => `${f.bbox.x},${f.bbox.y}`).join(',')}-${currentRecognitionResults.size}-${Array.from(currentRecognitionResults.values()).map(r => r.person_id || 'none').join(',')}` : '';
+    // Use deferred recognition results for hash calculation to reduce blocking
+    const recognitionForHash = deferredCurrentRecognitionResults.size > 0 
+      ? deferredCurrentRecognitionResults 
+      : currentRecognitionResults;
+    
+    const currentHash = detectionsToRender ? 
+      `${detectionsToRender.faces.length}-${detectionsToRender.faces.map(f => `${f.bbox.x},${f.bbox.y}`).join(',')}-${recognitionForHash.size}-${Array.from(recognitionForHash.values()).map(r => r.person_id || 'none').join(',')}` : '';
     
     if (currentHash !== lastDetectionHashRef.current) {
       handleDrawOverlays();
@@ -1454,7 +1585,7 @@ export default function Main() {
     if (isStreaming) {
       animationFrameRef.current = requestAnimationFrame(animate);
     }
-  }, [isStreaming, handleDrawOverlays, currentDetections, currentRecognitionResults]);
+  }, [isStreaming, handleDrawOverlays, currentDetections, currentRecognitionResults, deferredCurrentRecognitionResults]);
 
 
 

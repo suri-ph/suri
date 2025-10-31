@@ -1,4 +1,5 @@
 import type { AttendanceGroup, AttendanceMember, AttendanceRecord } from '../types';
+import type { ExtendedFaceRecognitionResponse } from '../index';
 import { AttendancePanel } from './AttendancePanel';
 import { CooldownList } from './CooldownList';
 import { DetectionPanel } from './DetectionPanel';
@@ -6,7 +7,7 @@ import { DetectionPanel } from './DetectionPanel';
 interface SidebarProps {
   // Detection props
   currentDetections: any;
-  currentRecognitionResults: Map<number, any>;
+  currentRecognitionResults: Map<number, ExtendedFaceRecognitionResponse>;
   recognitionEnabled: boolean;
   trackedFaces: Map<string, any>;
   trackingMode: 'auto' | 'manual';

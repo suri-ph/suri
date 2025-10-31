@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, memo, useCallback } from 'react';
 import { createDisplayNameMap } from '../../../utils/displayNameUtils.js';
 import type { AttendanceGroup, AttendanceMember, AttendanceRecord } from '../types';
 
@@ -16,7 +16,32 @@ interface AttendancePanelProps {
 type SortField = 'time' | 'name';
 type SortOrder = 'asc' | 'desc';
 
-export function AttendancePanel({
+// Memoized attendance record item to prevent unnecessary re-renders
+const AttendanceRecordItem = memo(({ 
+  record, 
+  displayName 
+}: { 
+  record: AttendanceRecord; 
+  displayName: string;
+}) => (
+  <div className="text-xs bg-white/[0.02] border-b border-white/[0.05] p-2">
+    <div className="flex justify-between items-center">
+      <div className="flex items-center space-x-2">
+        <span className="font-medium">{displayName}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded ${record.is_manual ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30' : 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'}`}>
+          {record.is_manual ? 'Manual' : 'Auto'}
+        </span>
+      </div>
+      <span className="text-white/50">
+        {record.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
+    </div>
+  </div>
+));
+
+AttendanceRecordItem.displayName = 'AttendanceRecordItem';
+
+export const AttendancePanel = memo(function AttendancePanel({
   attendanceEnabled,
   attendanceGroups,
   currentGroup,
@@ -30,6 +55,26 @@ export function AttendancePanel({
   const [sortField, setSortField] = useState<SortField>('time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [displayLimit, setDisplayLimit] = useState(20);
+
+  // Memoize handlers to prevent recreation
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleSortFieldChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const field = e.target.value as SortField;
+    setSortField(field);
+    // Set smart defaults based on field type
+    if (field === 'time') {
+      setSortOrder('desc'); // Newest first
+    } else if (field === 'name') {
+      setSortOrder('asc'); // A-Z
+    }
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    setDisplayLimit(prev => prev + 20);
+  }, []);
   
   // Create display name map for members
   const displayNameMap = useMemo(() => {
@@ -164,7 +209,7 @@ export function AttendancePanel({
               type="text"
               placeholder="Search by name..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="flex-1 bg-white/[0.05] text-white text-xs border border-white/[0.1] rounded px-3 py-1.5 placeholder:text-white/30 focus:border-blue-500 focus:outline-none"
             />
 
@@ -173,16 +218,7 @@ export function AttendancePanel({
               <div className="flex items-center space-x-1">
                 <select
                   value={sortField}
-                  onChange={(e) => {
-                    const field = e.target.value as SortField;
-                    setSortField(field);
-                    // Set smart defaults based on field type
-                    if (field === 'time') {
-                      setSortOrder('desc'); // Newest first
-                    } else if (field === 'name') {
-                      setSortOrder('asc'); // A-Z
-                    }
-                  }}
+                  onChange={handleSortFieldChange}
                   className="bg-white/[0.05] text-white text-[8px] border border-white/[0.1] rounded px-2 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="time" className="bg-black text-white">Time (Newest)</option>
@@ -202,19 +238,11 @@ export function AttendancePanel({
             {visibleRecords.map(record => {
               const displayName = displayNameMap.get(record.person_id) || 'Unknown';
               return (
-                <div key={record.id} className="text-xs bg-white/[0.02] border-b border-white/[0.05] p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{displayName}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${record.is_manual ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30' : 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'}`}>
-                        {record.is_manual ? 'Manual' : 'Auto'}
-                      </span>
-                    </div>
-                    <span className="text-white/50">
-                      {record.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
+                <AttendanceRecordItem 
+                  key={record.id} 
+                  record={record} 
+                  displayName={displayName} 
+                />
               );
             })}
 
@@ -222,7 +250,7 @@ export function AttendancePanel({
             {hasMore && (
               <div className="px-2 py-2">
                 <button
-                  onClick={() => setDisplayLimit(prev => prev + 20)}
+                  onClick={handleLoadMore}
                   className="w-full py-2 text-xs bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] rounded text-white/70 transition-colors"
                 >
                   Load More ({processedRecords.length - displayLimit} remaining)
@@ -256,4 +284,4 @@ export function AttendancePanel({
       </div>
     </div>
   );
-}
+});

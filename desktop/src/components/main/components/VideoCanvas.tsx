@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { RefObject } from 'react';
 import type { QuickSettings } from '../../settings';
 
@@ -10,7 +11,7 @@ interface VideoCanvasProps {
   isVideoLoading: boolean;
 }
 
-export function VideoCanvas({
+export const VideoCanvas = memo(function VideoCanvas({
   videoRef,
   canvasRef,
   overlayCanvasRef,
@@ -53,5 +54,5 @@ export function VideoCanvas({
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );
-}
+});
 
