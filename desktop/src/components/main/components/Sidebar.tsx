@@ -317,7 +317,7 @@ export const Sidebar = memo(function Sidebar({
               title="Settings (Ctrl+,)"
               aria-label="Open Settings"
             >
-              <i className="fa-regular fa-gear text-white/70 group-hover:text-white text-base transition-colors"></i>
+              <i className="fa-solid fa-gear text-white/70 group-hover:text-white text-base transition-colors"></i>
             </button>
           </div>
         )}
