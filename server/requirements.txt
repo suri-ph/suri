@@ -26,7 +26,10 @@ ulid
 pyinstaller
 
 # Windows-specific dependencies for PyInstaller builds
-pywin32-ctypes
+# Note: Only needed on Windows. Install conditionally:
+#   Windows: pip install pywin32-ctypes
+#   macOS/Linux: Not required
+pywin32-ctypes; sys_platform == 'win32'
 
 # Multipart dependencies
 python-multipart

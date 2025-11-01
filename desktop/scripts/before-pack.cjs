@@ -68,6 +68,16 @@ async function beforePack(context) {
         
         console.log(`✅ Backend executable created successfully: ${executablePath}`);
         
+        // Set execute permissions for Unix platforms (Linux/macOS)
+        if (platform !== 'win32') {
+            try {
+                fs.chmodSync(executablePath, 0o755); // rwxr-xr-x
+                console.log(`✅ Set execute permissions on ${executablePath}`);
+            } catch (err) {
+                console.warn(`⚠️  Failed to set execute permissions: ${err.message}`);
+            }
+        }
+        
         // Log file size
         const stats = fs.statSync(executablePath);
         const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);

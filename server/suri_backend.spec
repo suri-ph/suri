@@ -14,6 +14,9 @@ block_cipher = None
 onnx_datas = collect_data_files('onnxruntime')
 
 # Collect all submodules to ensure nothing is missed
+import platform
+
+# Common imports for all platforms
 hidden_imports = [
     'uvicorn.logging',
     'uvicorn.loops',
@@ -30,14 +33,18 @@ hidden_imports = [
     'onnxruntime.capi.onnxruntime_pybind11_state',
     'cv2',
     'numpy',
-    # Windows-specific imports
-    'win32ctypes',
-    'win32ctypes.pywin32',
-    'win32ctypes.pywin32.pywintypes',
-    'win32ctypes.pywin32.win32api',
-    'win32ctypes.core',
-    'win32ctypes.core.ctypes',
 ]
+
+# Windows-specific imports (only include on Windows)
+if platform.system() == 'Windows':
+    hidden_imports.extend([
+        'win32ctypes',
+        'win32ctypes.pywin32',
+        'win32ctypes.pywin32.pywintypes',
+        'win32ctypes.pywin32.win32api',
+        'win32ctypes.core',
+        'win32ctypes.core.ctypes',
+    ])
 
 # Disable custom runtime hook to avoid bundling PyInstaller dependencies
 runtime_hooks = []
