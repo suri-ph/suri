@@ -55,20 +55,20 @@ export const CooldownList = memo(function CooldownList({
       if (timeSinceStart < expirationThreshold) {
         const remainingMs = cooldownMsForThisCooldown - timeSinceStart;
         
-        let remainingCooldown: number;
+        // Don't show cooldown if it's already expired or about to expire (0s remaining)
         if (remainingMs <= 0) {
-          remainingCooldown = 0;
-        } else {
-          // Use Math.floor to show actual full seconds remaining, not rounded up
-          // This ensures 5s setting shows 5s, not 6s
-          remainingCooldown = Math.floor(remainingMs / 1000);
-          // Ensure minimum of 1 if there's any time left
-          if (remainingCooldown === 0 && remainingMs > 0) {
-            remainingCooldown = 1;
-          }
+          // Skip this cooldown - it's expired or at 0s
+          continue;
         }
         
-        active.push({ info: cooldownInfo, remaining: remainingCooldown });
+        // Use Math.floor to show actual full seconds remaining, not rounded up
+        // This ensures 5s setting shows 5s, not 6s
+        const remainingCooldown = Math.floor(remainingMs / 1000);
+        
+        // Only show if there's at least 1 second remaining
+        if (remainingCooldown > 0) {
+          active.push({ info: cooldownInfo, remaining: remainingCooldown });
+        }
       }
     }
 

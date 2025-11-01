@@ -624,14 +624,20 @@ export default function Main() {
                     // Use person_id as key so cooldown persists across track_id changes
                     const currentTime = Date.now();
                     const cooldownKey = response.person_id;
-                    const cooldownMs = attendanceCooldownSeconds * 1000;
 
                     // Check cooldown from persistentCooldowns (source of truth)
                     const cooldownInfo = persistentCooldownsRef.current.get(cooldownKey);
                     const authoritativeTimestamp = cooldownInfo?.startTime || 0;
                     const timeSinceLastAttendance = currentTime - authoritativeTimestamp;
+                    
+                    // Use stored cooldown duration to check if still active
+                    const storedCooldownSeconds = cooldownInfo?.cooldownDurationSeconds ?? attendanceCooldownSeconds;
+                    const storedCooldownMs = storedCooldownSeconds * 1000;
+                    const remainingMs = storedCooldownMs - timeSinceLastAttendance;
+                    const remainingCooldownSeconds = Math.floor(remainingMs / 1000);
 
-                    if (timeSinceLastAttendance < cooldownMs) {
+                    // Only block if there's at least 1 full second remaining (don't block at 0s)
+                    if (remainingCooldownSeconds > 0) {
                       // Update lastKnownBbox in persistentCooldowns for display even when face disappears
                       startTransition(() => {
                         setPersistentCooldowns(prev => {
