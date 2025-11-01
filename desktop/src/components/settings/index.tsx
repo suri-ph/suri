@@ -302,6 +302,7 @@ export const Settings: React.FC<SettingsProps> = ({
               groups={groups}
               isLoading={isLoading}
               onClearDatabase={handleClearDatabase}
+              onGroupsChanged={loadSystemData}
             />
           )}
         </div>

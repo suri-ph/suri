@@ -34,24 +34,16 @@ export function Attendance({
           </div>
         </div>
         
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`text-xs whitespace-nowrap transition-colors duration-150 ${attendanceSettings.trackingMode === 'auto' ? 'text-white' : 'text-white/40'}`}>
-            Auto
-          </span>
-          <button
-            onClick={() => onTrackingModeChange(attendanceSettings.trackingMode === 'auto' ? 'manual' : 'auto')}
-            className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex items-center ${
-              attendanceSettings.trackingMode === 'auto' ? 'bg-emerald-500/30' : 'bg-white/10'
-            }`}
-          >
-            <div className={`absolute left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-150 ${
-              attendanceSettings.trackingMode === 'auto' ? 'translate-x-0' : 'translate-x-5'
-            }`}></div>
-          </button>
-          <span className={`text-xs whitespace-nowrap transition-colors duration-150 ${attendanceSettings.trackingMode === 'manual' ? 'text-white' : 'text-white/40'}`}>
-            Manual
-          </span>
-        </div>
+        <button
+          onClick={() => onTrackingModeChange(attendanceSettings.trackingMode === 'auto' ? 'manual' : 'auto')}
+          className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ${
+            attendanceSettings.trackingMode === 'manual' ? 'bg-emerald-500/30' : 'bg-white/10'
+          }`}
+        >
+          <div className={`absolute left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-150 ${
+            attendanceSettings.trackingMode === 'manual' ? 'translate-x-5' : 'translate-x-0'
+          }`}></div>
+        </button>
       </div>
 
       {/* Spoof Detection Section */}
@@ -69,7 +61,7 @@ export function Attendance({
           onClick={() => onSpoofDetectionToggle(!attendanceSettings.enableSpoofDetection)}
           disabled={isStreaming}
           className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ${
-            attendanceSettings.enableSpoofDetection ? 'bg-red-500/30' : 'bg-white/10'
+            attendanceSettings.enableSpoofDetection ? 'bg-emerald-500/30' : 'bg-white/10'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <div className={`absolute left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-150 ${
@@ -117,7 +109,7 @@ export function Attendance({
               onClick={() => onLateThresholdToggle(!attendanceSettings.lateThresholdEnabled)}
               disabled={isStreaming}
               className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ${
-                attendanceSettings.lateThresholdEnabled ? 'bg-amber-500/30' : 'bg-white/10'
+                attendanceSettings.lateThresholdEnabled ? 'bg-emerald-500/30' : 'bg-white/10'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <div className={`absolute left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-150 ${
