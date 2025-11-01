@@ -150,7 +150,7 @@ const DetectionCard = memo(({
             }`}>
               {statusStyles.statusText}
             </span>
-            {statusStyles.score !== null && (
+            {statusStyles.score != null && (
               <span className={`text-xs font-mono ${
                 isSpoof ? 'opacity-100 font-semibold' : 'opacity-80'
               }`}>
