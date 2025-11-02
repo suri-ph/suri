@@ -40,7 +40,12 @@ class AttendanceGroupResponse(BaseModel):
 
 # Member Models
 class AttendanceMemberCreate(BaseModel):
-    person_id: Optional[str] = Field(None, min_length=1, max_length=100, description="Optional - will be auto-generated if not provided")
+    person_id: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        description="Optional - will be auto-generated if not provided",
+    )
     group_id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1, max_length=100)
     role: Optional[str] = Field(None, max_length=100)
@@ -179,7 +184,7 @@ class AttendanceSessionsQuery(BaseModel):
     group_id: Optional[str] = None
     person_id: Optional[str] = None
     start_date: Optional[str] = None  # YYYY-MM-DD format
-    end_date: Optional[str] = None    # YYYY-MM-DD format
+    end_date: Optional[str] = None  # YYYY-MM-DD format
 
 
 class AttendanceReportQuery(BaseModel):
@@ -187,10 +192,10 @@ class AttendanceReportQuery(BaseModel):
     start_date: datetime
     end_date: datetime
 
-    @validator('end_date')
+    @validator("end_date")
     def end_date_must_be_after_start_date(cls, v, values):
-        if 'start_date' in values and v <= values['start_date']:
-            raise ValueError('end_date must be after start_date')
+        if "start_date" in values and v <= values["start_date"]:
+            raise ValueError("end_date must be after start_date")
         return v
 
 

@@ -1,0 +1,2 @@
+black # Formatting tool
+ruff  # Linter

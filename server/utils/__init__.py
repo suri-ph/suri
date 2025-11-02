@@ -12,12 +12,13 @@ from .image_utils import (
     convert_color_space,
     validate_image,
     crop_face,
-    draw_detection_info
+    draw_detection_info,
 )
 from .websocket_manager import manager, ConnectionManager, handle_websocket_message
+
 __all__ = [
     "decode_base64_image",
-    "encode_image_to_base64", 
+    "encode_image_to_base64",
     "resize_image",
     "normalize_image",
     "convert_color_space",
@@ -26,5 +27,5 @@ __all__ = [
     "draw_detection_info",
     "manager",
     "ConnectionManager",
-    "handle_websocket_message"
+    "handle_websocket_message",
 ]

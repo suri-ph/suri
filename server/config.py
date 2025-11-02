@@ -3,10 +3,11 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
+
 def get_weights_dir() -> Path:
     """Get the weights directory path, handling both development and production modes"""
     # Check if running as PyInstaller executable
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         # Production mode - PyInstaller executable
         # Models are bundled in the weights directory relative to the executable
         return Path(sys._MEIPASS) / "weights"
@@ -15,10 +16,11 @@ def get_weights_dir() -> Path:
         base_dir = Path(__file__).parent
         return base_dir / "weights"
 
+
 def get_data_dir() -> Path:
     """Get the data directory path, handling both development and production modes"""
     # Check if running as PyInstaller executable
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         # Production mode - PyInstaller executable
         # Data should be stored next to the executable (user-writable location)
         # sys.executable gives the path to the .exe file
@@ -33,9 +35,12 @@ def get_data_dir() -> Path:
         data_dir.mkdir(parents=True, exist_ok=True)
         return data_dir
 
+
 # Base paths
 BASE_DIR = Path(__file__).parent
-PROJECT_ROOT = BASE_DIR.parent if not getattr(sys, 'frozen', False) else Path(sys._MEIPASS)
+PROJECT_ROOT = (
+    BASE_DIR.parent if not getattr(sys, "frozen", False) else Path(sys._MEIPASS)
+)
 WEIGHTS_DIR = get_weights_dir()
 DATA_DIR = get_data_dir()
 
@@ -67,49 +72,62 @@ CORS_CONFIG = {
 # Automatically enables: NVIDIA GPU (CUDA/TensorRT) > Intel/AMD iGPU (DirectML) > CPU
 try:
     import onnxruntime as ort
-    
+
     # Get available providers
     available = ort.get_available_providers()
     providers = []
     gpu_name = "CPU Only"
-    
+
     # Priority 1: NVIDIA CUDA
-    if 'CUDAExecutionProvider' in available:
-        providers.append(('CUDAExecutionProvider', {
-            'device_id': 0,
-            'arena_extend_strategy': 'kNextPowerOfTwo',
-            'gpu_mem_limit': 2 * 1024 * 1024 * 1024,
-        }))
+    if "CUDAExecutionProvider" in available:
+        providers.append(
+            (
+                "CUDAExecutionProvider",
+                {
+                    "device_id": 0,
+                    "arena_extend_strategy": "kNextPowerOfTwo",
+                    "gpu_mem_limit": 2 * 1024 * 1024 * 1024,
+                },
+            )
+        )
         gpu_name = "NVIDIA GPU (CUDA)"
-        if 'TensorrtExecutionProvider' in available:
-            providers.append(('TensorrtExecutionProvider', {'device_id': 0}))
+        if "TensorrtExecutionProvider" in available:
+            providers.append(("TensorrtExecutionProvider", {"device_id": 0}))
             gpu_name = "NVIDIA GPU (CUDA + TensorRT)"
-    
+
     # Priority 2: DirectML (Intel/AMD iGPU)
-    elif 'DmlExecutionProvider' in available:
-        providers.append(('DmlExecutionProvider', {'device_id': 0}))
+    elif "DmlExecutionProvider" in available:
+        providers.append(("DmlExecutionProvider", {"device_id": 0}))
         gpu_name = "Intel/AMD iGPU (DirectML)"
-    
+
     # Always add CPU fallback
-    providers.append(('CPUExecutionProvider', {
-        'arena_extend_strategy': 'kSameAsRequested',
-        'enable_cpu_mem_arena': True,
-        'enable_memory_pattern': True,
-    }))
-    
+    providers.append(
+        (
+            "CPUExecutionProvider",
+            {
+                "arena_extend_strategy": "kSameAsRequested",
+                "enable_cpu_mem_arena": True,
+                "enable_memory_pattern": True,
+            },
+        )
+    )
+
     OPTIMIZED_PROVIDERS = providers
     print(f"GPU Auto-Detection: {gpu_name}")
-    
+
 except Exception as e:
     print(f"GPU detection error: {e}")
     OPTIMIZED_PROVIDERS = [
-        ('CUDAExecutionProvider', {'device_id': 0}),
-        ('DmlExecutionProvider', {'device_id': 0}),
-        ('CPUExecutionProvider', {
-            'arena_extend_strategy': 'kSameAsRequested',
-            'enable_cpu_mem_arena': True,
-            'enable_memory_pattern': True,
-        })
+        ("CUDAExecutionProvider", {"device_id": 0}),
+        ("DmlExecutionProvider", {"device_id": 0}),
+        (
+            "CPUExecutionProvider",
+            {
+                "arena_extend_strategy": "kSameAsRequested",
+                "enable_cpu_mem_arena": True,
+                "enable_memory_pattern": True,
+            },
+        ),
     ]
 
 # Optimized ONNX Session Options for maximum performance
@@ -122,7 +140,7 @@ OPTIMIZED_SESSION_OPTIONS = {
     "graph_optimization_level": ort.GraphOptimizationLevel.ORT_ENABLE_ALL,  # Maximum optimization
     "inter_op_num_threads": 0,  # Reduced from 0 (all cores) to 2 to avoid thread contention
     "intra_op_num_threads": 0,  # Reduced from 0 (all cores) to 4 for parallel ops within a node
-    "log_severity_level": 3,    # Reduce logging overhead
+    "log_severity_level": 3,  # Reduce logging overhead
 }
 
 # Model configurations - OPTIMIZED FOR MAXIMUM PERFORMANCE
@@ -136,13 +154,13 @@ MODEL_CONFIGS = {
         "min_face_size": 80,  # Minimum face size for liveness detection compatibility
         "backend_id": 0,
         "target_id": 0,
-        "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"]
+        "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
     },
     "liveness_detector": {
         "model_path": WEIGHTS_DIR / "antispoof.onnx",
         "confidence_threshold": 0.50,
         "bbox_inc": 1.5,
-        "model_img_size": 128
+        "model_img_size": 128,
     },
     "face_recognizer": {
         "model_path": WEIGHTS_DIR / "recognizer_light.onnx",
@@ -152,7 +170,8 @@ MODEL_CONFIGS = {
         "session_options": OPTIMIZED_SESSION_OPTIONS,
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
         "embedding_dimension": 512,  # Face embedding dimension
-        "database_path": DATA_DIR / "face_database.db",  # SQLite database storage (auto-handles dev/prod)
+        "database_path": DATA_DIR
+        / "face_database.db",  # SQLite database storage (auto-handles dev/prod)
     },
     "face_tracker": {
         "max_age": 30,  # Maximum frames to keep track alive without detection
@@ -162,9 +181,9 @@ MODEL_CONFIGS = {
         "nn_budget": 30,  # 🚀 OPTIMIZED: Reduced from 100 to 30 (faster matching, less memory)
         "matching_weights": {
             "appearance": 0.7,  # 70% weight on appearance matching
-            "motion": 0.3  # 30% weight on IOU/motion matching
-        }
-    }
+            "motion": 0.3,  # 30% weight on IOU/motion matching
+        },
+    },
 }
 
 # API configuration
@@ -177,10 +196,10 @@ API_CONFIG = {
 # WebSocket configuration
 WEBSOCKET_CONFIG = {
     "ping_interval": 30,  # seconds
-    "ping_timeout": 10,   # seconds
+    "ping_timeout": 10,  # seconds
     "close_timeout": 10,  # seconds
     "max_size": 10 * 1024 * 1024,  # 10MB max message size
-    "max_queue": 32,      # Max queued messages
+    "max_queue": 32,  # Max queued messages
     "compression": None,  # Disable compression for better performance
 }
 
@@ -195,11 +214,11 @@ IMAGE_CONFIG = {
 
 # Streaming configuration
 STREAMING_CONFIG = {
-    "fps_limit": 15,      # OPTIMIZATION: Reduced from 30 to match frontend processing
-    "buffer_size": 3,     # OPTIMIZATION: Reduced from 5 to minimize latency
-    "quality": 70,        # OPTIMIZATION: Reduced from 80 for faster processing
-    "format": "jpg",      # Stream format
-    "timeout": 3.0,       # OPTIMIZATION: Reduced from 5.0 for faster timeout
+    "fps_limit": 15,  # OPTIMIZATION: Reduced from 30 to match frontend processing
+    "buffer_size": 3,  # OPTIMIZATION: Reduced from 5 to minimize latency
+    "quality": 70,  # OPTIMIZATION: Reduced from 80 for faster processing
+    "format": "jpg",  # Stream format
+    "timeout": 3.0,  # OPTIMIZATION: Reduced from 5.0 for faster timeout
 }
 
 # Logging configuration
@@ -247,11 +266,12 @@ LOGGING_CONFIG = {
     },
 }
 
+
 # Environment-specific overrides
 def get_config() -> Dict[str, Any]:
     """
     Get configuration with environment-specific overrides
-    
+
     Returns:
         Complete configuration dictionary
     """
@@ -261,34 +281,35 @@ def get_config() -> Dict[str, Any]:
         "models": MODEL_CONFIGS.copy(),
         "api": API_CONFIG.copy(),
         "websocket": WEBSOCKET_CONFIG.copy(),
-        "image": IMAGE_CONFIG.copy(),       
+        "image": IMAGE_CONFIG.copy(),
         "streaming": STREAMING_CONFIG.copy(),
         "logging": LOGGING_CONFIG.copy(),
     }
-    
+
     # Environment overrides
     env = os.getenv("ENVIRONMENT", "development")
-    
+
     if env == "production":
         config["server"]["reload"] = False
         config["server"]["workers"] = 4
         config["logging"]["handlers"]["console"]["level"] = "WARNING"
-    
+
     elif env == "testing":
         config["server"]["port"] = 8700
         config["models"]["face_detector"]["score_threshold"] = 0.5
-    
+
     # Override with environment variables
     if os.getenv("SERVER_HOST"):
         config["server"]["host"] = os.getenv("SERVER_HOST")
-    
+
     if os.getenv("SERVER_PORT"):
         config["server"]["port"] = int(os.getenv("SERVER_PORT"))
-    
+
     if os.getenv("MODEL_PATH"):
         config["models"]["face_detector"]["model_path"] = Path(os.getenv("MODEL_PATH"))
-    
+
     return config
+
 
 # Performance Optimization Settings for Maximum Face Detection and Recognition Performance
 PERFORMANCE_CONFIG = {
@@ -320,24 +341,24 @@ FRAME_PROCESSING_CONFIG = {
     "max_processing_queue": 2,
 }
 
+
 # Validation functions
 def validate_model_paths():
     """Validate that all model files exist"""
     missing_models = []
-    
+
     for model_name, model_config in MODEL_CONFIGS.items():
         # Skip ensemble configs that don't have direct model_path
         if "model_path" not in model_config:
             continue
-            
+
         model_path = model_config["model_path"]
         if not model_path.exists():
             missing_models.append(f"{model_name}: {model_path}")
-    
+
     if missing_models:
-        raise FileNotFoundError(
-            f"Missing model files:\n" + "\n".join(missing_models)
-        )
+        raise FileNotFoundError("Missing model files:\n" + "\n".join(missing_models))
+
 
 def validate_directories():
     """Validate that required directories exist"""
@@ -346,9 +367,10 @@ def validate_directories():
         BASE_DIR / "models",
         BASE_DIR / "utils",
     ]
-    
+
     for directory in required_dirs:
         directory.mkdir(parents=True, exist_ok=True)
+
 
 # Initialize configuration
 config = get_config()
