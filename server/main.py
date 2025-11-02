@@ -40,7 +40,6 @@ from config import (
     CORS_CONFIG,
     FACE_TRACKER_CONFIG,
     DATA_DIR,
-    MODEL_CONFIGS,
 )
 
 # Configure logging
