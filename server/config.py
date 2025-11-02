@@ -139,7 +139,7 @@ MODEL_CONFIGS = {
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"]
     },
     "liveness_detector": {
-        "model_path": WEIGHTS_DIR / "validator_standard.onnx",
+        "model_path": WEIGHTS_DIR / "antispoof.onnx",
         "confidence_threshold": 0.50,
         "bbox_inc": 1.5,
         "model_img_size": 128
