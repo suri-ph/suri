@@ -147,7 +147,7 @@ MODEL_CONFIGS = {
     "face_recognizer": {
         "model_path": WEIGHTS_DIR / "recognizer_light.onnx",
         "input_size": (112, 112),  # Face recognizer standard input size
-        "similarity_threshold": 0.6,
+        "similarity_threshold": 0.3,
         "providers": OPTIMIZED_PROVIDERS,  # Use optimized providers
         "session_options": OPTIMIZED_SESSION_OPTIONS,
         "supported_formats": ["jpg", "jpeg", "png", "bmp", "webp"],
