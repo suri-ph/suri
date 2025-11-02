@@ -1,10 +1,10 @@
-import cv2
+import cv2 as cv
 import numpy as np
 import os
-import logging
+import logging as log
 from typing import List
 
-logger = logging.getLogger(__name__)
+logger = log.getLogger(__name__)
 
 
 class FaceDetector:
@@ -30,7 +30,7 @@ class FaceDetector:
  
         if model_path and os.path.isfile(model_path):
             try:
-                self.detector = cv2.FaceDetectorYN.create(
+                self.detector = cv.FaceDetectorYN.create(
                     self.model_path,
                     "", # Config file path (empty for ONNX - params passed directly)
                     self.input_size,
@@ -51,7 +51,7 @@ class FaceDetector:
         orig_height, orig_width = image.shape[:2]
 
         # Resize image for face detection
-        resized_img = cv2.resize(image, self.input_size)
+        resized_img = cv.resize(image, self.input_size)
 
         # Perform face detection
         faces = self.detector.detect(resized_img)[1]
