@@ -48,6 +48,7 @@ class LivenessValidator:
     def preprocessing(self, img: np.ndarray) -> np.ndarray:
         """
         Preprocess image for anti-spoofing model
+        🚀 OPTIMIZED: Uses in-place operations to reduce memory allocations
         
         Args:
             img: Input image (BGR format from OpenCV)
@@ -59,7 +60,7 @@ class LivenessValidator:
             1. Resize to model input size (128x128) maintaining aspect ratio
             2. Add padding with black borders if needed
             3. Convert BGR → RGB (models expect RGB)
-            4. Normalize to [0, 1] range
+            4. Normalize to [0, 1] range (in-place)
             5. Transpose to CHW format and add batch dimension
         """
         new_size = self.model_img_size
@@ -80,11 +81,23 @@ class LivenessValidator:
         img = cv2.copyMakeBorder(img, top, bottom, left, right, 
                                  cv2.BORDER_CONSTANT, value=[0, 0, 0])
         
-        # OPTIMIZATION: Convert BGR to RGB only once at the end for ONNX model
+        # 🚀 CRITICAL OPTIMIZATION: Minimize memory allocations
+        # Convert BGR to RGB
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img_rgb = img_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
-        img_rgb = np.expand_dims(img_rgb, axis=0)
-        return img_rgb
+        
+        # Convert to float32 (avoid copy if possible)
+        img_normalized = img_rgb.astype(np.float32, copy=False)
+        
+        # 🚀 In-place division for normalization (no new array allocation)
+        np.multiply(img_normalized, 1.0/255.0, out=img_normalized)
+        
+        # Transpose to CHW format
+        img_chw = img_normalized.transpose(2, 0, 1)
+        
+        # Add batch dimension
+        img_batch = np.expand_dims(img_chw, axis=0)
+        
+        return img_batch
 
     def postprocessing(self, prediction: np.ndarray) -> np.ndarray:
         """
