@@ -2,24 +2,15 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from filterpy.kalman import KalmanFilter
+import lap
 
 logger = logging.getLogger(__name__)
 
-try:
-    import lap
-
-    USE_LAP = True
-    # ✅ lap library v0.5.12 installed - Using optimized LAPJV algorithm (2-3x faster than scipy)
-except ImportError:
-    from scipy.optimize import linear_sum_assignment
-
-    USE_LAP = False
-    # ⚠️ lap library not found - Falling back to scipy (slower but functional)
 
 
 def linear_assignment(cost_matrix: np.ndarray) -> np.ndarray:
     """
-    Solve the linear assignment problem using LAP or scipy
+    Solve the linear assignment problem using LAP (optimized LAPJV algorithm)
 
     Args:
         cost_matrix: Cost matrix for assignment
@@ -27,12 +18,8 @@ def linear_assignment(cost_matrix: np.ndarray) -> np.ndarray:
     Returns:
         Array of matched indices [[det_idx, track_idx], ...]
     """
-    if USE_LAP:
-        _, x, y = lap.lapjv(cost_matrix, extend_cost=True)
-        return np.array([[y[i], i] for i in x if i >= 0])
-    else:
-        x, y = linear_sum_assignment(cost_matrix)
-        return np.array(list(zip(x, y)))
+    _, x, y = lap.lapjv(cost_matrix, extend_cost=True)
+    return np.array([[y[i], i] for i in x if i >= 0])
 
 
 def iou_batch(bb_test: np.ndarray, bb_gt: np.ndarray) -> np.ndarray:
