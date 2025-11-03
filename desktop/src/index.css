@@ -1,162 +1,194 @@
 /* Inter font family - using system fonts as fallback */
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 100;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Thin.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Thin.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 100;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-ThinItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-ThinItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 200;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-ExtraLight.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-ExtraLight.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 200;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-ExtraLightItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-ExtraLightItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Light.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Light.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-LightItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-LightItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Regular.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Regular.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Italic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Italic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Medium.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Medium.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 500;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-MediumItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-MediumItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-SemiBold.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-SemiBold.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 600;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-SemiBoldItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-SemiBoldItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Bold.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Bold.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-BoldItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-BoldItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-ExtraBold.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-ExtraBold.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 800;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-ExtraBoldItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-ExtraBoldItalic.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-Black.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-Black.ttf") format("truetype");
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: "Inter";
   font-style: italic;
   font-weight: 900;
   font-display: swap;
-  src: url('./fonts/inter/Inter_18pt-BlackItalic.ttf') format('truetype');
+  src: url("./fonts/inter/Inter_18pt-BlackItalic.ttf") format("truetype");
 }
 
 @import "tailwindcss";
-@import '@fortawesome/fontawesome-free/css/all.css';
+@import "@fortawesome/fontawesome-free/css/all.css";
 
 /* Deep Space Gradient Theme */
 :root {
-  font-family: "Inter", "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, ui-sans-serif, Helvetica, Arial, sans-serif;
+  font-family:
+    "Inter",
+    "Space Grotesk",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    ui-sans-serif,
+    Helvetica,
+    Arial,
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  
-  --gradient-primary: linear-gradient(135deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f0f0f 75%, #000000 100%);
-  --gradient-secondary: linear-gradient(45deg, #111111 0%, #1a1a1a 50%, #0d0d0d 100%);
-  --gradient-accent: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(10, 10, 10, 0.95) 0%, rgba(5, 5, 5, 0.8) 100%);
-  
+
+  --gradient-primary: linear-gradient(
+    135deg,
+    #000000 0%,
+    #0a0a0a 25%,
+    #1a1a1a 50%,
+    #0f0f0f 75%,
+    #000000 100%
+  );
+  --gradient-secondary: linear-gradient(
+    45deg,
+    #111111 0%,
+    #1a1a1a 50%,
+    #0d0d0d 100%
+  );
+  --gradient-accent: linear-gradient(
+    90deg,
+    #1a1a1a 0%,
+    #2a2a2a 50%,
+    #1a1a1a 100%
+  );
+  --gradient-surface: linear-gradient(
+    180deg,
+    rgba(10, 10, 10, 0.95) 0%,
+    rgba(5, 5, 5, 0.8) 100%
+  );
+
   --bg-primary: #000000;
   --bg-secondary: #0a0a0a;
   --bg-tertiary: #111111;
@@ -165,23 +197,23 @@
   --surface-secondary: rgba(20, 20, 20, 0.8);
   --surface-tertiary: rgba(15, 15, 15, 0.6);
   --surface-glass: rgba(5, 5, 5, 0.4);
-  
+
   --card-blur: 16px;
   --card-border-width: 1px;
   --card-bg: var(--surface-primary);
   --card-border: rgba(255, 255, 255, 0.08);
   --card-hover-bg: var(--surface-secondary);
   --card-hover-border: rgba(255, 255, 255, 0.12);
-  
+
   --border-primary: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.15);
   --border-accent: rgba(255, 255, 255, 0.2);
-  
+
   --text-primary: #ffffff;
   --text-secondary: #e0e0e0;
   --text-tertiary: #a0a0a0;
   --text-muted: #606060;
-  
+
   --accent: #ffffff;
   --accent-subtle: rgba(255, 255, 255, 0.1);
   --accent-primary: #ffffff;
@@ -189,11 +221,11 @@
   --success: #00ff88;
   --warning: #ffaa00;
   --error: #ff4444;
-  
+
   color-scheme: dark;
   color: var(--text-primary);
   background-color: var(--bg-primary);
-  
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -385,7 +417,9 @@ body {
     box-shadow: 0 0 0 2px var(--accent-subtle);
   }
 
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
     border-radius: 6px;
@@ -397,12 +431,15 @@ body {
     outline: none;
   }
 
-  input:focus, textarea:focus, select:focus {
+  input:focus,
+  textarea:focus,
+  select:focus {
     border-color: var(--border-hover);
     box-shadow: 0 0 0 2px var(--accent-subtle);
   }
 
-  input::placeholder, textarea::placeholder {
+  input::placeholder,
+  textarea::placeholder {
     color: var(--text-muted);
   }
 }
@@ -539,12 +576,12 @@ body {
   .app-header {
     padding: 1rem;
   }
-  
+
   .header-content {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .app-main {
     padding: 1rem;
   }
@@ -708,21 +745,21 @@ body {
   .main-menu {
     gap: 1.5rem;
   }
-  
+
   .status-card {
     padding: 1rem;
   }
-  
+
   .status-header {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .menu-grid {
     grid-template-columns: 1fr;
   }
@@ -730,20 +767,21 @@ body {
 
 /* === SMOOTH LOADER ANIMATIONS === */
 @keyframes smooth-spin {
-  from { 
-    transform: rotate(0deg); 
+  from {
+    transform: rotate(0deg);
   }
-  to { 
-    transform: rotate(360deg); 
+  to {
+    transform: rotate(360deg);
   }
 }
 
 @keyframes smooth-progress-pulse {
-  0%, 100% { 
+  0%,
+  100% {
     opacity: 0.5;
     transform: scaleX(0.8);
   }
-  50% { 
+  50% {
     opacity: 1;
     transform: scaleX(1);
   }
@@ -786,7 +824,7 @@ body {
 }
 
 .glass-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -808,15 +846,15 @@ body {
 }
 
 .menu-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: radial-gradient(
-    100% 100% at 0% 0%, 
-    rgba(255, 255, 255, 0.08) 0%, 
+    100% 100% at 0% 0%,
+    rgba(255, 255, 255, 0.08) 0%,
     rgba(255, 255, 255, 0) 100%
   );
   z-index: -1;
@@ -825,15 +863,15 @@ body {
 .menu-card:hover {
   background: var(--gradient-secondary);
   border-color: var(--card-hover-border);
-  box-shadow: 
+  box-shadow:
     0 20px 40px -20px rgba(0, 0, 0, 0.4),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .menu-card:hover::before {
   background: radial-gradient(
-    100% 100% at 0% 0%, 
-    rgba(255, 255, 255, 0.12) 0%, 
+    100% 100% at 0% 0%,
+    rgba(255, 255, 255, 0.12) 0%,
     rgba(255, 255, 255, 0.02) 100%
   );
 }

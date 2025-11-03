@@ -1,23 +1,40 @@
-import { useState, useEffect, useRef, useCallback, useDeferredValue, startTransition } from 'react';
-import { BackendService } from '../../services/BackendService';
-import { Settings, type QuickSettings } from '../settings';
-import { attendanceManager } from '../../services/AttendanceManager';
-import type { GroupSection } from '../group';
-import type { 
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useDeferredValue,
+  startTransition,
+} from "react";
+import { BackendService } from "../../services/BackendService";
+import { Settings, type QuickSettings } from "../settings";
+import { attendanceManager } from "../../services/AttendanceManager";
+import type { GroupSection } from "../group";
+import type {
   FaceRecognitionResponse,
   AttendanceGroup,
   AttendanceMember,
-  AttendanceRecord
-} from '../../types/recognition';
-import { drawOverlays } from './utils/overlayRenderer';
-import type { DetectionResult, WebSocketFaceData, WebSocketDetectionResponse, WebSocketConnectionMessage, WebSocketErrorMessage, CooldownInfo, TrackedFace } from './types';
-import { ControlBar } from './components/ControlBar';
-import { VideoCanvas } from './components/VideoCanvas';
-import { Sidebar } from './components/Sidebar';
-import { GroupManagementModal } from './components/GroupManagementModal';
-import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+  AttendanceRecord,
+} from "../../types/recognition";
+import { drawOverlays } from "./utils/overlayRenderer";
+import type {
+  DetectionResult,
+  WebSocketFaceData,
+  WebSocketDetectionResponse,
+  WebSocketConnectionMessage,
+  WebSocketErrorMessage,
+  CooldownInfo,
+  TrackedFace,
+} from "./types";
+import { ControlBar } from "./components/ControlBar";
+import { VideoCanvas } from "./components/VideoCanvas";
+import { Sidebar } from "./components/Sidebar";
+import { GroupManagementModal } from "./components/GroupManagementModal";
+import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 
-const NON_LOGGING_ANTISPOOF_STATUSES = new Set<'real' | 'fake' | 'uncertain' | 'error' | 'too_small'>(['fake', 'uncertain', 'error', 'too_small']);
+const NON_LOGGING_ANTISPOOF_STATUSES = new Set<
+  "real" | "fake" | "uncertain" | "error" | "too_small"
+>(["fake", "uncertain", "error", "too_small"]);
 
 const TRACKING_HISTORY_LIMIT = 20;
 
@@ -25,7 +42,8 @@ let skipFrames = 0;
 let frameCounter = 0;
 
 // Extended recognition response with additional UI properties
-export interface ExtendedFaceRecognitionResponse extends FaceRecognitionResponse {
+export interface ExtendedFaceRecognitionResponse
+  extends FaceRecognitionResponse {
   memberName?: string;
 }
 
@@ -38,7 +56,7 @@ const trimTrackingHistory = <T,>(history: T[]): T[] => {
 
 const isRecognitionResponseEqual = (
   a: ExtendedFaceRecognitionResponse | undefined,
-  b: ExtendedFaceRecognitionResponse | undefined
+  b: ExtendedFaceRecognitionResponse | undefined,
 ): boolean => {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -55,7 +73,7 @@ const isRecognitionResponseEqual = (
 
 const areRecognitionMapsEqual = (
   prev: Map<number, ExtendedFaceRecognitionResponse>,
-  next: Map<number, ExtendedFaceRecognitionResponse>
+  next: Map<number, ExtendedFaceRecognitionResponse>,
 ): boolean => {
   if (prev === next) return true;
   if (prev.size !== next.size) return false;
@@ -81,25 +99,24 @@ export default function Main() {
   const isProcessingRef = useRef<boolean>(false);
   const isStreamingRef = useRef<boolean>(false);
   const lastDetectionFrameRef = useRef<ArrayBuffer | null>(null);
-  
+
   // Debounce refs to prevent rapid clicking issues
   const lastStartTimeRef = useRef<number>(0);
   const lastStopTimeRef = useRef<number>(0);
   const isStartingRef = useRef<boolean>(false);
   const isStoppingRef = useRef<boolean>(false);
-  
-  
+
   // Emergency recovery function to reset system to known good state
   const emergencyRecovery = useCallback(() => {
     // Reset all flags
     isStartingRef.current = false;
     isStoppingRef.current = false;
     isProcessingRef.current = false;
-    
+
     // Reset timestamps
     lastStartTimeRef.current = 0;
     lastStopTimeRef.current = 0;
-    
+
     // Force stop if streaming
     if (isStreamingRef.current) {
       setIsStreaming(false);
@@ -107,23 +124,34 @@ export default function Main() {
       setDetectionEnabled(false);
       detectionEnabledRef.current = false;
     }
-    
+
     // Clear any pending operations
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = undefined;
     }
-    
+
     // Note: We preserve cooldowns even during emergency recovery
     // to maintain the cooldown behavior across all scenarios
   }, []);
-  
+
   // Performance optimization refs
-  const lastCanvasSizeRef = useRef<{width: number, height: number}>({width: 0, height: 0});
-  const lastVideoSizeRef = useRef<{width: number, height: number}>({width: 0, height: 0});
-  const scaleFactorsRef = useRef<{scaleX: number, scaleY: number, offsetX: number, offsetY: number}>({scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0});
-  const lastDetectionHashRef = useRef<string>('');
-  
+  const lastCanvasSizeRef = useRef<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+  const lastVideoSizeRef = useRef<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+  const scaleFactorsRef = useRef<{
+    scaleX: number;
+    scaleY: number;
+    offsetX: number;
+    offsetY: number;
+  }>({ scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 });
+  const lastDetectionHashRef = useRef<string>("");
+
   // OPTIMIZATION: Cache video rect to avoid repeated getBoundingClientRect calls
   const videoRectRef = useRef<DOMRect | null>(null);
   const lastVideoRectUpdateRef = useRef<number>(0);
@@ -132,9 +160,12 @@ export default function Main() {
   const [detectionEnabled, setDetectionEnabled] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
-  const [currentDetections, setCurrentDetections] = useState<DetectionResult | null>(null);
+  const [currentDetections, setCurrentDetections] =
+    useState<DetectionResult | null>(null);
   const [detectionFps, setDetectionFps] = useState<number>(0);
-  const [websocketStatus, setWebsocketStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [websocketStatus, setWebsocketStatus] = useState<
+    "disconnected" | "connecting" | "connected"
+  >("disconnected");
   const backendServiceReadyRef = useRef(false);
 
   // Monitor video element to sync camera state
@@ -146,7 +177,7 @@ export default function Main() {
       const hasStream = video.srcObject !== null;
       const isPlaying = !video.paused && !video.ended && video.readyState > 2;
       const shouldBeActive = hasStream && isPlaying;
-      
+
       if (cameraActive !== shouldBeActive) {
         setCameraActive(shouldBeActive);
         // Sync streaming state with actual camera state
@@ -164,8 +195,8 @@ export default function Main() {
     checkVideoState();
 
     // Set up event listeners
-    const events = ['loadedmetadata', 'play', 'pause', 'ended', 'emptied'];
-    events.forEach(event => {
+    const events = ["loadedmetadata", "play", "pause", "ended", "emptied"];
+    events.forEach((event) => {
       video.addEventListener(event, checkVideoState);
     });
 
@@ -173,34 +204,38 @@ export default function Main() {
     const interval = setInterval(checkVideoState, 100);
 
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         video.removeEventListener(event, checkVideoState);
       });
       clearInterval(interval);
     };
   }, [cameraActive, isStreaming]);
-  
+
   const lastDetectionRef = useRef<DetectionResult | null>(null);
   const lastFrameTimestampRef = useRef<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState<string>('');
-  
+  const [selectedCamera, setSelectedCamera] = useState<string>("");
+
   // Anti-spoofing settings
 
   // Command hub state
-  const [currentRecognitionResults, setCurrentRecognitionResults] = useState<Map<number, ExtendedFaceRecognitionResponse>>(new Map());
+  const [currentRecognitionResults, setCurrentRecognitionResults] = useState<
+    Map<number, ExtendedFaceRecognitionResponse>
+  >(new Map());
 
   // ACCURATE FPS tracking with rolling average
   const fpsTrackingRef = useRef({
     timestamps: [] as number[],
     maxSamples: 5, // Track last 5 detections for real-time average
-    lastUpdateTime: Date.now()
+    lastUpdateTime: Date.now(),
   });
 
   const [showSettings, setShowSettings] = useState(false);
   const [isSettingsFullScreen, setIsSettingsFullScreen] = useState(false);
-  const [groupInitialSection, setGroupInitialSection] = useState<GroupSection | undefined>(undefined);
+  const [groupInitialSection, setGroupInitialSection] = useState<
+    GroupSection | undefined
+  >(undefined);
   const [quickSettings, setQuickSettings] = useState<QuickSettings>({
     cameraMirrored: true,
     showFPS: false,
@@ -212,53 +247,71 @@ export default function Main() {
 
   // Attendance system state
   const attendanceEnabled = true;
-  const [currentGroup, setCurrentGroupInternal] = useState<AttendanceGroup | null>(null);
+  const [currentGroup, setCurrentGroupInternal] =
+    useState<AttendanceGroup | null>(null);
   const currentGroupRef = useRef<AttendanceGroup | null>(null);
-  const memberCacheRef = useRef<Map<string, AttendanceMember | null>>(new Map());
-  
+  const memberCacheRef = useRef<Map<string, AttendanceMember | null>>(
+    new Map(),
+  );
+
   // Debug wrapper for setCurrentGroup with localStorage persistence
   const setCurrentGroup = useCallback((group: AttendanceGroup | null) => {
     setCurrentGroupInternal(group);
     currentGroupRef.current = group; // Keep ref in sync
     memberCacheRef.current.clear();
-    
+
     // Save group selection to localStorage for persistence
     if (group) {
-      localStorage.setItem('suri_selected_group_id', group.id);
+      localStorage.setItem("suri_selected_group_id", group.id);
     } else {
-      localStorage.removeItem('suri_selected_group_id');
+      localStorage.removeItem("suri_selected_group_id");
     }
   }, []);
-  
+
   // Recognition is enabled when backend is ready (removed group dependency for instant recognition)
   const recognitionEnabled = true;
-  
+
   // Removed delayed recognition logic for real-time performance
-  
+
   // Elite Tracking System States
-  const [trackingMode, setTrackingMode] = useState<'auto' | 'manual'>('auto');
-  const [attendanceCooldownSeconds, setAttendanceCooldownSeconds] = useState<number>(10);
-  const [enableSpoofDetection, setEnableSpoofDetection] = useState<boolean>(() => {
-    const saved = localStorage.getItem('suri_enable_spoof_detection');
-    return saved !== null ? saved === 'true' : true; // Default to enabled
-  });
-  const [trackedFaces, setTrackedFaces] = useState<Map<string, TrackedFace>>(new Map());
+  const [trackingMode, setTrackingMode] = useState<"auto" | "manual">("auto");
+  const [attendanceCooldownSeconds, setAttendanceCooldownSeconds] =
+    useState<number>(10);
+  const [enableSpoofDetection, setEnableSpoofDetection] = useState<boolean>(
+    () => {
+      const saved = localStorage.getItem("suri_enable_spoof_detection");
+      return saved !== null ? saved === "true" : true; // Default to enabled
+    },
+  );
+  const [trackedFaces, setTrackedFaces] = useState<Map<string, TrackedFace>>(
+    new Map(),
+  );
   // Attendance states
-  const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>([]);
+  const [attendanceGroups, setAttendanceGroups] = useState<AttendanceGroup[]>(
+    [],
+  );
   const [groupMembers, setGroupMembers] = useState<AttendanceMember[]>([]);
-  const [recentAttendance, setRecentAttendance] = useState<AttendanceRecord[]>([]);
+  const [recentAttendance, setRecentAttendance] = useState<AttendanceRecord[]>(
+    [],
+  );
   const [showGroupManagement, setShowGroupManagement] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [groupToDelete, setGroupToDelete] = useState<AttendanceGroup | null>(null);
-  const [newGroupName, setNewGroupName] = useState('');
-  
+  const [groupToDelete, setGroupToDelete] = useState<AttendanceGroup | null>(
+    null,
+  );
+  const [newGroupName, setNewGroupName] = useState("");
+
   // Persistent cooldown tracking (for recognized faces)
-  const [persistentCooldowns, setPersistentCooldowns] = useState<Map<string, CooldownInfo>>(new Map());
+  const [persistentCooldowns, setPersistentCooldowns] = useState<
+    Map<string, CooldownInfo>
+  >(new Map());
   // Ref to always access latest persistentCooldowns in callbacks (avoids stale closure)
   const persistentCooldownsRef = useRef<Map<string, CooldownInfo>>(new Map());
 
   // Defer non-critical UI updates to prevent blocking - must be after state declarations
-  const deferredCurrentRecognitionResults = useDeferredValue(currentRecognitionResults);
+  const deferredCurrentRecognitionResults = useDeferredValue(
+    currentRecognitionResults,
+  );
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -269,7 +322,7 @@ export default function Main() {
   useEffect(() => {
     isStreamingRef.current = isStreaming;
   }, [isStreaming]);
-  
+
   useEffect(() => {
     detectionEnabledRef.current = detectionEnabled;
   }, [detectionEnabled]);
@@ -286,11 +339,11 @@ export default function Main() {
     const validationInterval = setInterval(() => {
       // Only validate critical issues, not state mismatches
       const criticalIssues = [];
-      
+
       if (isStartingRef.current && isStoppingRef.current) {
-        criticalIssues.push('Both starting and stopping flags are true');
+        criticalIssues.push("Both starting and stopping flags are true");
       }
-      
+
       if (criticalIssues.length > 0) {
         // Auto-fix critical issues
         if (isStartingRef.current && isStoppingRef.current) {
@@ -299,15 +352,15 @@ export default function Main() {
         }
       }
     }, 10000); // Check every 10 seconds
-    
+
     return () => clearInterval(validationInterval);
   }, []);
-  
+
   // Timeout detection for stuck operations
   useEffect(() => {
     let startTimeout: NodeJS.Timeout | undefined;
     let stopTimeout: NodeJS.Timeout | undefined;
-    
+
     if (isStartingRef.current) {
       startTimeout = setTimeout(() => {
         if (isStartingRef.current) {
@@ -315,7 +368,7 @@ export default function Main() {
         }
       }, 10000); // 10 second timeout for start
     }
-    
+
     if (isStoppingRef.current) {
       stopTimeout = setTimeout(() => {
         if (isStoppingRef.current) {
@@ -323,7 +376,7 @@ export default function Main() {
         }
       }, 5000); // 5 second timeout for stop
     }
-    
+
     return () => {
       if (startTimeout) clearTimeout(startTimeout);
       if (stopTimeout) clearTimeout(stopTimeout);
@@ -334,36 +387,37 @@ export default function Main() {
   useEffect(() => {
     let lastUpdateTime = 0;
     const updateInterval = 1000; // Update every second
-    
+
     const updateCooldowns = () => {
       const now = Date.now();
-      
+
       // Batch all updates in a single transition to prevent blocking
       startTransition(() => {
         // Update persistent cooldowns - only remove truly expired ones
-        setPersistentCooldowns(prev => {
+        setPersistentCooldowns((prev) => {
           const newPersistent = new Map(prev);
           let hasChanges = false;
-          
+
           for (const [personId, cooldownInfo] of newPersistent) {
             const timeSinceStart = now - cooldownInfo.startTime;
             // Use stored cooldown duration to prevent premature removal when setting changes
-            const cooldownSeconds = cooldownInfo.cooldownDurationSeconds ?? attendanceCooldownSeconds;
+            const cooldownSeconds =
+              cooldownInfo.cooldownDurationSeconds ?? attendanceCooldownSeconds;
             const cooldownMs = cooldownSeconds * 1000;
             const expirationThreshold = cooldownMs + 500;
-            
+
             if (timeSinceStart >= expirationThreshold) {
               newPersistent.delete(personId);
               hasChanges = true;
             }
           }
-          
+
           persistentCooldownsRef.current = hasChanges ? newPersistent : prev;
           return hasChanges ? newPersistent : prev;
         });
       });
     };
-    
+
     // Use requestAnimationFrame for smoother updates aligned with frame rate
     const scheduleUpdate = () => {
       const now = Date.now();
@@ -373,40 +427,41 @@ export default function Main() {
       }
       requestAnimationFrame(scheduleUpdate);
     };
-    
+
     const rafId = requestAnimationFrame(scheduleUpdate);
-    
+
     return () => {
       cancelAnimationFrame(rafId);
     };
   }, [attendanceCooldownSeconds]); // Only depend on cooldown duration, not the cooldown maps themselves
 
-
-
   // OPTIMIZED: Capture frame as Binary ArrayBuffer (30% faster than Base64)
   const captureFrame = useCallback((): Promise<ArrayBuffer | null> => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     if (!video || !canvas) {
       return Promise.resolve(null);
     }
-    
+
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       return Promise.resolve(null);
     }
 
     // OPTIMIZATION: Get context with optimized settings
-    const ctx = canvas.getContext('2d', { 
+    const ctx = canvas.getContext("2d", {
       alpha: false, // No transparency needed for capture
-      willReadFrequently: false // We don't read pixels frequently
+      willReadFrequently: false, // We don't read pixels frequently
     });
     if (!ctx) {
       return Promise.resolve(null);
     }
 
     // OPTIMIZATION: Only resize canvas if video dimensions changed
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+    if (
+      canvas.width !== video.videoWidth ||
+      canvas.height !== video.videoHeight
+    ) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
     }
@@ -417,15 +472,22 @@ export default function Main() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         // Convert to Binary ArrayBuffer
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            resolve(null);
-            return;
-          }
-          blob.arrayBuffer().then(resolve).catch(() => {
-            resolve(null);
-          });
-        }, 'image/jpeg', 0.9);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            blob
+              .arrayBuffer()
+              .then(resolve)
+              .catch(() => {
+                resolve(null);
+              });
+          },
+          "image/jpeg",
+          0.9,
+        );
       } catch {
         resolve(null);
       }
@@ -433,436 +495,519 @@ export default function Main() {
   }, []);
 
   // Face recognition function
-  const performFaceRecognition = useCallback(async (detectionResult: DetectionResult, frameData: ArrayBuffer | null) => {
-    try {
-      // Only perform recognition when a group is selected
-      const currentGroupValue = currentGroupRef.current;
-      if (!currentGroupValue) {
-        setCurrentRecognitionResults(new Map());
-        return;
-      }
+  const performFaceRecognition = useCallback(
+    async (detectionResult: DetectionResult, frameData: ArrayBuffer | null) => {
+      try {
+        // Only perform recognition when a group is selected
+        const currentGroupValue = currentGroupRef.current;
+        if (!currentGroupValue) {
+          setCurrentRecognitionResults(new Map());
+          return;
+        }
 
-      // Skip if no frame data available
-      if (!frameData) {
-        return;
-      }
+        // Skip if no frame data available
+        if (!frameData) {
+          return;
+        }
 
-      // Capture current group at start of processing to validate later
-      const processingGroup = currentGroupValue;
-      
+        // Capture current group at start of processing to validate later
+        const processingGroup = currentGroupValue;
 
-      // Process each detected face for recognition
-      const recognitionPromises = detectionResult.faces.map(async (face) => {
-        try {
-          if (!backendServiceRef.current) {
-            console.error('Backend service not initialized');
-            return null;
-          }
-          
-          // Use track_id as stable identifier (from SORT tracker) - Check FIRST before any processing
-          if (face.track_id === undefined) {
-            return null; // Skip faces without track_id
-          }
-          const trackId = face.track_id;
-          
-          // CRITICAL: Liveness validation - Skip recognition for problematic faces but still display them
-          if (face.liveness?.status === 'fake') {
-            // Don't return null - we want to show spoofed faces in the sidebar
-            // Just skip the recognition processing
-            return {
-              face: face,
-              skipRecognition: true,
-              reason: 'spoofed'
-            };
-          }
-          
-          // OPTIMIZATION: Skip recognition for uncertain edge cases (prevents wasted API calls)
-          // Backend will block these anyway, so skip early for efficiency
-          // Still show faces in UI for user feedback
-          if (face.liveness?.status === 'uncertain') {
-            return {
-              face: face,
-              skipRecognition: true,
-              reason: 'uncertain_edge_case'
-            };
-          }
-          
-          // Also reject faces with liveness errors for safety
-          if (face.liveness?.status === 'error') {
-            return null; // Filter out faces with anti-spoofing errors
-          }
-          
-          // Convert bbox to array format [x, y, width, height]
-          const bbox = [face.bbox.x, face.bbox.y, face.bbox.width, face.bbox.height];
-          
-          const response = await backendServiceRef.current.recognizeFace(
-            frameData,
-            bbox,
-            currentGroupValue?.id,
-            face.landmarks_5
-          );
-
-          if (response.success && response.person_id) {
-            
-            // Group-based filtering: Only process faces that belong to the current group (by name)
-            // OPTIMIZATION: Use member cache to prevent repeated async calls
-            let memberName = response.person_id; // Default to person_id if no member found
-            if (currentGroupValue) {
-              try {
-                // Check cache first
-                let member = memberCacheRef.current.get(response.person_id);
-                if (!member && member !== null) {
-                  // Cache miss - fetch and cache
-                  member = await attendanceManager.getMember(response.person_id);
-                  memberCacheRef.current.set(response.person_id, member || null);
-                }
-                
-                if (!member) {
-                  return null; // Filter out this face completely
-                }
-                
-                // Store the member's name for display
-                memberName = member.name || response.person_id;
-                
-                // Compare group IDs directly for reliable filtering
-                if (member.group_id !== currentGroupValue.id) {
-                  return null; // Filter out this face completely
-                }
-              } catch {
-                // Cache null to prevent repeated failures
-                memberCacheRef.current.set(response.person_id, null);
-                return null; // Filter out on error
-              }
-            } else {
-              // When no group is selected, still try to get the member name for display
-              try {
-                // Check cache first
-                let member = memberCacheRef.current.get(response.person_id);
-                if (!member && member !== null) {
-                  // Cache miss - fetch and cache
-                  member = await attendanceManager.getMember(response.person_id);
-                  memberCacheRef.current.set(response.person_id, member || null);
-                }
-                if (member && member.name) {
-                  memberName = member.name;
-                }
-              } catch {
-                // Cache null to prevent repeated failures
-                memberCacheRef.current.set(response.person_id, null);
-                // Silently fail and use person_id as fallback
-              }
+        // Process each detected face for recognition
+        const recognitionPromises = detectionResult.faces.map(async (face) => {
+          try {
+            if (!backendServiceRef.current) {
+              console.error("Backend service not initialized");
+              return null;
             }
-            
-            // Elite Tracking System - Update tracked face with recognition data
-            // Use track_id from SORT tracker as the stable identifier
-            const trackedFaceId = `track_${face.track_id}`;
-            const currentTime = Date.now();
-            
-            // Batch tracking updates in a transition to prevent blocking
-            startTransition(() => {
-              setTrackedFaces(prev => {
-                const newTracked = new Map(prev);
-                const currentLivenessStatus = face.liveness?.status;
-                
-                // Find existing track using track_id (from SORT) for consistent identity
-                const existingTrack = newTracked.get(trackedFaceId);
-                
-                if (existingTrack) {
-                  // Update existing track
-                  existingTrack.lastSeen = currentTime;
-                  existingTrack.confidence = Math.max(existingTrack.confidence, face.confidence);
-                  existingTrack.trackingHistory.push({
-                    timestamp: currentTime,
-                    bbox: face.bbox,
-                    confidence: face.confidence
-                  });
-                  // Trim tracking history to prevent unbounded growth
-                  existingTrack.trackingHistory = trimTrackingHistory(existingTrack.trackingHistory);
-                  existingTrack.occlusionCount = 0; // Reset occlusion count
-                  existingTrack.angleConsistency = calculateAngleConsistency(existingTrack.trackingHistory);
-                  
-                  // CRITICAL FIX: Always use CURRENT frame's liveness status
-                  // Remove "once real, stay real" logic to prevent spoofed faces from staying "live"
-                  existingTrack.livenessStatus = currentLivenessStatus;
-                  
-                  newTracked.set(existingTrack.id, existingTrack);
-                } else {
-                  // Create new track using track_id as the key
-                  newTracked.set(trackedFaceId, {
-                    id: trackedFaceId,
-                    bbox: face.bbox,
-                    confidence: face.confidence,
-                    lastSeen: currentTime,
-                    trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
-                    isLocked: trackingMode === 'auto',
-                    personId: response.person_id,
-                    occlusionCount: 0,
-                    angleConsistency: 1.0,
-                    livenessStatus: currentLivenessStatus
-                  });
-                }
-                
-                return newTracked;
-              });
-            });
-            
-            // Enhanced Attendance Processing with comprehensive error handling
-            if (attendanceEnabled && currentGroupValue && response.person_id) {
-              const livenessStatus = face.liveness?.status ?? null;
-              
-              // CRITICAL SECURITY FIX: Double-check liveness status before attendance processing
-              const shouldSkipAttendanceLogging = !!face.liveness && (
-                face.liveness.is_real !== true ||
-                (livenessStatus !== null && NON_LOGGING_ANTISPOOF_STATUSES.has(livenessStatus))
-              );
 
-              // Additional safety check: explicitly block spoofed faces
-              if (face.liveness?.status && NON_LOGGING_ANTISPOOF_STATUSES.has(face.liveness.status)) {
-                return null; // Skip attendance processing for spoofed/problematic faces
+            // Use track_id as stable identifier (from SORT tracker) - Check FIRST before any processing
+            if (face.track_id === undefined) {
+              return null; // Skip faces without track_id
+            }
+            const trackId = face.track_id;
+
+            // CRITICAL: Liveness validation - Skip recognition for problematic faces but still display them
+            if (face.liveness?.status === "fake") {
+              // Don't return null - we want to show spoofed faces in the sidebar
+              // Just skip the recognition processing
+              return {
+                face: face,
+                skipRecognition: true,
+                reason: "spoofed",
+              };
+            }
+
+            // OPTIMIZATION: Skip recognition for uncertain edge cases (prevents wasted API calls)
+            // Backend will block these anyway, so skip early for efficiency
+            // Still show faces in UI for user feedback
+            if (face.liveness?.status === "uncertain") {
+              return {
+                face: face,
+                skipRecognition: true,
+                reason: "uncertain_edge_case",
+              };
+            }
+
+            // Also reject faces with liveness errors for safety
+            if (face.liveness?.status === "error") {
+              return null; // Filter out faces with anti-spoofing errors
+            }
+
+            // Convert bbox to array format [x, y, width, height]
+            const bbox = [
+              face.bbox.x,
+              face.bbox.y,
+              face.bbox.width,
+              face.bbox.height,
+            ];
+
+            const response = await backendServiceRef.current.recognizeFace(
+              frameData,
+              bbox,
+              currentGroupValue?.id,
+              face.landmarks_5,
+            );
+
+            if (response.success && response.person_id) {
+              // Group-based filtering: Only process faces that belong to the current group (by name)
+              // OPTIMIZATION: Use member cache to prevent repeated async calls
+              let memberName = response.person_id; // Default to person_id if no member found
+              if (currentGroupValue) {
+                try {
+                  // Check cache first
+                  let member = memberCacheRef.current.get(response.person_id);
+                  if (!member && member !== null) {
+                    // Cache miss - fetch and cache
+                    member = await attendanceManager.getMember(
+                      response.person_id,
+                    );
+                    memberCacheRef.current.set(
+                      response.person_id,
+                      member || null,
+                    );
+                  }
+
+                  if (!member) {
+                    return null; // Filter out this face completely
+                  }
+
+                  // Store the member's name for display
+                  memberName = member.name || response.person_id;
+
+                  // Compare group IDs directly for reliable filtering
+                  if (member.group_id !== currentGroupValue.id) {
+                    return null; // Filter out this face completely
+                  }
+                } catch {
+                  // Cache null to prevent repeated failures
+                  memberCacheRef.current.set(response.person_id, null);
+                  return null; // Filter out on error
+                }
+              } else {
+                // When no group is selected, still try to get the member name for display
+                try {
+                  // Check cache first
+                  let member = memberCacheRef.current.get(response.person_id);
+                  if (!member && member !== null) {
+                    // Cache miss - fetch and cache
+                    member = await attendanceManager.getMember(
+                      response.person_id,
+                    );
+                    memberCacheRef.current.set(
+                      response.person_id,
+                      member || null,
+                    );
+                  }
+                  if (member && member.name) {
+                    memberName = member.name;
+                  }
+                } catch {
+                  // Cache null to prevent repeated failures
+                  memberCacheRef.current.set(response.person_id, null);
+                  // Silently fail and use person_id as fallback
+                }
               }
 
-              if (!shouldSkipAttendanceLogging) {
-                try {
-                  // Note: Group validation is now done at recognition level
-                  // Backend handles all confidence thresholding - frontend processes all valid responses
-                  const actualConfidence = response.similarity || 0;
+              // Elite Tracking System - Update tracked face with recognition data
+              // Use track_id from SORT tracker as the stable identifier
+              const trackedFaceId = `track_${face.track_id}`;
+              const currentTime = Date.now();
 
-                  // Anti-spoofing validation is handled by optimized backend
+              // Batch tracking updates in a transition to prevent blocking
+              startTransition(() => {
+                setTrackedFaces((prev) => {
+                  const newTracked = new Map(prev);
+                  const currentLivenessStatus = face.liveness?.status;
 
-                  if (trackingMode === 'auto') {
-                    // AUTO MODE: Check cooldown to prevent duplicate attendance logging
-                    // Use person_id as key so cooldown persists across track_id changes
-                    const currentTime = Date.now();
-                    const cooldownKey = response.person_id;
+                  // Find existing track using track_id (from SORT) for consistent identity
+                  const existingTrack = newTracked.get(trackedFaceId);
 
-                    // Check cooldown from persistentCooldowns (source of truth)
-                    const cooldownInfo = persistentCooldownsRef.current.get(cooldownKey);
-                    const authoritativeTimestamp = cooldownInfo?.startTime || 0;
-                    const timeSinceLastAttendance = currentTime - authoritativeTimestamp;
-                    
-                    // Use stored cooldown duration to check if still active
-                    // Block for FULL duration - standard behavior for cooldowns (like gaming, API rate limits)
-                    const storedCooldownSeconds = cooldownInfo?.cooldownDurationSeconds ?? attendanceCooldownSeconds;
-                    const storedCooldownMs = storedCooldownSeconds * 1000;
+                  if (existingTrack) {
+                    // Update existing track
+                    existingTrack.lastSeen = currentTime;
+                    existingTrack.confidence = Math.max(
+                      existingTrack.confidence,
+                      face.confidence,
+                    );
+                    existingTrack.trackingHistory.push({
+                      timestamp: currentTime,
+                      bbox: face.bbox,
+                      confidence: face.confidence,
+                    });
+                    // Trim tracking history to prevent unbounded growth
+                    existingTrack.trackingHistory = trimTrackingHistory(
+                      existingTrack.trackingHistory,
+                    );
+                    existingTrack.occlusionCount = 0; // Reset occlusion count
+                    existingTrack.angleConsistency = calculateAngleConsistency(
+                      existingTrack.trackingHistory,
+                    );
 
-                    if (timeSinceLastAttendance < storedCooldownMs) {
-                      // Update lastKnownBbox in persistentCooldowns for display even when face disappears
-                      startTransition(() => {
-                        setPersistentCooldowns(prev => {
-                          const newPersistent = new Map(prev);
-                          const existing = newPersistent.get(cooldownKey);
-                          if (existing) {
+                    // CRITICAL FIX: Always use CURRENT frame's liveness status
+                    // Remove "once real, stay real" logic to prevent spoofed faces from staying "live"
+                    existingTrack.livenessStatus = currentLivenessStatus;
+
+                    newTracked.set(existingTrack.id, existingTrack);
+                  } else {
+                    // Create new track using track_id as the key
+                    newTracked.set(trackedFaceId, {
+                      id: trackedFaceId,
+                      bbox: face.bbox,
+                      confidence: face.confidence,
+                      lastSeen: currentTime,
+                      trackingHistory: [
+                        {
+                          timestamp: currentTime,
+                          bbox: face.bbox,
+                          confidence: face.confidence,
+                        },
+                      ],
+                      isLocked: trackingMode === "auto",
+                      personId: response.person_id,
+                      occlusionCount: 0,
+                      angleConsistency: 1.0,
+                      livenessStatus: currentLivenessStatus,
+                    });
+                  }
+
+                  return newTracked;
+                });
+              });
+
+              // Enhanced Attendance Processing with comprehensive error handling
+              if (
+                attendanceEnabled &&
+                currentGroupValue &&
+                response.person_id
+              ) {
+                const livenessStatus = face.liveness?.status ?? null;
+
+                // CRITICAL SECURITY FIX: Double-check liveness status before attendance processing
+                const shouldSkipAttendanceLogging =
+                  !!face.liveness &&
+                  (face.liveness.is_real !== true ||
+                    (livenessStatus !== null &&
+                      NON_LOGGING_ANTISPOOF_STATUSES.has(livenessStatus)));
+
+                // Additional safety check: explicitly block spoofed faces
+                if (
+                  face.liveness?.status &&
+                  NON_LOGGING_ANTISPOOF_STATUSES.has(face.liveness.status)
+                ) {
+                  return null; // Skip attendance processing for spoofed/problematic faces
+                }
+
+                if (!shouldSkipAttendanceLogging) {
+                  try {
+                    // Note: Group validation is now done at recognition level
+                    // Backend handles all confidence thresholding - frontend processes all valid responses
+                    const actualConfidence = response.similarity || 0;
+
+                    // Anti-spoofing validation is handled by optimized backend
+
+                    if (trackingMode === "auto") {
+                      // AUTO MODE: Check cooldown to prevent duplicate attendance logging
+                      // Use person_id as key so cooldown persists across track_id changes
+                      const currentTime = Date.now();
+                      const cooldownKey = response.person_id;
+
+                      // Check cooldown from persistentCooldowns (source of truth)
+                      const cooldownInfo =
+                        persistentCooldownsRef.current.get(cooldownKey);
+                      const authoritativeTimestamp =
+                        cooldownInfo?.startTime || 0;
+                      const timeSinceLastAttendance =
+                        currentTime - authoritativeTimestamp;
+
+                      // Use stored cooldown duration to check if still active
+                      // Block for FULL duration - standard behavior for cooldowns (like gaming, API rate limits)
+                      const storedCooldownSeconds =
+                        cooldownInfo?.cooldownDurationSeconds ??
+                        attendanceCooldownSeconds;
+                      const storedCooldownMs = storedCooldownSeconds * 1000;
+
+                      if (timeSinceLastAttendance < storedCooldownMs) {
+                        // Update lastKnownBbox in persistentCooldowns for display even when face disappears
+                        startTransition(() => {
+                          setPersistentCooldowns((prev) => {
+                            const newPersistent = new Map(prev);
+                            const existing = newPersistent.get(cooldownKey);
+                            if (existing) {
+                              newPersistent.set(cooldownKey, {
+                                ...existing,
+                                lastKnownBbox: face.bbox,
+                              });
+                              persistentCooldownsRef.current = newPersistent;
+                              return newPersistent;
+                            }
+                            return prev;
+                          });
+                        });
+
+                        return {
+                          trackId,
+                          result: { ...response, name: memberName, memberName },
+                        };
+                      }
+
+                      // Create new cooldown when person logs attendance after cooldown expires
+                      const logTime = Date.now();
+                      const existingInState =
+                        persistentCooldownsRef.current.get(cooldownKey);
+                      const existingCooldownSeconds =
+                        existingInState?.cooldownDurationSeconds ??
+                        attendanceCooldownSeconds;
+                      const existingCooldownMs = existingCooldownSeconds * 1000;
+                      const existingInStateStillActive =
+                        existingInState &&
+                        logTime - existingInState.startTime <
+                          existingCooldownMs;
+
+                      if (!existingInStateStillActive) {
+                        startTransition(() => {
+                          setPersistentCooldowns((prev) => {
+                            const newPersistent = new Map(prev);
                             newPersistent.set(cooldownKey, {
-                              ...existing,
-                              lastKnownBbox: face.bbox
+                              personId: response.person_id!,
+                              startTime: logTime,
+                              memberName: memberName,
+                              lastKnownBbox: face.bbox,
+                              cooldownDurationSeconds:
+                                attendanceCooldownSeconds,
                             });
                             persistentCooldownsRef.current = newPersistent;
                             return newPersistent;
-                          }
-                          return prev;
-                        });
-                      });
-
-                      return { trackId, result: { ...response, name: memberName, memberName } };
-                    }
-
-                    // Create new cooldown when person logs attendance after cooldown expires
-                    const logTime = Date.now();
-                    const existingInState = persistentCooldownsRef.current.get(cooldownKey);
-                    const existingCooldownSeconds = existingInState?.cooldownDurationSeconds ?? attendanceCooldownSeconds;
-                    const existingCooldownMs = existingCooldownSeconds * 1000;
-                    const existingInStateStillActive = existingInState && 
-                      (logTime - existingInState.startTime < existingCooldownMs);
-                    
-                    if (!existingInStateStillActive) {
-                      startTransition(() => {
-                        setPersistentCooldowns(prev => {
-                          const newPersistent = new Map(prev);
-                          newPersistent.set(cooldownKey, {
-                            personId: response.person_id!,
-                            startTime: logTime,
-                            memberName: memberName,
-                            lastKnownBbox: face.bbox,
-                            cooldownDurationSeconds: attendanceCooldownSeconds
                           });
-                          persistentCooldownsRef.current = newPersistent;
-                          return newPersistent;
                         });
-                      });
-                    } else {
-                      // Update metadata only, preserve startTime
-                      startTransition(() => {
-                        setPersistentCooldowns(prev => {
-                          const newPersistent = new Map(prev);
-                          const existing = newPersistent.get(cooldownKey);
-                          if (existing) {
-                            newPersistent.set(cooldownKey, {
-                              ...existing,
-                              memberName: memberName,
-                              lastKnownBbox: face.bbox
-                            });
-                            // Sync ref with latest state
-                            persistentCooldownsRef.current = newPersistent;
-                          }
-                          return newPersistent;
+                      } else {
+                        // Update metadata only, preserve startTime
+                        startTransition(() => {
+                          setPersistentCooldowns((prev) => {
+                            const newPersistent = new Map(prev);
+                            const existing = newPersistent.get(cooldownKey);
+                            if (existing) {
+                              newPersistent.set(cooldownKey, {
+                                ...existing,
+                                memberName: memberName,
+                                lastKnownBbox: face.bbox,
+                              });
+                              // Sync ref with latest state
+                              persistentCooldownsRef.current = newPersistent;
+                            }
+                            return newPersistent;
+                          });
                         });
-                      });
-                    }
-                    
-                    // AUTO MODE: Process attendance event immediately
-                    try {
-                      const attendanceEvent = await attendanceManager.processAttendanceEvent(
-                        response.person_id,
-                        actualConfidence,
-                        'LiveVideo Camera', // location
-                        face.liveness?.status,
-                        face.liveness?.confidence
-                      );
-
-                      if (attendanceEvent) {
-                        // Defer attendance data refresh to prevent blocking
-                        // Use requestIdleCallback if available, otherwise setTimeout
-                        const scheduleRefresh = () => {
-                          if ('requestIdleCallback' in window) {
-                            requestIdleCallback(() => {
-                              loadAttendanceData().catch(err => console.error('Failed to refresh attendance:', err));
-                            }, { timeout: 500 });
-                          } else {
-                            setTimeout(async () => {
-                              await loadAttendanceData();
-                            }, 100);
-                          }
-                        };
-                        scheduleRefresh();
                       }
 
-                      // Show success notification
-                      setError(null);
-                    } catch (attendanceError: unknown) {
-                       const errorMessage = attendanceError instanceof Error ? attendanceError.message : 'Unknown error';
-                       setError(errorMessage || `Failed to record attendance for ${response.person_id}`);
-                    }
-                  }
-                  // MANUAL MODE: Don't log automatically - user will click "Log" button on recognized faces
+                      // AUTO MODE: Process attendance event immediately
+                      try {
+                        const attendanceEvent =
+                          await attendanceManager.processAttendanceEvent(
+                            response.person_id,
+                            actualConfidence,
+                            "LiveVideo Camera", // location
+                            face.liveness?.status,
+                            face.liveness?.confidence,
+                          );
 
-                } catch (error) {
-                  console.error('❌ Attendance processing failed:', error);
-                  setError(`Attendance error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                        if (attendanceEvent) {
+                          // Defer attendance data refresh to prevent blocking
+                          // Use requestIdleCallback if available, otherwise setTimeout
+                          const scheduleRefresh = () => {
+                            if ("requestIdleCallback" in window) {
+                              requestIdleCallback(
+                                () => {
+                                  loadAttendanceData().catch((err) =>
+                                    console.error(
+                                      "Failed to refresh attendance:",
+                                      err,
+                                    ),
+                                  );
+                                },
+                                { timeout: 500 },
+                              );
+                            } else {
+                              setTimeout(async () => {
+                                await loadAttendanceData();
+                              }, 100);
+                            }
+                          };
+                          scheduleRefresh();
+                        }
+
+                        // Show success notification
+                        setError(null);
+                      } catch (attendanceError: unknown) {
+                        const errorMessage =
+                          attendanceError instanceof Error
+                            ? attendanceError.message
+                            : "Unknown error";
+                        setError(
+                          errorMessage ||
+                            `Failed to record attendance for ${response.person_id}`,
+                        );
+                      }
+                    }
+                    // MANUAL MODE: Don't log automatically - user will click "Log" button on recognized faces
+                  } catch (error) {
+                    console.error("❌ Attendance processing failed:", error);
+                    setError(
+                      `Attendance error: ${error instanceof Error ? error.message : "Unknown error"}`,
+                    );
+                  }
                 }
               }
+
+              // Store name in response for overlay display
+              // Use trackId instead of index for stable mapping
+              return {
+                trackId,
+                result: { ...response, name: memberName, memberName },
+              };
+            } else if (response.success) {
+              // Track unrecognized faces for potential manual registration
+              const faceId = `unknown_track_${face.track_id}`;
+              const currentTime = Date.now();
+
+              startTransition(() => {
+                setTrackedFaces((prev) => {
+                  const newTracked = new Map(prev);
+                  newTracked.set(faceId, {
+                    id: faceId,
+                    bbox: face.bbox,
+                    confidence: face.confidence,
+                    lastSeen: currentTime,
+                    trackingHistory: [
+                      {
+                        timestamp: currentTime,
+                        bbox: face.bbox,
+                        confidence: face.confidence,
+                      },
+                    ],
+                    isLocked: false,
+                    personId: undefined,
+                    occlusionCount: 0,
+                    angleConsistency: 1.0,
+                    livenessStatus: face.liveness?.status,
+                  });
+                  return newTracked;
+                });
+              });
             }
-            
-            // Store name in response for overlay display
-            // Use trackId instead of index for stable mapping
-            return { trackId, result: { ...response, name: memberName, memberName } };
-          } else if (response.success) {
-            
-            // Track unrecognized faces for potential manual registration
-            const faceId = `unknown_track_${face.track_id}`;
-            const currentTime = Date.now();
-            
-            startTransition(() => {
-              setTrackedFaces(prev => {
+          } catch {
+            // Silently continue
+          }
+          return null;
+        });
+
+        const recognitionResults = await Promise.all(recognitionPromises);
+
+        // Validate that group hasn't changed during processing
+        if (processingGroup?.id !== currentGroupRef.current?.id) {
+          return;
+        }
+
+        // Update recognition results map - start fresh to avoid persisting old group results
+        // Use trackId as key (not array index) to handle filtered faces correctly
+        const newRecognitionResults = new Map<
+          number,
+          ExtendedFaceRecognitionResponse
+        >();
+        recognitionResults.forEach((result) => {
+          if (result) {
+            // Handle spoofed faces that skip recognition
+            if (result.skipRecognition) {
+              // For spoofed faces, we still want to show them in the sidebar
+              // but with no recognition result
+              if (result.face.track_id !== undefined) {
+                newRecognitionResults.set(result.face.track_id, {
+                  success: false,
+                  person_id: undefined,
+                  similarity: 0,
+                  error: "Spoofed face - recognition skipped",
+                });
+              }
+            } else if (result.result && result.trackId !== undefined) {
+              newRecognitionResults.set(result.trackId, result.result);
+            }
+          }
+        });
+
+        // Only update if recognition results actually changed to prevent unnecessary re-renders
+        setCurrentRecognitionResults((prev) => {
+          if (areRecognitionMapsEqual(prev, newRecognitionResults)) {
+            return prev; // Return previous value to prevent re-render
+          }
+          return newRecognitionResults;
+        });
+
+        // Handle spoofed faces that skipped recognition but should still be displayed
+        startTransition(() => {
+          recognitionResults.forEach((result) => {
+            if (result && result.skipRecognition) {
+              const face = result.face;
+              const faceId = `spoofed_track_${face.track_id}`;
+              const currentTime = Date.now();
+
+              setTrackedFaces((prev) => {
                 const newTracked = new Map(prev);
                 newTracked.set(faceId, {
                   id: faceId,
                   bbox: face.bbox,
                   confidence: face.confidence,
                   lastSeen: currentTime,
-                  trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
+                  trackingHistory: [
+                    {
+                      timestamp: currentTime,
+                      bbox: face.bbox,
+                      confidence: face.confidence,
+                    },
+                  ],
                   isLocked: false,
                   personId: undefined,
                   occlusionCount: 0,
                   angleConsistency: 1.0,
-                  livenessStatus: face.liveness?.status
+                  livenessStatus: face.liveness?.status,
                 });
                 return newTracked;
               });
-            });
-          }
-        } catch {
-          // Silently continue
-        }
-        return null;
-      });
-
-      const recognitionResults = await Promise.all(recognitionPromises);
-      
-      // Validate that group hasn't changed during processing
-      if (processingGroup?.id !== currentGroupRef.current?.id) {
-        return;
-      }
-      
-      // Update recognition results map - start fresh to avoid persisting old group results
-      // Use trackId as key (not array index) to handle filtered faces correctly
-      const newRecognitionResults = new Map<number, ExtendedFaceRecognitionResponse>();
-      recognitionResults.forEach((result) => {
-        if (result) {
-          // Handle spoofed faces that skip recognition
-          if (result.skipRecognition) {
-            // For spoofed faces, we still want to show them in the sidebar
-            // but with no recognition result
-            if (result.face.track_id !== undefined) {
-              newRecognitionResults.set(result.face.track_id, {
-                success: false,
-                person_id: undefined,
-                similarity: 0,
-                error: 'Spoofed face - recognition skipped'
-              });
             }
-          } else if (result.result && result.trackId !== undefined) {
-            newRecognitionResults.set(result.trackId, result.result);
-          }
-        }
-      });
-      
-      // Only update if recognition results actually changed to prevent unnecessary re-renders
-      setCurrentRecognitionResults(prev => {
-        if (areRecognitionMapsEqual(prev, newRecognitionResults)) {
-          return prev; // Return previous value to prevent re-render
-        }
-        return newRecognitionResults;
-      });
-
-      // Handle spoofed faces that skipped recognition but should still be displayed
-      startTransition(() => {
-        recognitionResults.forEach((result) => {
-          if (result && result.skipRecognition) {
-            const face = result.face;
-            const faceId = `spoofed_track_${face.track_id}`;
-            const currentTime = Date.now();
-            
-            setTrackedFaces(prev => {
-              const newTracked = new Map(prev);
-              newTracked.set(faceId, {
-                id: faceId,
-                bbox: face.bbox,
-                confidence: face.confidence,
-                lastSeen: currentTime,
-                trackingHistory: [{ timestamp: currentTime, bbox: face.bbox, confidence: face.confidence }],
-                isLocked: false,
-                personId: undefined,
-                occlusionCount: 0,
-                angleConsistency: 1.0,
-                livenessStatus: face.liveness?.status
-              });
-              return newTracked;
-            });
-          }
+          });
         });
-      });
-
-    } catch (error) {
-      console.error('❌ Face recognition processing failed:', error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [captureFrame, trackingMode, attendanceCooldownSeconds]);
+      } catch (error) {
+        console.error("❌ Face recognition processing failed:", error);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [captureFrame, trackingMode, attendanceCooldownSeconds],
+  );
 
   // Initialize WebSocket connection
   const initializeWebSocket = useCallback(async () => {
     try {
       // Prevent multiple simultaneous WebSocket initialization attempts
-      if (websocketStatus === 'connecting') {
+      if (websocketStatus === "connecting") {
         return;
       }
 
@@ -872,163 +1017,188 @@ export default function Main() {
 
       // Simple check: backend ready or not
       const readinessCheck = await window.electronAPI?.backend.checkReadiness();
-      
-      if (!readinessCheck?.ready || !readinessCheck?.modelsLoaded) {
-        throw new Error('Backend not ready: Models still loading');
-      }
 
+      if (!readinessCheck?.ready || !readinessCheck?.modelsLoaded) {
+        throw new Error("Backend not ready: Models still loading");
+      }
 
       // Connect to WebSocket
       await backendServiceRef.current.connectWebSocket();
-      
+
       // Backend service ready state will be set when connection confirmation is received
-        
-        // Register message handler for detection responses
-        backendServiceRef.current.onMessage('detection_response', (data: WebSocketDetectionResponse) => {
-        // CRITICAL: Ignore messages when not streaming to prevent data restoration
-        if (!isStreamingRef.current || !detectionEnabledRef.current) {
-          return;
-        }
-        
-        // FRAME ORDERING: Check if this response is for the most recent frame
-        const responseFrameTimestamp = data.frame_timestamp || 0;
-        const lastFrameTimestamp = lastFrameTimestampRef.current || 0;
-        
-        // Skip outdated responses to prevent inconsistent results
-        if (responseFrameTimestamp < lastFrameTimestamp) {
-          return;
-        }
-        
-        // Update last processed frame timestamp
-        lastFrameTimestampRef.current = responseFrameTimestamp;
-        
-        // ACCURATE FPS calculation with rolling average
-        const now = Date.now();
-        const fpsTracking = fpsTrackingRef.current;
-        
-        // Add current timestamp
-        fpsTracking.timestamps.push(now);
-        
-        // Keep only the last N samples for rolling average
-        if (fpsTracking.timestamps.length > fpsTracking.maxSamples) {
-          fpsTracking.timestamps.shift();
-        }
-        
-        // Calculate FPS every 100ms for real-time updates
-        if (now - fpsTracking.lastUpdateTime >= 100 && fpsTracking.timestamps.length >= 2) {
-          const timeSpan = fpsTracking.timestamps[fpsTracking.timestamps.length - 1] - fpsTracking.timestamps[0];
-          const frameCount = fpsTracking.timestamps.length - 1;
-          
-          if (timeSpan > 0) {
-            const accurateFps = (frameCount * 1000) / timeSpan;
-            setDetectionFps(Math.round(accurateFps * 10) / 10); // Round to 1 decimal place
-          }
-          
-          fpsTracking.lastUpdateTime = now;
-        }
 
-        // Process the detection result
-        if (data.faces && Array.isArray(data.faces)) {
-          if (data.suggested_skip !== undefined) {
-            skipFrames = data.suggested_skip;
+      // Register message handler for detection responses
+      backendServiceRef.current.onMessage(
+        "detection_response",
+        (data: WebSocketDetectionResponse) => {
+          // CRITICAL: Ignore messages when not streaming to prevent data restoration
+          if (!isStreamingRef.current || !detectionEnabledRef.current) {
+            return;
           }
 
-          const detectionResult: DetectionResult = {
-            faces: data.faces.map((face: WebSocketFaceData) => {
-              const bbox = face.bbox || [0, 0, 0, 0];
-              
-              return {
-                bbox: {
-                  x: bbox[0] || 0,
-                  y: bbox[1] || 0,
-                  width: bbox[2] || 0,
-                  height: bbox[3] || 0
-                },
-                confidence: face.confidence || 0,
-                track_id: face.track_id,
-                landmarks_5: face.landmarks_5, // Pass YuNet 5-point landmarks through
-                liveness: face.liveness ? {
-                  is_real: face.liveness.is_real ?? null,
-                  confidence: face.liveness.confidence ?? 0,
-                  live_score: face.liveness.live_score,
-                  spoof_score: face.liveness.spoof_score,
-                  status: face.liveness.status || 'error',
-                  label: face.liveness.label,
-                  message: face.liveness.message || face.liveness.decision_reason,
-                  decision_reason: face.liveness.decision_reason || face.liveness.message
-                } : undefined
-              };
-            }),
-            model_used: data.model_used || 'unknown',
-          };
-          
-          // Update detections immediately for smooth rendering
-          setCurrentDetections(detectionResult);
-          lastDetectionRef.current = detectionResult;
-          
-          // Batch recognition processing in transition to prevent blocking
-          if (recognitionEnabled && backendServiceReadyRef.current && detectionResult.faces.length > 0) {
-            startTransition(() => {
-              // Capture frame data at response time to ensure it matches the detection result
-              const frameDataForRecognition = lastDetectionFrameRef.current;
-              // Perform face recognition asynchronously without blocking next frame processing
-              performFaceRecognition(detectionResult, frameDataForRecognition).catch(error => {
-                console.error('Face recognition failed:', error);
+          // FRAME ORDERING: Check if this response is for the most recent frame
+          const responseFrameTimestamp = data.frame_timestamp || 0;
+          const lastFrameTimestamp = lastFrameTimestampRef.current || 0;
+
+          // Skip outdated responses to prevent inconsistent results
+          if (responseFrameTimestamp < lastFrameTimestamp) {
+            return;
+          }
+
+          // Update last processed frame timestamp
+          lastFrameTimestampRef.current = responseFrameTimestamp;
+
+          // ACCURATE FPS calculation with rolling average
+          const now = Date.now();
+          const fpsTracking = fpsTrackingRef.current;
+
+          // Add current timestamp
+          fpsTracking.timestamps.push(now);
+
+          // Keep only the last N samples for rolling average
+          if (fpsTracking.timestamps.length > fpsTracking.maxSamples) {
+            fpsTracking.timestamps.shift();
+          }
+
+          // Calculate FPS every 100ms for real-time updates
+          if (
+            now - fpsTracking.lastUpdateTime >= 100 &&
+            fpsTracking.timestamps.length >= 2
+          ) {
+            const timeSpan =
+              fpsTracking.timestamps[fpsTracking.timestamps.length - 1] -
+              fpsTracking.timestamps[0];
+            const frameCount = fpsTracking.timestamps.length - 1;
+
+            if (timeSpan > 0) {
+              const accurateFps = (frameCount * 1000) / timeSpan;
+              setDetectionFps(Math.round(accurateFps * 10) / 10); // Round to 1 decimal place
+            }
+
+            fpsTracking.lastUpdateTime = now;
+          }
+
+          // Process the detection result
+          if (data.faces && Array.isArray(data.faces)) {
+            if (data.suggested_skip !== undefined) {
+              skipFrames = data.suggested_skip;
+            }
+
+            const detectionResult: DetectionResult = {
+              faces: data.faces.map((face: WebSocketFaceData) => {
+                const bbox = face.bbox || [0, 0, 0, 0];
+
+                return {
+                  bbox: {
+                    x: bbox[0] || 0,
+                    y: bbox[1] || 0,
+                    width: bbox[2] || 0,
+                    height: bbox[3] || 0,
+                  },
+                  confidence: face.confidence || 0,
+                  track_id: face.track_id,
+                  landmarks_5: face.landmarks_5, // Pass YuNet 5-point landmarks through
+                  liveness: face.liveness
+                    ? {
+                        is_real: face.liveness.is_real ?? null,
+                        confidence: face.liveness.confidence ?? 0,
+                        live_score: face.liveness.live_score,
+                        spoof_score: face.liveness.spoof_score,
+                        status: face.liveness.status || "error",
+                        label: face.liveness.label,
+                        message:
+                          face.liveness.message ||
+                          face.liveness.decision_reason,
+                        decision_reason:
+                          face.liveness.decision_reason ||
+                          face.liveness.message,
+                      }
+                    : undefined,
+                };
+              }),
+              model_used: data.model_used || "unknown",
+            };
+
+            // Update detections immediately for smooth rendering
+            setCurrentDetections(detectionResult);
+            lastDetectionRef.current = detectionResult;
+
+            // Batch recognition processing in transition to prevent blocking
+            if (
+              recognitionEnabled &&
+              backendServiceReadyRef.current &&
+              detectionResult.faces.length > 0
+            ) {
+              startTransition(() => {
+                // Capture frame data at response time to ensure it matches the detection result
+                const frameDataForRecognition = lastDetectionFrameRef.current;
+                // Perform face recognition asynchronously without blocking next frame processing
+                performFaceRecognition(
+                  detectionResult,
+                  frameDataForRecognition,
+                ).catch((error) => {
+                  console.error("Face recognition failed:", error);
+                });
               });
-            });
-          }
+            }
 
-          // 🚀 PERFORMANCE: Recognition processing is now handled above in transition
+            // 🚀 PERFORMANCE: Recognition processing is now handled above in transition
 
-          // Trigger next frame for continuous processing (IPC continuous loop)
-          if (detectionEnabledRef.current && isStreamingRef.current) {
-            // Use requestAnimationFrame for smooth continuous processing
-            requestAnimationFrame(() => processCurrentFrame());
+            // Trigger next frame for continuous processing (IPC continuous loop)
+            if (detectionEnabledRef.current && isStreamingRef.current) {
+              // Use requestAnimationFrame for smooth continuous processing
+              requestAnimationFrame(() => processCurrentFrame());
+            }
+          } else {
+            // No faces detected - continue processing
+
+            // Trigger next frame for continuous processing (IPC continuous loop)
+            if (detectionEnabledRef.current && isStreamingRef.current) {
+              // Use requestAnimationFrame for smooth continuous processing
+              requestAnimationFrame(() => processCurrentFrame());
+            }
           }
-        } else {
-          // No faces detected - continue processing
-          
-          // Trigger next frame for continuous processing (IPC continuous loop)
-          if (detectionEnabledRef.current && isStreamingRef.current) {
-            // Use requestAnimationFrame for smooth continuous processing
-            requestAnimationFrame(() => processCurrentFrame());
-          }
-        }
-      });
+        },
+      );
 
       // Handle connection messages
-      backendServiceRef.current.onMessage('connection', (data: WebSocketConnectionMessage) => {
-        // Set backend service as ready when connection is confirmed
-        if (data.status === 'connected') {
-          backendServiceReadyRef.current = true;
-        }
-      });
+      backendServiceRef.current.onMessage(
+        "connection",
+        (data: WebSocketConnectionMessage) => {
+          // Set backend service as ready when connection is confirmed
+          if (data.status === "connected") {
+            backendServiceReadyRef.current = true;
+          }
+        },
+      );
 
       // Handle error messages
-      backendServiceRef.current.onMessage('error', (data: WebSocketErrorMessage) => {
-        // CRITICAL: Ignore errors when not streaming to prevent state updates
-        if (!isStreamingRef.current || !detectionEnabledRef.current) {
-          return;
-        }
-        
-        console.error('❌ WebSocket error message:', data);
-        setError(`Detection error: ${data.message || 'Unknown error'}`);
-        
-        // Trigger next frame for continuous processing (IPC continuous loop)
-        if (detectionEnabledRef.current && isStreamingRef.current) {
-          // Use requestAnimationFrame for smooth continuous processing
-          requestAnimationFrame(() => processCurrentFrame());
-        }
-      });
+      backendServiceRef.current.onMessage(
+        "error",
+        (data: WebSocketErrorMessage) => {
+          // CRITICAL: Ignore errors when not streaming to prevent state updates
+          if (!isStreamingRef.current || !detectionEnabledRef.current) {
+            return;
+          }
+
+          console.error("❌ WebSocket error message:", data);
+          setError(`Detection error: ${data.message || "Unknown error"}`);
+
+          // Trigger next frame for continuous processing (IPC continuous loop)
+          if (detectionEnabledRef.current && isStreamingRef.current) {
+            // Use requestAnimationFrame for smooth continuous processing
+            requestAnimationFrame(() => processCurrentFrame());
+          }
+        },
+      );
 
       // Note: Removed unused WebSocket event listeners (attendance_event, request_next_frame, pong)
       // Status will be managed by polling the actual WebSocket state
-      
     } catch (error) {
-      console.error('❌ WebSocket initialization failed:', error);
+      console.error("❌ WebSocket initialization failed:", error);
       // Don't show error for rapid clicking - it's expected behavior
       if (!isStartingRef.current) {
-        setError('Failed to connect to real-time detection service');
+        setError("Failed to connect to real-time detection service");
       }
       backendServiceReadyRef.current = false;
     }
@@ -1037,9 +1207,11 @@ export default function Main() {
 
   // Process current frame with frame skipping for better performance
   const processCurrentFrame = useCallback(async () => {
-    if (!backendServiceRef.current?.isWebSocketReady() || 
-        !detectionEnabledRef.current ||
-        !isStreamingRef.current) {
+    if (
+      !backendServiceRef.current?.isWebSocketReady() ||
+      !detectionEnabledRef.current ||
+      !isStreamingRef.current
+    ) {
       return;
     }
 
@@ -1057,20 +1229,22 @@ export default function Main() {
       if (!frameData || !backendServiceRef.current) {
         return;
       }
-      
+
       // Store frame data for recognition to avoid frame mismatch
       lastDetectionFrameRef.current = frameData;
-      
-      backendServiceRef.current.sendDetectionRequest(frameData).catch(error => {
-        console.error('❌ WebSocket detection request failed:', error);
-        
-        if (detectionEnabledRef.current && isStreamingRef.current) {
-          requestAnimationFrame(() => processCurrentFrame());
-        }
-      });
+
+      backendServiceRef.current
+        .sendDetectionRequest(frameData)
+        .catch((error) => {
+          console.error("❌ WebSocket detection request failed:", error);
+
+          if (detectionEnabledRef.current && isStreamingRef.current) {
+            requestAnimationFrame(() => processCurrentFrame());
+          }
+        });
     } catch (error) {
-      console.error('❌ Frame capture failed:', error);
-      
+      console.error("❌ Frame capture failed:", error);
+
       if (detectionEnabledRef.current && isStreamingRef.current) {
         requestAnimationFrame(() => processCurrentFrame());
       }
@@ -1081,13 +1255,15 @@ export default function Main() {
   const getCameraDevices = useCallback(async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput",
+      );
       setCameraDevices(videoDevices);
       if (videoDevices.length > 0 && !selectedCamera) {
         setSelectedCamera(videoDevices[0].deviceId);
       }
     } catch {
-      setError('Failed to get camera devices');
+      setError("Failed to get camera devices");
     }
   }, [selectedCamera]);
 
@@ -1099,8 +1275,10 @@ export default function Main() {
 
   // Start detection interval helper - now triggers initial frame only
   const startDetectionInterval = useCallback(() => {
-    if (detectionEnabledRef.current && 
-        backendServiceRef.current?.isWebSocketReady()) {
+    if (
+      detectionEnabledRef.current &&
+      backendServiceRef.current?.isWebSocketReady()
+    ) {
       // Send initial frame to start the adaptive processing chain
       processFrameForDetection();
     }
@@ -1113,45 +1291,45 @@ export default function Main() {
       const now = Date.now();
       const timeSinceLastStart = now - lastStartTimeRef.current;
       const timeSinceLastStop = now - lastStopTimeRef.current;
-      
+
       // Prevent starting if already starting or recently started
       if (isStartingRef.current || isStreamingRef.current) {
         return;
       }
-      
+
       // Prevent starting too quickly after stop (minimum 100ms gap)
       if (timeSinceLastStop < 100) {
         return;
       }
-      
+
       // Prevent starting too quickly after last start (minimum 200ms gap)
       if (timeSinceLastStart < 200) {
         return;
       }
-      
+
       isStartingRef.current = true;
       lastStartTimeRef.current = now;
-      
+
       // IMMEDIATELY set streaming state for instant button response
       setIsStreaming(true);
       isStreamingRef.current = true;
       setIsVideoLoading(true);
-      
+
       setError(null);
-      
+
       // Refresh camera devices list to ensure we have current devices
       await getCameraDevices();
-      
+
       // Stop existing stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
 
       const constraints: MediaStreamConstraints = {
         video: {
-          deviceId: selectedCamera ? { exact: selectedCamera } : undefined
+          deviceId: selectedCamera ? { exact: selectedCamera } : undefined,
         },
-        audio: false
+        audio: false,
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -1159,7 +1337,7 @@ export default function Main() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
+
         // Wait for video to be ready before starting detection
         const waitForVideoReady = () => {
           return new Promise<void>((resolve) => {
@@ -1178,97 +1356,106 @@ export default function Main() {
             };
 
             // Start playing and check readiness
-            video.play().then(() => {
-              checkVideoReady();
-            }).catch(() => {
-              checkVideoReady();
-            });
+            video
+              .play()
+              .then(() => {
+                checkVideoReady();
+              })
+              .catch(() => {
+                checkVideoReady();
+              });
           });
         };
 
         await waitForVideoReady();
-        
+
         // Video is ready, clear loading state and set camera active
         setIsVideoLoading(false);
         setCameraActive(true);
-        
+
         try {
           // Check if backend is ready
-          const readinessCheck = await window.electronAPI?.backend.checkReadiness();
-          
+          const readinessCheck =
+            await window.electronAPI?.backend.checkReadiness();
+
           if (!readinessCheck?.ready || !readinessCheck?.modelsLoaded) {
-            setError('Backend models are still loading. Please wait and try again.');
-            
+            setError(
+              "Backend models are still loading. Please wait and try again.",
+            );
+
             // Still allow camera to start but don't enable detection
             setDetectionEnabled(false);
             return;
           }
-                
+
           // Automatically start detection when camera starts
           setDetectionEnabled(true);
           detectionEnabledRef.current = true; // Set ref immediately for synchronous access
-          
-          if (websocketStatus === 'disconnected') {
+
+          if (websocketStatus === "disconnected") {
             try {
               await initializeWebSocket();
               // Set backend ready immediately since WebSocket is connected
               backendServiceReadyRef.current = true;
               startDetectionInterval();
             } catch (error) {
-              console.error('❌ Failed to initialize WebSocket or start detection:', error);
+              console.error(
+                "❌ Failed to initialize WebSocket or start detection:",
+                error,
+              );
               setDetectionEnabled(false);
               // Don't show error for rapid clicking - it's expected behavior
               if (!isStartingRef.current) {
-                setError('Failed to connect to detection service');
+                setError("Failed to connect to detection service");
               }
             }
-          } else if (websocketStatus === 'connected') {
+          } else if (websocketStatus === "connected") {
             // WebSocket is already connected, set backend ready and start detection immediately
             backendServiceReadyRef.current = true;
-            
+
             // CRITICAL: Ensure detection is enabled before starting
             setDetectionEnabled(true);
             detectionEnabledRef.current = true; // Set ref immediately for synchronous access
-            
+
             // CRITICAL: Ensure streaming state is also properly set
             if (!isStreamingRef.current) {
               isStreamingRef.current = true;
             }
-            
+
             // CRITICAL: Reset processing state to ensure clean start
             isProcessingRef.current = false;
-            
+
             startDetectionInterval();
           }
         } catch (error) {
-          console.error('❌ Failed to check backend readiness:', error);
+          console.error("❌ Failed to check backend readiness:", error);
           // Don't show error for rapid clicking - it's expected behavior
           if (!isStartingRef.current) {
-            setError('Failed to check backend readiness');
+            setError("Failed to check backend readiness");
           }
           setDetectionEnabled(false);
         }
         // If websocketStatus is 'connecting', the useEffect will handle starting detection when connected
-        if (websocketStatus === 'connecting') {
+        if (websocketStatus === "connecting") {
           backendServiceReadyRef.current = true;
-          
+
           // CRITICAL: Ensure detection is enabled for connecting state
           setDetectionEnabled(true);
           detectionEnabledRef.current = true; // Set ref immediately for synchronous access
-          
+
           // CRITICAL: Ensure streaming state is also properly set
           if (!isStreamingRef.current) {
             isStreamingRef.current = true;
           }
-          
+
           // CRITICAL: Reset processing state to ensure clean start
           isProcessingRef.current = false;
         }
       }
     } catch (err) {
-      console.error('Error starting camera:', err);
-      setError('Failed to start camera. Please check permissions.');
-      
+      console.error("Error starting camera:", err);
+      setError("Failed to start camera. Please check permissions.");
+
       // Reset streaming state on error
       setIsStreaming(false);
       isStreamingRef.current = false;
@@ -1278,114 +1465,118 @@ export default function Main() {
       // CRITICAL: Always reset starting flag
       isStartingRef.current = false;
     }
-  }, [selectedCamera, websocketStatus, initializeWebSocket, startDetectionInterval, getCameraDevices]);
+  }, [
+    selectedCamera,
+    websocketStatus,
+    initializeWebSocket,
+    startDetectionInterval,
+    getCameraDevices,
+  ]);
 
   // Stop camera stream
   const stopCamera = useCallback(() => {
     // CRITICAL: Prevent rapid stopping and ensure only one stop operation at a time
     const now = Date.now();
     const timeSinceLastStop = now - lastStopTimeRef.current;
-    
+
     // Prevent stopping if already stopping or not streaming
     if (isStoppingRef.current || !isStreamingRef.current) {
       return;
     }
-    
+
     // Prevent stopping too quickly after last stop (minimum 100ms gap)
     if (timeSinceLastStop < 100) {
       return;
     }
-    
+
     isStoppingRef.current = true;
     lastStopTimeRef.current = now;
-    
-    
+
     // Stop media stream
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
+      streamRef.current.getTracks().forEach((track) => {
         track.stop();
       });
       streamRef.current = null;
     }
-    
+
     // Clear video element srcObject
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    
+
     // Stop detection
     setDetectionEnabled(false);
     setIsStreaming(false);
     setIsVideoLoading(false);
     setCameraActive(false);
-    
+
     // Reset processing state
     isProcessingRef.current = false;
-    
+
     // CRITICAL: Reset backend ready state for proper restart
     backendServiceReadyRef.current = false;
-    
+
     // Disconnect WebSocket
     if (backendServiceRef.current) {
       backendServiceRef.current.disconnect();
     }
-    setWebsocketStatus('disconnected');
-    
+    setWebsocketStatus("disconnected");
+
     // Reset all processing refs to ensure clean state
     lastFrameTimestampRef.current = 0;
-    lastDetectionHashRef.current = '';
+    lastDetectionHashRef.current = "";
     lastDetectionFrameRef.current = null;
-    
+
     // Clear all intervals and animation frames
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = undefined;
     }
-    
+
     // No longer using detectionIntervalRef for setInterval - adaptive processing instead
-    
+
     // Clear all detection and recognition data
     setCurrentDetections(null);
     lastDetectionRef.current = null;
-    
+
     // Clear recognition results
     setCurrentRecognitionResults(new Map());
-    
+
     // Clear tracked faces
     setTrackedFaces(new Map());
-    
+
     // PRESERVE cooldowns - don't clear them so they persist across stop/start cycles
     // This prevents duplicate detections when restarting quickly
-    
+
     // Reset ACCURATE FPS tracking
     setDetectionFps(0);
     fpsTrackingRef.current = {
       timestamps: [],
       maxSamples: 10,
-      lastUpdateTime: Date.now()
+      lastUpdateTime: Date.now(),
     };
-    
+
     // Reset performance tracking refs
-    lastDetectionHashRef.current = '';
-    lastVideoSizeRef.current = {width: 0, height: 0};
-    lastCanvasSizeRef.current = {width: 0, height: 0};
-    scaleFactorsRef.current = {scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0};
-    
+    lastDetectionHashRef.current = "";
+    lastVideoSizeRef.current = { width: 0, height: 0 };
+    lastCanvasSizeRef.current = { width: 0, height: 0 };
+    scaleFactorsRef.current = { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 };
+
     // Clear any errors
     setError(null);
-    
+
     // Clear overlay canvas immediately
     const overlayCanvas = overlayCanvasRef.current;
     if (overlayCanvas) {
-      const ctx = overlayCanvas.getContext('2d');
+      const ctx = overlayCanvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       }
     }
-    
+
     // CRITICAL: Always reset stopping flag
     isStoppingRef.current = false;
-    
   }, []);
 
   // Cache video rect to avoid repeated getBoundingClientRect calls
@@ -1399,7 +1590,7 @@ export default function Main() {
       videoRectRef.current = video.getBoundingClientRect();
       lastVideoRectUpdateRef.current = now;
     }
-    
+
     return videoRectRef.current;
   }, []);
 
@@ -1407,35 +1598,43 @@ export default function Main() {
   const calculateScaleFactors = useCallback(() => {
     const video = videoRef.current;
     const overlayCanvas = overlayCanvasRef.current;
-    
+
     if (!video || !overlayCanvas) return null;
 
     // Check if video dimensions changed
     const currentVideoWidth = video.videoWidth;
     const currentVideoHeight = video.videoHeight;
-    
-    if (lastVideoSizeRef.current.width === currentVideoWidth && 
-        lastVideoSizeRef.current.height === currentVideoHeight &&
-        lastCanvasSizeRef.current.width === overlayCanvas.width &&
-        lastCanvasSizeRef.current.height === overlayCanvas.height) {
+
+    if (
+      lastVideoSizeRef.current.width === currentVideoWidth &&
+      lastVideoSizeRef.current.height === currentVideoHeight &&
+      lastCanvasSizeRef.current.width === overlayCanvas.width &&
+      lastCanvasSizeRef.current.height === overlayCanvas.height
+    ) {
       return scaleFactorsRef.current; // Return cached values
     }
 
     // Update cached sizes
-    lastVideoSizeRef.current = { width: currentVideoWidth, height: currentVideoHeight };
-    lastCanvasSizeRef.current = { width: overlayCanvas.width, height: overlayCanvas.height };
+    lastVideoSizeRef.current = {
+      width: currentVideoWidth,
+      height: currentVideoHeight,
+    };
+    lastCanvasSizeRef.current = {
+      width: overlayCanvas.width,
+      height: overlayCanvas.height,
+    };
 
     const displayWidth = overlayCanvas.width;
     const displayHeight = overlayCanvas.height;
 
     const videoAspectRatio = currentVideoWidth / currentVideoHeight;
     const containerAspectRatio = displayWidth / displayHeight;
-    
+
     let actualVideoWidth: number;
     let actualVideoHeight: number;
     let offsetX = 0;
     let offsetY = 0;
-    
+
     if (videoAspectRatio > containerAspectRatio) {
       actualVideoWidth = displayWidth;
       actualVideoHeight = displayWidth / videoAspectRatio;
@@ -1445,7 +1644,7 @@ export default function Main() {
       actualVideoWidth = displayHeight * videoAspectRatio;
       offsetX = (displayWidth - actualVideoWidth) / 2;
     }
-    
+
     const scaleX = actualVideoWidth / currentVideoWidth;
     const scaleY = actualVideoHeight / currentVideoHeight;
 
@@ -1471,17 +1670,27 @@ export default function Main() {
       getVideoRect,
       calculateScaleFactors,
     });
-  }, [currentDetections, isStreaming, currentRecognitionResults, recognitionEnabled, persistentCooldowns, attendanceCooldownSeconds, quickSettings, getVideoRect, calculateScaleFactors]);
+  }, [
+    currentDetections,
+    isStreaming,
+    currentRecognitionResults,
+    recognitionEnabled,
+    persistentCooldowns,
+    attendanceCooldownSeconds,
+    quickSettings,
+    getVideoRect,
+    calculateScaleFactors,
+  ]);
 
   // OPTIMIZED animation loop with better performance - uses deferred values for non-critical updates
   const animate = useCallback(() => {
     // Use immediate detections for critical rendering, but deferred for non-critical comparisons
     const detectionsToRender = currentDetections; // Use immediate for smooth rendering
-    
+
     // Clear canvas when there are no detections
     const overlayCanvas = overlayCanvasRef.current;
     if (overlayCanvas && (!detectionsToRender || !isStreaming)) {
-      const ctx = overlayCanvas.getContext('2d');
+      const ctx = overlayCanvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       }
@@ -1489,13 +1698,19 @@ export default function Main() {
 
     // Only redraw if detection results or recognition results changed
     // Use deferred recognition results for hash calculation to reduce blocking
-    const recognitionForHash = deferredCurrentRecognitionResults.size > 0 
-      ? deferredCurrentRecognitionResults 
-      : currentRecognitionResults;
-    
-    const currentHash = detectionsToRender ? 
-      `${detectionsToRender.faces.length}-${detectionsToRender.faces.map(f => `${f.bbox.x},${f.bbox.y}`).join(',')}-${recognitionForHash.size}-${Array.from(recognitionForHash.values()).map(r => r.person_id || 'none').join(',')}` : '';
-    
+    const recognitionForHash =
+      deferredCurrentRecognitionResults.size > 0
+        ? deferredCurrentRecognitionResults
+        : currentRecognitionResults;
+
+    const currentHash = detectionsToRender
+      ? `${detectionsToRender.faces.length}-${detectionsToRender.faces.map((f) => `${f.bbox.x},${f.bbox.y}`).join(",")}-${recognitionForHash.size}-${Array.from(
+          recognitionForHash.values(),
+        )
+          .map((r) => r.person_id || "none")
+          .join(",")}`
+      : "";
+
     if (currentHash !== lastDetectionHashRef.current) {
       handleDrawOverlays();
       lastDetectionHashRef.current = currentHash;
@@ -1504,11 +1719,13 @@ export default function Main() {
     if (isStreaming) {
       animationFrameRef.current = requestAnimationFrame(animate);
     }
-  }, [isStreaming, handleDrawOverlays, currentDetections, currentRecognitionResults, deferredCurrentRecognitionResults]);
-
-
-
-
+  }, [
+    isStreaming,
+    handleDrawOverlays,
+    currentDetections,
+    currentRecognitionResults,
+    deferredCurrentRecognitionResults,
+  ]);
 
   // Face recognition utility functions
 
@@ -1518,7 +1735,7 @@ export default function Main() {
       const settings = await attendanceManager.getSettings();
       setAttendanceCooldownSeconds(settings.attendance_cooldown_seconds ?? 10);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error("Failed to load settings:", error);
     }
   }, []);
 
@@ -1527,25 +1744,29 @@ export default function Main() {
     try {
       // Use ref to get the latest currentGroup value to avoid stale closure
       const currentGroupValue = currentGroupRef.current;
-      
+
       // Always load groups list first
       const groups = await attendanceManager.getGroups();
       setAttendanceGroups(groups);
-      
+
       // Early return if no current group - nothing more to load
       if (!currentGroupValue) {
         return;
       }
-      
+
       // Validate that currentGroup still exists in the available groups
-      const groupStillExists = groups.some(group => group.id === currentGroupValue.id);
+      const groupStillExists = groups.some(
+        (group) => group.id === currentGroupValue.id,
+      );
       if (!groupStillExists) {
         // Only clear currentGroup if it was explicitly deleted, not during normal operations
         // Add a small delay to avoid race conditions during group switching
         setTimeout(() => {
           // Double-check that the group still doesn't exist before clearing
-          attendanceManager.getGroups().then(latestGroups => {
-            const stillMissing = !latestGroups.some(group => group.id === currentGroupValue.id);
+          attendanceManager.getGroups().then((latestGroups) => {
+            const stillMissing = !latestGroups.some(
+              (group) => group.id === currentGroupValue.id,
+            );
             if (stillMissing) {
               setCurrentGroup(null);
               setGroupMembers([]);
@@ -1561,68 +1782,71 @@ export default function Main() {
         attendanceManager.getGroupStats(currentGroupValue.id),
         attendanceManager.getRecords({
           group_id: currentGroupValue.id,
-          limit: 100
-        })
+          limit: 100,
+        }),
       ]);
-      
+
       setGroupMembers(members);
       setRecentAttendance(records);
-      
     } catch (error) {
-      console.error('❌ Failed to load attendance data:', error);
+      console.error("❌ Failed to load attendance data:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentGroup]);
 
   // Elite Registration Handler Functions
-  
-
-
 
   // Elite Tracking Helper Functions
-  const calculateAngleConsistency = useCallback((history: Array<{ timestamp: number; bbox: { x: number; y: number; width: number; height: number }; confidence: number }>) => {
-    if (history.length < 2) return 1.0;
-    
-    let consistencyScore = 0;
-    for (let i = 1; i < history.length; i++) {
-      const prev = history[i - 1];
-      const curr = history[i];
-      
-      // Calculate movement vector
-      const dx = curr.bbox.x - prev.bbox.x;
-      const dy = curr.bbox.y - prev.bbox.y;
-      const movement = Math.sqrt(dx * dx + dy * dy);
-      
-      // Penalize erratic movement
-      const smoothness = Math.max(0, 1 - movement / 100);
-      consistencyScore += smoothness;
-    }
-    
-    return consistencyScore / (history.length - 1);
-  }, []);
+  const calculateAngleConsistency = useCallback(
+    (
+      history: Array<{
+        timestamp: number;
+        bbox: { x: number; y: number; width: number; height: number };
+        confidence: number;
+      }>,
+    ) => {
+      if (history.length < 2) return 1.0;
+
+      let consistencyScore = 0;
+      for (let i = 1; i < history.length; i++) {
+        const prev = history[i - 1];
+        const curr = history[i];
+
+        // Calculate movement vector
+        const dx = curr.bbox.x - prev.bbox.x;
+        const dy = curr.bbox.y - prev.bbox.y;
+        const movement = Math.sqrt(dx * dx + dy * dy);
+
+        // Penalize erratic movement
+        const smoothness = Math.max(0, 1 - movement / 100);
+        consistencyScore += smoothness;
+      }
+
+      return consistencyScore / (history.length - 1);
+    },
+    [],
+  );
 
   const handleOcclusion = useCallback(() => {
-    setTrackedFaces(prev => {
+    setTrackedFaces((prev) => {
       const newTracked = new Map(prev);
       const currentTime = Date.now();
       const occlusionThreshold = 2000; // 2 seconds
-      
+
       for (const [id, track] of newTracked) {
         if (currentTime - track.lastSeen > occlusionThreshold) {
           track.occlusionCount++;
-          
+
           // Remove tracks that have been occluded too long
           if (track.occlusionCount > 5) {
             newTracked.delete(id);
           }
         }
       }
-      
+
       return newTracked;
     });
   }, []);
-
-
 
   // Periodic cleanup of old tracks
   useEffect(() => {
@@ -1635,7 +1859,7 @@ export default function Main() {
 
   const handleSelectGroup = useCallback(async (group: AttendanceGroup) => {
     setCurrentGroup(group);
-    
+
     // Load data for the specific group to avoid race condition
     try {
       const [members, , records] = await Promise.all([
@@ -1643,37 +1867,34 @@ export default function Main() {
         attendanceManager.getGroupStats(group.id),
         attendanceManager.getRecords({
           group_id: group.id,
-          limit: 100
-        })
+          limit: 100,
+        }),
       ]);
-      
+
       setGroupMembers(members);
       setRecentAttendance(records);
     } catch (error) {
-      console.error('❌ Failed to load data for selected group:', error);
+      console.error("❌ Failed to load data for selected group:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateGroup = useCallback(async () => {
     if (!newGroupName.trim()) return;
-    
+
     try {
       const group = await attendanceManager.createGroup(newGroupName.trim());
-      setNewGroupName('');
+      setNewGroupName("");
       setShowGroupManagement(false);
       await loadAttendanceData();
-      
+
       // Auto-select the newly created group and load its (empty) members
       await handleSelectGroup(group);
-      
     } catch (error) {
-      console.error('❌ Failed to create group:', error);
-      setError('Failed to create group');
+      console.error("❌ Failed to create group:", error);
+      setError("Failed to create group");
     }
   }, [newGroupName, loadAttendanceData, handleSelectGroup]);
-
-
 
   const handleDeleteGroup = useCallback((group: AttendanceGroup) => {
     setGroupToDelete(group);
@@ -1682,7 +1903,7 @@ export default function Main() {
 
   const confirmDeleteGroup = useCallback(async () => {
     if (!groupToDelete) return;
-    
+
     try {
       const success = await attendanceManager.deleteGroup(groupToDelete.id);
       if (success) {
@@ -1692,14 +1913,14 @@ export default function Main() {
           setGroupMembers([]);
           setRecentAttendance([]);
         }
-        
+
         await loadAttendanceData();
       } else {
-        throw new Error('Failed to delete group');
+        throw new Error("Failed to delete group");
       }
     } catch (error) {
-      console.error('❌ Failed to delete group:', error);
-      setError('Failed to delete group');
+      console.error("❌ Failed to delete group:", error);
+      setError("Failed to delete group");
     } finally {
       setShowDeleteConfirmation(false);
       setGroupToDelete(null);
@@ -1753,7 +1974,7 @@ export default function Main() {
 
   // Monitor WebSocket status and start detection when connected
   useEffect(() => {
-    if (websocketStatus === 'connected' && detectionEnabledRef.current) {
+    if (websocketStatus === "connected" && detectionEnabledRef.current) {
       // WebSocket is connected - start detection if ready
       if (backendServiceRef.current?.isWebSocketReady()) {
         startDetectionInterval();
@@ -1762,35 +1983,37 @@ export default function Main() {
   }, [websocketStatus, startDetectionInterval]);
 
   // Monitor detectionEnabled state changes
-  useEffect(() => {
-  }, [detectionEnabled]);
+  useEffect(() => {}, [detectionEnabled]);
 
   // Clear recognition state whenever group changes to prevent data mixing
   useEffect(() => {
     // Handle group changes (including switching to null when group is deleted)
-    
+
     // Clear all recognition and tracking state to prevent data mixing
     setCurrentRecognitionResults(new Map());
     setTrackedFaces(new Map());
     setCurrentDetections(null);
-    
+
     // Removed delayed recognition clearing for real-time performance
-    
+
     // Stop detection if running (use ref for synchronous check)
     if (isStreamingRef.current) {
       stopCamera();
     }
-    
   }, [currentGroup, stopCamera]);
 
   // Manual attendance logging function
-  const handleManualLog = async (personId: string, _name: string, confidence: number) => {
+  const handleManualLog = async (
+    personId: string,
+    _name: string,
+    confidence: number,
+  ) => {
     try {
       // Call backend with manual log location
       const attendanceEvent = await attendanceManager.processAttendanceEvent(
         personId,
         confidence,
-        'LiveVideo Camera - Manual Log'
+        "LiveVideo Camera - Manual Log",
       );
 
       if (attendanceEvent) {
@@ -1801,9 +2024,10 @@ export default function Main() {
       }
       setError(null);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error(`Manual attendance logging failed:`, errorMessage);
-      setError(errorMessage || 'Failed to log attendance manually');
+      setError(errorMessage || "Failed to log attendance manually");
     }
   };
 
@@ -1821,39 +2045,39 @@ export default function Main() {
       try {
         // Load global settings first
         await loadSettings();
-        
+
         // Load existing groups
         const groups = await attendanceManager.getGroups();
         setAttendanceGroups(groups);
-        
+
         if (groups.length === 0) {
           setCurrentGroup(null);
         } else if (!currentGroup) {
           // Try to restore the last selected group from localStorage
-          const savedGroupId = localStorage.getItem('suri_selected_group_id');
+          const savedGroupId = localStorage.getItem("suri_selected_group_id");
           let groupToSelect = null;
-          
+
           if (savedGroupId) {
             // Find the saved group in the available groups
-            groupToSelect = groups.find(group => group.id === savedGroupId);
+            groupToSelect = groups.find((group) => group.id === savedGroupId);
           }
-          
+
           // If no saved group or saved group not found, select the first available group
           if (!groupToSelect) {
             groupToSelect = groups[0];
           }
-          
+
           // Use handleSelectGroup to ensure data is loaded properly
           await handleSelectGroup(groupToSelect);
         }
       } catch (error) {
-        console.error('Failed to initialize attendance system:', error);
-        setError('Failed to initialize attendance system');
+        console.error("Failed to initialize attendance system:", error);
+        setError("Failed to initialize attendance system");
       }
     };
 
-    initializeAttendance().catch(error => {
-      console.error('Error in initializeAttendance:', error);
+    initializeAttendance().catch((error) => {
+      console.error("Error in initializeAttendance:", error);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleSelectGroup, loadSettings]); // Include handleSelectGroup and loadSettings dependencies
@@ -1862,7 +2086,6 @@ export default function Main() {
 
   return (
     <div className="pt-9 pb-5 h-screen bg-black text-white flex flex-col overflow-hidden">
-
       {/* Error Display */}
       {error && (
         <div className="mx-4 mt-3 bg-red-900 border border-red-600 p-3 rounded text-red-200">
@@ -1914,19 +2137,19 @@ export default function Main() {
           trackingMode={trackingMode}
           persistentCooldowns={persistentCooldowns}
           attendanceCooldownSeconds={attendanceCooldownSeconds}
-              attendanceEnabled={attendanceEnabled}
-              attendanceGroups={attendanceGroups}
-              currentGroup={currentGroup}
-              recentAttendance={recentAttendance}
-              groupMembers={groupMembers}
-              handleSelectGroup={handleSelectGroup}
-              setShowGroupManagement={setShowGroupManagement}
+          attendanceEnabled={attendanceEnabled}
+          attendanceGroups={attendanceGroups}
+          currentGroup={currentGroup}
+          recentAttendance={recentAttendance}
+          groupMembers={groupMembers}
+          handleSelectGroup={handleSelectGroup}
+          setShowGroupManagement={setShowGroupManagement}
           setShowSettings={setShowSettings}
           enableSpoofDetection={enableSpoofDetection}
-            />
-           </div>
-  
-          {/* Group Management Modal */}
+        />
+      </div>
+
+      {/* Group Management Modal */}
       <GroupManagementModal
         showGroupManagement={showGroupManagement}
         setShowGroupManagement={setShowGroupManagement}
@@ -1938,84 +2161,101 @@ export default function Main() {
         handleSelectGroup={handleSelectGroup}
         handleDeleteGroup={handleDeleteGroup}
       />
-  
 
+      {/* Settings Modal (with integrated Menu) */}
+      {showSettings && (
+        <Settings
+          onBack={() => {
+            setShowSettings(false);
+            setIsSettingsFullScreen(false);
+            setGroupInitialSection(undefined);
+            loadAttendanceData(); // Refresh data when closing
+          }}
+          isFullScreen={isSettingsFullScreen}
+          onToggleFullScreen={() => setIsSettingsFullScreen((prev) => !prev)}
+          isModal={true}
+          quickSettings={quickSettings}
+          onQuickSettingsChange={setQuickSettings}
+          attendanceSettings={{
+            trackingMode: trackingMode,
+            lateThresholdEnabled:
+              (currentGroup?.settings as { late_threshold_enabled?: boolean })
+                ?.late_threshold_enabled ?? false,
+            lateThresholdMinutes:
+              currentGroup?.settings?.late_threshold_minutes ?? 15,
+            classStartTime: currentGroup?.settings?.class_start_time ?? "08:00",
+            attendanceCooldownSeconds: attendanceCooldownSeconds,
+            enableSpoofDetection: enableSpoofDetection,
+          }}
+          onAttendanceSettingsChange={async (updates) => {
+            // Handle tracking mode change
+            if (updates.trackingMode !== undefined) {
+              setTrackingMode(updates.trackingMode);
+            }
 
-  
+            // Handle spoof detection toggle (global setting)
+            if (updates.enableSpoofDetection !== undefined) {
+              setEnableSpoofDetection(updates.enableSpoofDetection);
+              localStorage.setItem(
+                "suri_enable_spoof_detection",
+                String(updates.enableSpoofDetection),
+              );
+            }
 
+            // Handle cooldown change (global setting)
+            if (updates.attendanceCooldownSeconds !== undefined) {
+              setAttendanceCooldownSeconds(updates.attendanceCooldownSeconds);
+              try {
+                await attendanceManager.updateSettings({
+                  attendance_cooldown_seconds:
+                    updates.attendanceCooldownSeconds,
+                });
+              } catch (error) {
+                console.error("Failed to update cooldown setting:", error);
+              }
+            }
 
-          {/* Settings Modal (with integrated Menu) */}
-          {showSettings && (
-            <Settings 
-              onBack={() => {
-                setShowSettings(false);
-                setIsSettingsFullScreen(false);
-                setGroupInitialSection(undefined);
-                loadAttendanceData(); // Refresh data when closing
-              }}
-              isFullScreen={isSettingsFullScreen}
-              onToggleFullScreen={() => setIsSettingsFullScreen(prev => !prev)} 
-              isModal={true}
-              quickSettings={quickSettings}
-              onQuickSettingsChange={setQuickSettings}
-              attendanceSettings={{
-                trackingMode: trackingMode,
-                lateThresholdEnabled: (currentGroup?.settings as { late_threshold_enabled?: boolean })?.late_threshold_enabled ?? false,
-                lateThresholdMinutes: currentGroup?.settings?.late_threshold_minutes ?? 15,
-                classStartTime: currentGroup?.settings?.class_start_time ?? '08:00',
-                attendanceCooldownSeconds: attendanceCooldownSeconds,
-                enableSpoofDetection: enableSpoofDetection,
-              }}
-              onAttendanceSettingsChange={async (updates) => {
-                // Handle tracking mode change
-                if (updates.trackingMode !== undefined) {
-                  setTrackingMode(updates.trackingMode);
-                }
-                
-                // Handle spoof detection toggle (global setting)
-                if (updates.enableSpoofDetection !== undefined) {
-                  setEnableSpoofDetection(updates.enableSpoofDetection);
-                  localStorage.setItem('suri_enable_spoof_detection', String(updates.enableSpoofDetection));
-                }
-                
-                // Handle cooldown change (global setting)
-                if (updates.attendanceCooldownSeconds !== undefined) {
-                  setAttendanceCooldownSeconds(updates.attendanceCooldownSeconds);
-                  try {
-                    await attendanceManager.updateSettings({ attendance_cooldown_seconds: updates.attendanceCooldownSeconds });
-                  } catch (error) {
-                    console.error('Failed to update cooldown setting:', error);
-                  }
-                }
-                
-                // Handle group settings changes
-                if (currentGroup && (updates.lateThresholdEnabled !== undefined || updates.lateThresholdMinutes !== undefined || updates.classStartTime !== undefined)) {
-                  const updatedSettings = {
-                    ...currentGroup.settings,
-                    ...(updates.lateThresholdEnabled !== undefined && { late_threshold_enabled: updates.lateThresholdEnabled }),
-                    ...(updates.lateThresholdMinutes !== undefined && { late_threshold_minutes: updates.lateThresholdMinutes }),
-                    ...(updates.classStartTime !== undefined && { class_start_time: updates.classStartTime }),
-                  };
-                  try {
-                    await attendanceManager.updateGroup(currentGroup.id, { settings: updatedSettings });
-                    setCurrentGroup({
-                      ...currentGroup,
-                      settings: updatedSettings,
-                    });
-                  } catch (error) {
-                    console.error('Failed to update attendance settings:', error);
-                  }
-                }
-              }}
-              isStreaming={isStreaming}
-              initialGroupSection={groupInitialSection}
-              currentGroup={currentGroup}
-              onGroupSelect={handleSelectGroup}
-              onGroupsChanged={loadAttendanceData}
-            />
-          )}
-  
-          {/* Delete Group Confirmation Dialog */}
+            // Handle group settings changes
+            if (
+              currentGroup &&
+              (updates.lateThresholdEnabled !== undefined ||
+                updates.lateThresholdMinutes !== undefined ||
+                updates.classStartTime !== undefined)
+            ) {
+              const updatedSettings = {
+                ...currentGroup.settings,
+                ...(updates.lateThresholdEnabled !== undefined && {
+                  late_threshold_enabled: updates.lateThresholdEnabled,
+                }),
+                ...(updates.lateThresholdMinutes !== undefined && {
+                  late_threshold_minutes: updates.lateThresholdMinutes,
+                }),
+                ...(updates.classStartTime !== undefined && {
+                  class_start_time: updates.classStartTime,
+                }),
+              };
+              try {
+                await attendanceManager.updateGroup(currentGroup.id, {
+                  settings: updatedSettings,
+                });
+                setCurrentGroup({
+                  ...currentGroup,
+                  settings: updatedSettings,
+                });
+              } catch (error) {
+                console.error("Failed to update attendance settings:", error);
+              }
+            }
+          }}
+          isStreaming={isStreaming}
+          initialGroupSection={groupInitialSection}
+          currentGroup={currentGroup}
+          onGroupSelect={handleSelectGroup}
+          onGroupsChanged={loadAttendanceData}
+        />
+      )}
+
+      {/* Delete Group Confirmation Dialog */}
       <DeleteConfirmationModal
         showDeleteConfirmation={showDeleteConfirmation}
         groupToDelete={groupToDelete}

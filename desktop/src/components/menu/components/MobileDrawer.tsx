@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import type { MenuSection } from '../types';
-import type { AttendanceGroup } from '../../../types/recognition';
-import { MobileNav } from './MobileNav';
+import { useEffect } from "react";
+import type { MenuSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
+import { MobileNav } from "./MobileNav";
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -13,7 +13,6 @@ interface MobileDrawerProps {
   onGroupChange: (group: AttendanceGroup | null) => void;
   onCreateGroup: () => void;
 }
-
 
 export function MobileDrawer({
   isOpen,
@@ -28,26 +27,25 @@ export function MobileDrawer({
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-
 
   if (!isOpen) return null;
 
@@ -66,7 +64,7 @@ export function MobileDrawer({
           fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white/[0.02]
           border-r border-white/[0.08] z-50 lg:hidden backdrop-blur-sm
           transform transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
         role="dialog"
         aria-modal="true"
@@ -79,8 +77,18 @@ export function MobileDrawer({
             className="absolute top-3 right-3 p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
             aria-label="Close menu"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
 
@@ -97,22 +105,42 @@ export function MobileDrawer({
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <select
-                  value={selectedGroup?.id ?? ''}
+                  value={selectedGroup?.id ?? ""}
                   onChange={(event) => {
-                    const group = groups.find((item) => item.id === event.target.value) ?? null;
+                    const group =
+                      groups.find((item) => item.id === event.target.value) ??
+                      null;
                     onGroupChange(group);
                   }}
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-8 text-sm text-white focus:outline-none focus:border-white/20 transition-all cursor-pointer h-10 appearance-none"
-                  style={{ colorScheme: 'dark' }}
+                  style={{ colorScheme: "dark" }}
                 >
-                  <option value="" className="bg-black text-white">Select group…</option>
+                  <option value="" className="bg-black text-white">
+                    Select group…
+                  </option>
                   {groups.map((group) => (
-                    <option key={group.id} value={group.id} className="bg-black text-white">{group.name}</option>
+                    <option
+                      key={group.id}
+                      value={group.id}
+                      className="bg-black text-white"
+                    >
+                      {group.name}
+                    </option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <svg className="w-3 h-3 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="w-3 h-3 text-white/50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
@@ -141,4 +169,3 @@ export function MobileDrawer({
     </>
   );
 }
-

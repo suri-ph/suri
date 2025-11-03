@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import type { AttendanceMember } from '../../../types/recognition';
+import { useState, useCallback } from "react";
+import type { AttendanceMember } from "../../../types/recognition";
 
 interface UseMenuModalsReturn {
   // Modal visibility states
@@ -7,10 +7,10 @@ interface UseMenuModalsReturn {
   showEditMemberModal: boolean;
   showCreateGroupModal: boolean;
   showEditGroupModal: boolean;
-  
+
   // Modal data
   editingMember: AttendanceMember | null;
-  
+
   // Modal actions
   openAddMember: () => void;
   openEditMember: (member: AttendanceMember) => void;
@@ -27,7 +27,9 @@ export function useMenuModals(): UseMenuModalsReturn {
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
-  const [editingMember, setEditingMember] = useState<AttendanceMember | null>(null);
+  const [editingMember, setEditingMember] = useState<AttendanceMember | null>(
+    null,
+  );
 
   const openAddMember = useCallback(() => {
     setShowAddMemberModal(true);
@@ -79,4 +81,3 @@ export function useMenuModals(): UseMenuModalsReturn {
     closeEditGroup,
   };
 }
-

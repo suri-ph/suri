@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager.js';
-import type { AttendanceGroup } from '../../../types/recognition.js';
-import { ErrorMessage } from '../../common/ErrorMessage';
-import { FormInput } from '../../common/FormInput';
+import { useState } from "react";
+import { attendanceManager } from "../../../services/AttendanceManager.js";
+import type { AttendanceGroup } from "../../../types/recognition.js";
+import { ErrorMessage } from "../../common/ErrorMessage";
+import { FormInput } from "../../common/FormInput";
 
 interface EditGroupProps {
   group: AttendanceGroup;
@@ -12,7 +12,7 @@ interface EditGroupProps {
 
 export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
   const [name, setName] = useState(group.name);
-  const [description, setDescription] = useState(group.description || '');
+  const [description, setDescription] = useState(group.description || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,13 +25,13 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
     try {
       await attendanceManager.updateGroup(group.id, {
         name: name.trim(),
-        description: description.trim() || undefined
+        description: description.trim() || undefined,
       });
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Error updating group:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update group');
+      console.error("Error updating group:", err);
+      setError(err instanceof Error ? err.message : "Failed to update group");
     } finally {
       setLoading(false);
     }
@@ -43,9 +43,7 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
         <h3 className="text-xl font-semibold mb-2">Edit Group</h3>
         <p className="text-sm text-white/60 mb-4">Update group information</p>
 
-        {error && (
-          <ErrorMessage message={error} />
-        )}
+        {error && <ErrorMessage message={error} />}
 
         <div className="grid gap-4">
           <label className="text-sm">
@@ -59,10 +57,12 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
           </label>
 
           <label className="text-sm">
-            <span className="text-white/60 block mb-2">Description (optional)</span>
+            <span className="text-white/60 block mb-2">
+              Description (optional)
+            </span>
             <textarea
               value={description}
-              onChange={event => setDescription(event.target.value)}
+              onChange={(event) => setDescription(event.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60 min-h-[80px]"
               placeholder="Brief description of this group..."
             />
@@ -81,11 +81,10 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
             disabled={!name.trim() || loading}
             className="btn-secondary text-sm px-4 py-2 disabled:opacity-50"
           >
-            {loading ? 'Saving…' : 'Save Changes'}
+            {loading ? "Saving…" : "Save Changes"}
           </button>
         </div>
       </div>
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 
 export interface DropdownOption<T = string> {
   value: T;
@@ -24,49 +24,56 @@ export function Dropdown<T extends string | number = string>({
   options,
   value,
   onChange,
-  placeholder = 'Select…',
-  emptyMessage = 'No options available',
-  className = '',
-  buttonClassName = '',
+  placeholder = "Select…",
+  emptyMessage = "No options available",
+  className = "",
+  buttonClassName = "",
   disabled = false,
   maxHeight = 256, // 64 * 4 = 256px default
   showPlaceholderOption = true,
   allowClear = true,
 }: DropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = options.find((opt) => opt.value === value);
   const displayText = selectedOption?.label || placeholder;
 
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
   // Close dropdown on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         setIsOpen(false);
       }
     };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen]);
 
   // Calculate dropdown position and direction (auto-positioning with fixed positioning)
@@ -76,13 +83,16 @@ export function Dropdown<T extends string | number = string>({
       const spaceBelow = window.innerHeight - buttonRect.bottom;
       const spaceAbove = buttonRect.top;
       const estimatedHeight = Math.min(maxHeight, options.length * 36 + 20); // Approximate item height
-      
+
       // Determine if should open upward
-      const shouldOpenUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
-      
+      const shouldOpenUp =
+        spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+
       // Calculate fixed position to escape scroll containers and avoid overlaps
       setMenuPosition({
-        top: shouldOpenUp ? buttonRect.top - estimatedHeight - 4 : buttonRect.bottom + 4,
+        top: shouldOpenUp
+          ? buttonRect.top - estimatedHeight - 4
+          : buttonRect.bottom + 4,
         left: buttonRect.left,
         width: buttonRect.width,
       });
@@ -92,7 +102,7 @@ export function Dropdown<T extends string | number = string>({
   }, [isOpen, maxHeight, options.length]);
 
   const handleSelect = (optionValue: T) => {
-    const option = options.find(opt => opt.value === optionValue);
+    const option = options.find((opt) => opt.value === optionValue);
     if (!option?.disabled) {
       onChange(optionValue);
       setIsOpen(false);
@@ -115,13 +125,11 @@ export function Dropdown<T extends string | number = string>({
           ${buttonClassName}
         `}
       >
-        <span className="truncate flex-1 text-left">
-          {displayText}
-        </span>
+        <span className="truncate flex-1 text-left">{displayText}</span>
         {/* Chevron Icon - Right Aligned */}
         <i
           className={`fa-solid fa-chevron-down text-white/50 text-xs flex-shrink-0 ml-2 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
+            isOpen ? "rotate-180" : ""
           }`}
         ></i>
       </button>
@@ -166,8 +174,8 @@ export function Dropdown<T extends string | number = string>({
                         }}
                         className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                           !value
-                            ? 'bg-white/10 text-white'
-                            : 'text-white/70 hover:bg-white/5 hover:text-white'
+                            ? "bg-white/10 text-white"
+                            : "text-white/70 hover:bg-white/5 hover:text-white"
                         }`}
                       >
                         {placeholder}
@@ -186,10 +194,10 @@ export function Dropdown<T extends string | number = string>({
                       disabled={option.disabled}
                       className={`w-full text-left px-3 py-2 text-sm transition-colors truncate ${
                         value === option.value
-                          ? 'bg-white/10 text-white'
+                          ? "bg-white/10 text-white"
                           : option.disabled
-                          ? 'text-white/30 cursor-not-allowed'
-                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                            ? "text-white/30 cursor-not-allowed"
+                            : "text-white/70 hover:bg-white/5 hover:text-white"
                       }`}
                       title={option.label}
                     >
@@ -205,4 +213,3 @@ export function Dropdown<T extends string | number = string>({
     </div>
   );
 }
-

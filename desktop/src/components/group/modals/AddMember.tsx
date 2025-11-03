@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager.js';
-import type { AttendanceGroup } from '../../../types/recognition.js';
+import { useState } from "react";
+import { attendanceManager } from "../../../services/AttendanceManager.js";
+import type { AttendanceGroup } from "../../../types/recognition.js";
 
 interface AddMemberProps {
   group: AttendanceGroup;
@@ -10,18 +10,22 @@ interface AddMemberProps {
 
 export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
   const [isBulkMode, setIsBulkMode] = useState(false);
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('');
-  const [bulkMembersText, setBulkMembersText] = useState('');
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberRole, setNewMemberRole] = useState("");
+  const [bulkMembersText, setBulkMembersText] = useState("");
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
-  const [bulkResults, setBulkResults] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [bulkResults, setBulkResults] = useState<{
+    success: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setNewMemberName('');
-    setNewMemberRole('');
-    setBulkMembersText('');
+    setNewMemberName("");
+    setNewMemberRole("");
+    setBulkMembersText("");
     setBulkResults(null);
     setIsBulkMode(false);
   };
@@ -31,7 +35,9 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
       const text = await file.text();
       setBulkMembersText(text);
     } catch {
-      setError('Failed to read file. Please ensure it\'s a valid text or CSV file.');
+      setError(
+        "Failed to read file. Please ensure it's a valid text or CSV file.",
+      );
     }
   };
 
@@ -43,14 +49,14 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     setLoading(true);
     try {
       await attendanceManager.addMember(group.id, newMemberName.trim(), {
-        role: newMemberRole.trim() || undefined
+        role: newMemberRole.trim() || undefined,
       });
       resetForm();
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Error adding member:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add member');
+      console.error("Error adding member:", err);
+      setError(err instanceof Error ? err.message : "Failed to add member");
     } finally {
       setLoading(false);
     }
@@ -65,15 +71,15 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     setBulkResults(null);
 
     try {
-      const lines = bulkMembersText.split('\n').filter(line => line.trim());
+      const lines = bulkMembersText.split("\n").filter((line) => line.trim());
       let success = 0;
       let failed = 0;
       const errors: string[] = [];
 
       for (const line of lines) {
-        const parts = line.split(',').map(p => p.trim());
+        const parts = line.split(",").map((p) => p.trim());
         const name = parts[0];
-        const role = parts[1] || '';
+        const role = parts[1] || "";
 
         if (!name) {
           failed++;
@@ -83,12 +89,14 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
 
         try {
           await attendanceManager.addMember(group.id, name, {
-            role: role || undefined
+            role: role || undefined,
           });
           success++;
         } catch (err) {
           failed++;
-          errors.push(`Failed to add "${name}": ${err instanceof Error ? err.message : 'Unknown error'}`);
+          errors.push(
+            `Failed to add "${name}": ${err instanceof Error ? err.message : "Unknown error"}`,
+          );
         }
       }
 
@@ -102,8 +110,10 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
         }, 2000);
       }
     } catch (err) {
-      console.error('Error bulk adding members:', err);
-      setError(err instanceof Error ? err.message : 'Failed to bulk add members');
+      console.error("Error bulk adding members:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to bulk add members",
+      );
     } finally {
       setIsProcessingBulk(false);
     }
@@ -113,17 +123,21 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
       <div className="bg-[#0f0f0f] border border-white/10 rounded-3xl p-6 w-full max-w-2xl shadow-[0_40px_80px_rgba(0,0,0,0.6)] max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-semibold mb-2">Add Members</h3>
-        <p className="text-sm text-white/60 mb-4">Add one or multiple members to the group</p>
-        
+        <p className="text-sm text-white/60 mb-4">
+          Add one or multiple members to the group
+        </p>
+
         {/* Tab selector */}
         <div className="flex gap-2 mb-4 border-b border-white/10 pb-2">
           <button
             onClick={() => {
               setIsBulkMode(false);
-              setBulkMembersText('');
+              setBulkMembersText("");
             }}
             className={`px-4 py-2 text-sm rounded-lg transition ${
-              !isBulkMode ? 'bg-blue-500/20 text-blue-200' : 'text-white/60 hover:text-white'
+              !isBulkMode
+                ? "bg-blue-500/20 text-blue-200"
+                : "text-white/60 hover:text-white"
             }`}
           >
             Single Member
@@ -131,11 +145,13 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
           <button
             onClick={() => {
               setIsBulkMode(true);
-              setNewMemberName('');
-              setNewMemberRole('');
+              setNewMemberName("");
+              setNewMemberRole("");
             }}
             className={`px-4 py-2 text-sm rounded-lg transition ${
-              isBulkMode ? 'bg-blue-500/20 text-blue-200' : 'text-white/60 hover:text-white'
+              isBulkMode
+                ? "bg-blue-500/20 text-blue-200"
+                : "text-white/60 hover:text-white"
             }`}
           >
             Bulk Add
@@ -156,7 +172,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               <input
                 type="text"
                 value={newMemberName}
-                onChange={event => setNewMemberName(event.target.value)}
+                onChange={(event) => setNewMemberName(event.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60"
                 placeholder="Enter full name"
               />
@@ -166,7 +182,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               <input
                 type="text"
                 value={newMemberRole}
-                onChange={event => setNewMemberRole(event.target.value)}
+                onChange={(event) => setNewMemberRole(event.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60"
                 placeholder="e.g. Staff, Student, Teacher"
               />
@@ -179,7 +195,9 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-white/60">Upload CSV/TXT file or paste below</span>
+                <span className="text-sm text-white/60">
+                  Upload CSV/TXT file or paste below
+                </span>
                 <label className="px-3 py-1 text-xs rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-200 hover:bg-blue-500/30 cursor-pointer transition">
                   📁 Upload File
                   <input
@@ -189,32 +207,38 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) void handleFileUpload(file);
-                      e.target.value = '';
+                      e.target.value = "";
                     }}
                   />
                 </label>
               </div>
               <textarea
                 value={bulkMembersText}
-                onChange={event => setBulkMembersText(event.target.value)}
+                onChange={(event) => setBulkMembersText(event.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500/60 font-mono text-sm min-h-[200px]"
                 placeholder="Enter one member per line. Format:&#10;Name, Role (optional)&#10;&#10;Example:&#10;John Doe, Student&#10;Jane Smith, Teacher&#10;Bob Johnson"
               />
               <div className="mt-2 text-xs text-white/50">
-                Format: <span className="text-white/70 font-mono">Name, Role</span> (one per line, role is optional)
+                Format:{" "}
+                <span className="text-white/70 font-mono">Name, Role</span> (one
+                per line, role is optional)
               </div>
             </div>
 
             {/* Bulk Results */}
             {bulkResults && (
-              <div className={`rounded-xl border p-3 ${
-                bulkResults.failed === 0 
-                  ? 'border-emerald-500/40 bg-emerald-500/10' 
-                  : 'border-yellow-500/40 bg-yellow-500/10'
-              }`}>
+              <div
+                className={`rounded-xl border p-3 ${
+                  bulkResults.failed === 0
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : "border-yellow-500/40 bg-yellow-500/10"
+                }`}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold">
-                    {bulkResults.failed === 0 ? '✓ Success!' : '⚠ Partial Success'}
+                    {bulkResults.failed === 0
+                      ? "✓ Success!"
+                      : "⚠ Partial Success"}
                   </span>
                   <span className="text-xs">
                     {bulkResults.success} added, {bulkResults.failed} failed
@@ -223,7 +247,10 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
                 {bulkResults.errors.length > 0 && (
                   <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
                     {bulkResults.errors.map((err, idx) => (
-                      <div key={idx} className="text-xs text-red-200 bg-red-500/10 rounded px-2 py-1">
+                      <div
+                        key={idx}
+                        className="text-xs text-red-200 bg-red-500/10 rounded px-2 py-1"
+                      >
                         {err}
                       </div>
                     ))}
@@ -251,7 +278,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               disabled={!newMemberName.trim() || loading}
               className="px-4 py-2 rounded-xl bg-green-500/20 border border-green-400/40 text-green-100 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
             >
-              {loading ? 'Adding…' : 'Add Member'}
+              {loading ? "Adding…" : "Add Member"}
             </button>
           ) : (
             <button
@@ -259,7 +286,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               disabled={!bulkMembersText.trim() || isProcessingBulk}
               className="px-4 py-2 rounded-xl bg-green-500/20 border border-green-400/40 text-green-100 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
             >
-              {isProcessingBulk ? 'Processing…' : `Add Members`}
+              {isProcessingBulk ? "Processing…" : `Add Members`}
             </button>
           )}
         </div>
@@ -267,4 +294,3 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     </div>
   );
 }
-

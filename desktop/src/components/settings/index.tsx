@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
-import { backendService } from '../../services/BackendService';
-import { attendanceManager } from '../../services/AttendanceManager';
-import { Display } from './sections/Display';
-import { Database } from './sections/Database';
-import { Attendance } from './sections/Attendance';
-import { GroupPanel, type GroupSection } from '../group';
-import { Dropdown } from '../shared/Dropdown';
-import type { QuickSettings, AttendanceSettings, SettingsOverview } from './types';
-import type { AttendanceGroup } from '../../types/recognition';
+import { useState, useEffect } from "react";
+import { backendService } from "../../services/BackendService";
+import { attendanceManager } from "../../services/AttendanceManager";
+import { Display } from "./sections/Display";
+import { Database } from "./sections/Database";
+import { Attendance } from "./sections/Attendance";
+import { GroupPanel, type GroupSection } from "../group";
+import { Dropdown } from "../shared/Dropdown";
+import type {
+  QuickSettings,
+  AttendanceSettings,
+  SettingsOverview,
+} from "./types";
+import type { AttendanceGroup } from "../../types/recognition";
 
 // Re-export types for backward compatibility
 export type { QuickSettings, AttendanceSettings };
@@ -29,12 +33,12 @@ interface SettingsProps {
   onGroupsChanged?: () => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ 
-  onBack, 
+export const Settings: React.FC<SettingsProps> = ({
+  onBack,
   isModal = false,
   isFullScreen = false,
   onToggleFullScreen,
-  quickSettings, 
+  quickSettings,
   onQuickSettingsChange,
   attendanceSettings,
   onAttendanceSettingsChange,
@@ -44,12 +48,16 @@ export const Settings: React.FC<SettingsProps> = ({
   onGroupSelect,
   onGroupsChanged,
 }) => {
-  const [activeSection, setActiveSection] = useState<string>(initialGroupSection ? 'group' : 'display');
-  const [groupInitialSection, setGroupInitialSection] = useState<GroupSection | undefined>(initialGroupSection);
+  const [activeSection, setActiveSection] = useState<string>(
+    initialGroupSection ? "group" : "display",
+  );
+  const [groupInitialSection, setGroupInitialSection] = useState<
+    GroupSection | undefined
+  >(initialGroupSection);
   const [systemData, setSystemData] = useState<SettingsOverview>({
     totalPersons: 0,
     totalMembers: 0,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   });
   const [groups, setGroups] = useState<AttendanceGroup[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,58 +76,64 @@ export const Settings: React.FC<SettingsProps> = ({
     loadSystemData();
   }, []);
 
-
   const loadSystemData = async () => {
     setIsLoading(true);
     try {
       const [faceStats, attendanceStats, groupsData] = await Promise.all([
         backendService.getDatabaseStats(),
         attendanceManager.getAttendanceStats(),
-        attendanceManager.getGroups()
+        attendanceManager.getGroups(),
       ]);
       setSystemData({
         totalPersons: faceStats.total_persons,
         totalMembers: attendanceStats.total_members,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       });
       setGroups(groupsData);
     } catch (error) {
-      console.error('Failed to load system data:', error);
+      console.error("Failed to load system data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClearDatabase = async () => {
-    if (!window.confirm('⚠️ Clear ALL face recognition data? This will delete all registered faces and embeddings. This cannot be undone.')) return;
+    if (
+      !window.confirm(
+        "⚠️ Clear ALL face recognition data? This will delete all registered faces and embeddings. This cannot be undone.",
+      )
+    )
+      return;
     setIsLoading(true);
     try {
       await backendService.clearDatabase();
       await loadSystemData();
-      alert('✓ Database cleared successfully');
+      alert("✓ Database cleared successfully");
     } catch (error) {
-      console.error('Failed to clear database:', error);
-      alert('❌ Failed to clear database');
+      console.error("Failed to clear database:", error);
+      alert("❌ Failed to clear database");
     } finally {
       setIsLoading(false);
     }
   };
 
   // Group subsections state
-  const [isGroupExpanded, setIsGroupExpanded] = useState(initialGroupSection ? true : false);
-  
+  const [isGroupExpanded, setIsGroupExpanded] = useState(
+    initialGroupSection ? true : false,
+  );
+
   const groupSections = [
-    { id: 'overview', label: 'Overview', icon: 'fa-solid fa-chart-line' },
-    { id: 'members', label: 'Members', icon: 'fa-solid fa-users' },
-    { id: 'reports', label: 'Reports', icon: 'fa-solid fa-chart-bar' },
-    { id: 'registration', label: 'Registration', icon: 'fa-solid fa-id-card' },
-    { id: 'settings', label: 'Configuration', icon: 'fa-solid fa-sliders' },
+    { id: "overview", label: "Overview", icon: "fa-solid fa-chart-line" },
+    { id: "members", label: "Members", icon: "fa-solid fa-users" },
+    { id: "reports", label: "Reports", icon: "fa-solid fa-chart-bar" },
+    { id: "registration", label: "Registration", icon: "fa-solid fa-id-card" },
+    { id: "settings", label: "Configuration", icon: "fa-solid fa-sliders" },
   ];
 
   const sections = [
-    { id: 'display', label: 'Display', icon: 'fa-solid fa-desktop' },
-    { id: 'attendance', label: 'Attendance', icon: 'fa-solid fa-user-check' },
-    { id: 'database', label: 'Database', icon: 'fa-solid fa-database' },
+    { id: "display", label: "Display", icon: "fa-solid fa-desktop" },
+    { id: "attendance", label: "Attendance", icon: "fa-solid fa-user-check" },
+    { id: "database", label: "Database", icon: "fa-solid fa-database" },
   ];
 
   const mainContent = (
@@ -128,14 +142,18 @@ export const Settings: React.FC<SettingsProps> = ({
       <div className="w-56 flex-shrink-0 border-r border-white/10 flex flex-col">
         {/* Header */}
         <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
-          <h1 className="text-sm font-semibold uppercase tracking-wider text-white/60">Settings</h1>
+          <h1 className="text-sm font-semibold uppercase tracking-wider text-white/60">
+            Settings
+          </h1>
           {onToggleFullScreen && (
             <button
               onClick={onToggleFullScreen}
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/5 text-white/60 hover:text-white/80 transition-all"
-              title={isFullScreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={isFullScreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
-              <i className={`fa-solid ${isFullScreen ? 'fa-compress' : 'fa-expand'} text-xs`}></i>
+              <i
+                className={`fa-solid ${isFullScreen ? "fa-compress" : "fa-expand"} text-xs`}
+              ></i>
             </button>
           )}
         </div>
@@ -145,19 +163,23 @@ export const Settings: React.FC<SettingsProps> = ({
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Dropdown
-                options={groups.map(group => ({
+                options={groups.map((group) => ({
                   value: group.id,
                   label: group.name,
                 }))}
                 value={currentGroup?.id ?? null}
                 onChange={(groupId) => {
                   if (groupId && onGroupSelect) {
-                    const group = groups.find(g => g.id === groupId);
+                    const group = groups.find((g) => g.id === groupId);
                     if (group) {
                       onGroupSelect(group);
                     }
                   } else if (!groupId && onGroupSelect) {
-                    window.dispatchEvent(new CustomEvent('selectGroup', { detail: { group: null } }));
+                    window.dispatchEvent(
+                      new CustomEvent("selectGroup", {
+                        detail: { group: null },
+                      }),
+                    );
                   }
                 }}
                 placeholder="Select group…"
@@ -169,8 +191,8 @@ export const Settings: React.FC<SettingsProps> = ({
             {/* Create Group Button - Opens Group section with create modal */}
             <button
               onClick={() => {
-                setActiveSection('group');
-                setGroupInitialSection('overview');
+                setActiveSection("group");
+                setGroupInitialSection("overview");
                 setIsGroupExpanded(true);
                 // Trigger create group in GroupPanel after a short delay to ensure GroupPanel is loaded
                 setTimeout(() => {
@@ -198,9 +220,11 @@ export const Settings: React.FC<SettingsProps> = ({
                 <i className="fa-solid fa-users-rectangle text-sm w-4"></i>
                 <span>Group</span>
               </div>
-              <i className={`fa-solid fa-chevron-down text-xs transition-transform duration-200 ${isGroupExpanded ? '' : '-rotate-90'}`}></i>
+              <i
+                className={`fa-solid fa-chevron-down text-xs transition-transform duration-200 ${isGroupExpanded ? "" : "-rotate-90"}`}
+              ></i>
             </button>
-            
+
             {/* Group Subsections */}
             {isGroupExpanded && (
               <div className="mt-1 ml-3 pl-3 border-l-2 border-white/[0.06] space-y-0.5">
@@ -208,13 +232,14 @@ export const Settings: React.FC<SettingsProps> = ({
                   <button
                     key={subsection.id}
                     onClick={() => {
-                      setActiveSection('group');
+                      setActiveSection("group");
                       setGroupInitialSection(subsection.id as GroupSection);
                     }}
                     className={`w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
-                      activeSection === 'group' && groupInitialSection === subsection.id
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/50 hover:bg-white/5 hover:text-white/70'
+                      activeSection === "group" &&
+                      groupInitialSection === subsection.id
+                        ? "bg-white/10 text-white"
+                        : "text-white/50 hover:bg-white/5 hover:text-white/70"
                     }`}
                   >
                     <i className={`${subsection.icon} text-xs w-4`}></i>
@@ -232,11 +257,13 @@ export const Settings: React.FC<SettingsProps> = ({
               onClick={() => setActiveSection(section.id)}
               className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                 activeSection === section.id
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/60 hover:bg-white/5 hover:text-white/80'
+                  ? "bg-white/10 text-white"
+                  : "text-white/60 hover:bg-white/5 hover:text-white/80"
               }`}
             >
-              {section.icon && <i className={`${section.icon} text-sm w-4`}></i>}
+              {section.icon && (
+                <i className={`${section.icon} text-sm w-4`}></i>
+              )}
               {section.label}
             </button>
           ))}
@@ -259,18 +286,18 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Section Header */}
         <div className="px-8 py-6 border-b border-white/10">
           <h2 className="text-xl font-semibold">
-            {activeSection === 'group' 
-              ? `Group - ${groupSections.find(s => s.id === groupInitialSection)?.label || 'Overview'}`
-              : sections.find(s => s.id === activeSection)?.label}
+            {activeSection === "group"
+              ? `Group - ${groupSections.find((s) => s.id === groupInitialSection)?.label || "Overview"}`
+              : sections.find((s) => s.id === activeSection)?.label}
           </h2>
         </div>
 
         {/* Section Content */}
         <div className="flex-1 overflow-y-auto p-8 pb-0 custom-scroll">
-          {activeSection === 'group' && (
+          {activeSection === "group" && (
             <div className="h-full -m-8">
               <GroupPanel
-                onBack={() => setActiveSection('display')}
+                onBack={() => setActiveSection("display")}
                 initialSection={groupInitialSection}
                 initialGroup={currentGroup}
                 onGroupsChanged={() => {
@@ -281,24 +308,39 @@ export const Settings: React.FC<SettingsProps> = ({
               />
             </div>
           )}
-          {activeSection === 'display' && (
-            <Display quickSettings={quickSettings} toggleQuickSetting={toggleQuickSetting} />
+          {activeSection === "display" && (
+            <Display
+              quickSettings={quickSettings}
+              toggleQuickSetting={toggleQuickSetting}
+            />
           )}
-          {activeSection === 'attendance' && (
-            <Attendance 
+          {activeSection === "attendance" && (
+            <Attendance
               attendanceSettings={attendanceSettings}
-              onTrackingModeChange={(mode) => updateAttendanceSetting({ trackingMode: mode })}
-              onLateThresholdChange={(minutes) => updateAttendanceSetting({ lateThresholdMinutes: minutes })}
-              onLateThresholdToggle={(enabled) => updateAttendanceSetting({ lateThresholdEnabled: enabled })}
-              onClassStartTimeChange={(time) => updateAttendanceSetting({ classStartTime: time })}
-              onCooldownChange={(seconds) => updateAttendanceSetting({ attendanceCooldownSeconds: seconds })}
-              onSpoofDetectionToggle={(enabled) => updateAttendanceSetting({ enableSpoofDetection: enabled })}
+              onTrackingModeChange={(mode) =>
+                updateAttendanceSetting({ trackingMode: mode })
+              }
+              onLateThresholdChange={(minutes) =>
+                updateAttendanceSetting({ lateThresholdMinutes: minutes })
+              }
+              onLateThresholdToggle={(enabled) =>
+                updateAttendanceSetting({ lateThresholdEnabled: enabled })
+              }
+              onClassStartTimeChange={(time) =>
+                updateAttendanceSetting({ classStartTime: time })
+              }
+              onCooldownChange={(seconds) =>
+                updateAttendanceSetting({ attendanceCooldownSeconds: seconds })
+              }
+              onSpoofDetectionToggle={(enabled) =>
+                updateAttendanceSetting({ enableSpoofDetection: enabled })
+              }
               isStreaming={isStreaming}
             />
           )}
-          {activeSection === 'database' && (
-            <Database 
-              systemData={systemData} 
+          {activeSection === "database" && (
+            <Database
+              systemData={systemData}
               groups={groups}
               isLoading={isLoading}
               onClearDatabase={handleClearDatabase}
@@ -318,7 +360,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       );
     }
-    
+
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
         <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl w-full max-w-5xl h-[85vh] shadow-[0_40px_80px_rgba(0,0,0,0.6)] overflow-hidden">
@@ -330,4 +372,3 @@ export const Settings: React.FC<SettingsProps> = ({
 
   return mainContent;
 };
-

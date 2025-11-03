@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { attendanceManager } from '../../../../services/AttendanceManager';
-import { backendService } from '../../../../services/BackendService';
-import { generateDisplayNames } from '../../../../utils/displayNameUtils';
-import type { AttendanceGroup, AttendanceMember } from '../../../../types/recognition';
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { attendanceManager } from "../../../../services/AttendanceManager";
+import { backendService } from "../../../../services/BackendService";
+import { generateDisplayNames } from "../../../../utils/displayNameUtils";
+import type {
+  AttendanceGroup,
+  AttendanceMember,
+} from "../../../../types/recognition";
 
-type CaptureSource = 'upload' | 'live';
+type CaptureSource = "upload" | "live";
 
-type FrameStatus = 'pending' | 'processing' | 'ready' | 'error' | 'registered';
+type FrameStatus = "pending" | "processing" | "ready" | "error" | "registered";
 
 type BoundingBox = [number, number, number, number];
 
@@ -31,41 +34,54 @@ interface FaceCaptureProps {
   onBack?: () => void;
 }
 
-const REQUIRED_ANGLE = 'Front';
+const REQUIRED_ANGLE = "Front";
 
 const makeId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `frame-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
 const toBase64Payload = (dataUrl: string) => {
-  const [, payload] = dataUrl.split(',');
+  const [, payload] = dataUrl.split(",");
   return payload || dataUrl;
 };
 
-const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result as string);
-  reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
-  reader.readAsDataURL(file);
-});
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 
-const getImageDimensions = (dataUrl: string) => new Promise<{ width: number; height: number }>((resolve, reject) => {
-  const img = new Image();
-  img.onload = () => resolve({ width: img.width, height: img.height });
-  img.onerror = () => reject(new Error('Unable to load image preview'));
-  img.src = dataUrl;
-});
+const getImageDimensions = (dataUrl: string) =>
+  new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = () => reject(new Error("Unable to load image preview"));
+    img.src = dataUrl;
+  });
 
-export function FaceCapture({ group, members, onRefresh, onBack }: FaceCaptureProps) {
-  const [source, setSource] = useState<CaptureSource>('upload');
-  const [selectedMemberId, setSelectedMemberId] = useState('');
-  const [memberSearch, setMemberSearch] = useState('');
+export function FaceCapture({
+  group,
+  members,
+  onRefresh,
+  onBack,
+}: FaceCaptureProps) {
+  const [source, setSource] = useState<CaptureSource>("upload");
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
   const [frames, setFrames] = useState<CapturedFrame[]>([]);
   const [activeAngle, setActiveAngle] = useState<string>(REQUIRED_ANGLE);
-  const [memberStatus, setMemberStatus] = useState<Map<string, boolean>>(new Map());
+  const [memberStatus, setMemberStatus] = useState<Map<string, boolean>>(
+    new Map(),
+  );
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -76,7 +92,6 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-
   // Generate display names with auto-differentiation for duplicates
   const membersWithDisplayNames = useMemo(() => {
     return generateDisplayNames(members);
@@ -85,10 +100,11 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
   const filteredMembers = useMemo(() => {
     if (!memberSearch.trim()) return membersWithDisplayNames;
     const query = memberSearch.toLowerCase();
-    return membersWithDisplayNames.filter(member =>
-      member.name.toLowerCase().includes(query) ||
-      member.displayName.toLowerCase().includes(query) ||
-      member.person_id.toLowerCase().includes(query)
+    return membersWithDisplayNames.filter(
+      (member) =>
+        member.name.toLowerCase().includes(query) ||
+        member.displayName.toLowerCase().includes(query) ||
+        member.person_id.toLowerCase().includes(query),
     );
   }, [memberSearch, membersWithDisplayNames]);
 
@@ -98,7 +114,7 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
   }, []);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -112,7 +128,7 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
       setCameraError(null);
       const constraints: MediaStreamConstraints = {
         video: true,
-        audio: false
+        audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
@@ -122,8 +138,10 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
       }
       setCameraReady(true);
     } catch (error) {
-      console.error('🚨 Camera start failed:', error);
-      setCameraError('Unable to access camera. Please check permissions or switch to upload mode.');
+      console.error("🚨 Camera start failed:", error);
+      setCameraError(
+        "Unable to access camera. Please check permissions or switch to upload mode.",
+      );
       setCameraReady(false);
     }
   }, []);
@@ -137,10 +155,12 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
     try {
       const persons = await attendanceManager.getGroupPersons(group.id);
       const status = new Map<string, boolean>();
-      persons.forEach(person => status.set(person.person_id, person.has_face_data));
+      persons.forEach((person) =>
+        status.set(person.person_id, person.has_face_data),
+      );
       setMemberStatus(status);
     } catch (error) {
-      console.error('⚠️ Failed to load member registration status:', error);
+      console.error("⚠️ Failed to load member registration status:", error);
     }
   }, [group]);
 
@@ -153,12 +173,14 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
   useEffect(() => {
     if (group) {
       // Keep selection if member still exists in the group
-      const memberExists = members.some(m => m.person_id === selectedMemberId);
+      const memberExists = members.some(
+        (m) => m.person_id === selectedMemberId,
+      );
       if (!memberExists) {
-        setSelectedMemberId('');
+        setSelectedMemberId("");
       }
     } else {
-      setSelectedMemberId('');
+      setSelectedMemberId("");
     }
     resetFrames();
     setSuccessMessage(null);
@@ -172,7 +194,7 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
   }, [activeAngle]);
 
   useEffect(() => {
-    if (source === 'live') {
+    if (source === "live") {
       startCamera();
       return () => stopCamera();
     }
@@ -181,172 +203,205 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
 
   // Restart camera when frames are cleared and source is 'live'
   useEffect(() => {
-    const hasFrame = frames.find(f => f.angle === REQUIRED_ANGLE);
-    if (source === 'live' && !hasFrame && !cameraReady) {
+    const hasFrame = frames.find((f) => f.angle === REQUIRED_ANGLE);
+    if (source === "live" && !hasFrame && !cameraReady) {
       startCamera();
     }
   }, [source, frames, cameraReady, startCamera]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const updateFrame = useCallback((frameId: string, updater: (frame: CapturedFrame) => CapturedFrame) => {
-    setFrames(prev => prev.map(frame => (frame.id === frameId ? updater(frame) : frame)));
-  }, []);
+  const updateFrame = useCallback(
+    (frameId: string, updater: (frame: CapturedFrame) => CapturedFrame) => {
+      setFrames((prev) =>
+        prev.map((frame) => (frame.id === frameId ? updater(frame) : frame)),
+      );
+    },
+    [],
+  );
 
-  const captureProcessedFrame = useCallback(async (angle: string, dataUrl: string, width: number, height: number) => {
-    const id = makeId();
-    const label = angle;
+  const captureProcessedFrame = useCallback(
+    async (angle: string, dataUrl: string, width: number, height: number) => {
+      const id = makeId();
+      const label = angle;
 
-    setGlobalError(null);
-    setSuccessMessage(null);
+      setGlobalError(null);
+      setSuccessMessage(null);
 
-    setFrames(prev => {
-      const others = prev.filter(frame => frame.angle !== angle);
-      return [
-        ...others,
-        {
-          id,
-          angle,
-          label,
-          dataUrl,
-          width,
-          height,
-          status: 'processing'
-        }
-      ];
-    });
-
-    try {
-      const detection = await backendService.detectFaces(toBase64Payload(dataUrl), {
-        model_type: 'face_detector'
+      setFrames((prev) => {
+        const others = prev.filter((frame) => frame.angle !== angle);
+        return [
+          ...others,
+          {
+            id,
+            angle,
+            label,
+            dataUrl,
+            width,
+            height,
+            status: "processing",
+          },
+        ];
       });
 
-      if (!detection.faces || detection.faces.length === 0) {
-        throw new Error('No face detected. Try better lighting, remove glasses, or face the camera directly.');
+      try {
+        const detection = await backendService.detectFaces(
+          toBase64Payload(dataUrl),
+          {
+            model_type: "face_detector",
+          },
+        );
+
+        if (!detection.faces || detection.faces.length === 0) {
+          throw new Error(
+            "No face detected. Try better lighting, remove glasses, or face the camera directly.",
+          );
+        }
+
+        const bestFace = detection.faces.reduce(
+          (best, current) =>
+            (current.confidence ?? 0) > (best.confidence ?? 0) ? current : best,
+          detection.faces[0],
+        );
+
+        if (!bestFace.bbox) {
+          throw new Error("Face detected but bounding box missing.");
+        }
+
+        updateFrame(id, (frame) => ({
+          ...frame,
+          status: "ready",
+          confidence: bestFace.confidence,
+          bbox: bestFace.bbox,
+          landmarks_5: bestFace.landmarks_5,
+          error: undefined,
+        }));
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Face analysis failed. Please try again.";
+        updateFrame(id, (frame) => ({
+          ...frame,
+          status: "error",
+          error: message,
+          confidence: undefined,
+          bbox: undefined,
+        }));
+      }
+    },
+    [updateFrame],
+  );
+
+  const captureFromCamera = useCallback(
+    async (angle: string) => {
+      if (!videoRef.current) {
+        setCameraError("Camera feed not ready yet.");
+        return;
       }
 
-      const bestFace = detection.faces.reduce((best, current) =>
-        (current.confidence ?? 0) > (best.confidence ?? 0) ? current : best,
-        detection.faces[0]
-      );
-
-      if (!bestFace.bbox) {
-        throw new Error('Face detected but bounding box missing.');
+      if (!captureCanvasRef.current) {
+        captureCanvasRef.current = document.createElement("canvas");
       }
 
-      updateFrame(id, frame => ({
-        ...frame,
-        status: 'ready',
-        confidence: bestFace.confidence,
-        bbox: bestFace.bbox,
-        landmarks_5: bestFace.landmarks_5,
-        error: undefined
-      }));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Face analysis failed. Please try again.';
-      updateFrame(id, frame => ({
-        ...frame,
-        status: 'error',
-        error: message,
-        confidence: undefined,
-        bbox: undefined
-      }));
-    }
-  }, [updateFrame]);
+      const video = videoRef.current;
+      const canvas = captureCanvasRef.current;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
 
-  const captureFromCamera = useCallback(async (angle: string) => {
-    if (!videoRef.current) {
-      setCameraError('Camera feed not ready yet.');
-      return;
-    }
+      if (!width || !height) {
+        setCameraError("Camera is still initializing. Please wait a moment.");
+        return;
+      }
 
-    if (!captureCanvasRef.current) {
-      captureCanvasRef.current = document.createElement('canvas');
-    }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setCameraError("Unable to capture from camera.");
+        return;
+      }
 
-    const video = videoRef.current;
-    const canvas = captureCanvasRef.current;
-    const width = video.videoWidth;
-    const height = video.videoHeight;
+      // Mirror the canvas to match the mirrored video preview
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -width, 0, width, height);
+      ctx.restore();
 
-    if (!width || !height) {
-      setCameraError('Camera is still initializing. Please wait a moment.');
-      return;
-    }
-
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setCameraError('Unable to capture from camera.');
-      return;
-    }
-
-    // Mirror the canvas to match the mirrored video preview
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -width, 0, width, height);
-    ctx.restore();
-    
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    await captureProcessedFrame(angle, dataUrl, width, height);
-    
-    // Stop camera after successful capture since the camera container will be hidden
-    stopCamera();
-    
-  }, [captureProcessedFrame, stopCamera]);
-
-  const handleFileSelected = useCallback(async (angle: string, files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-
-    if (!file.type.startsWith('image/')) {
-      setGlobalError('Please upload a valid image file.');
-      return;
-    }
-
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      const { width, height } = await getImageDimensions(dataUrl);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
       await captureProcessedFrame(angle, dataUrl, width, height);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to process the selected image.';
-      setGlobalError(message);
-    }
-  }, [captureProcessedFrame]);
+
+      // Stop camera after successful capture since the camera container will be hidden
+      stopCamera();
+    },
+    [captureProcessedFrame, stopCamera],
+  );
+
+  const handleFileSelected = useCallback(
+    async (angle: string, files: FileList | null) => {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+
+      if (!file.type.startsWith("image/")) {
+        setGlobalError("Please upload a valid image file.");
+        return;
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const { width, height } = await getImageDimensions(dataUrl);
+        await captureProcessedFrame(angle, dataUrl, width, height);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to process the selected image.";
+        setGlobalError(message);
+      }
+    },
+    [captureProcessedFrame],
+  );
 
   const framesReady = (() => {
-    const frame = frames.find(item => item.angle === REQUIRED_ANGLE);
-    return frame && (frame.status === 'ready' || frame.status === 'registered');
+    const frame = frames.find((item) => item.angle === REQUIRED_ANGLE);
+    return frame && (frame.status === "ready" || frame.status === "registered");
   })();
 
   const handleRegister = useCallback(async () => {
     if (!group) {
-      setGlobalError('No group selected. Please go to Menu and select a group first.');
+      setGlobalError(
+        "No group selected. Please go to Menu and select a group first.",
+      );
       return;
     }
 
     if (!selectedMemberId) {
-      setGlobalError('No member selected. Please select a member from the list on the left.');
+      setGlobalError(
+        "No member selected. Please select a member from the list on the left.",
+      );
       return;
     }
 
     // Validate member still exists
-    const selectedMember = members.find(m => m.person_id === selectedMemberId);
+    const selectedMember = members.find(
+      (m) => m.person_id === selectedMemberId,
+    );
     if (!selectedMember) {
-      setGlobalError('Selected member no longer exists. Please select another member.');
-      setSelectedMemberId('');
+      setGlobalError(
+        "Selected member no longer exists. Please select another member.",
+      );
+      setSelectedMemberId("");
       return;
     }
 
     if (!framesReady) {
-      const frame = frames.find(f => f.angle === REQUIRED_ANGLE);
+      const frame = frames.find((f) => f.angle === REQUIRED_ANGLE);
       if (!frame) {
-        setGlobalError('Please capture a face image first.');
-      } else if (frame.status === 'error') {
-        setGlobalError('Face capture failed. Please try again.');
+        setGlobalError("Please capture a face image first.");
+      } else if (frame.status === "error") {
+        setGlobalError("Face capture failed. Please try again.");
       } else {
-        setGlobalError('Face capture is still processing. Please wait.');
+        setGlobalError("Face capture is still processing. Please wait.");
       }
       return;
     }
@@ -356,13 +411,17 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
     setSuccessMessage(null);
 
     try {
-      const frame = frames.find(item => item.angle === REQUIRED_ANGLE);
+      const frame = frames.find((item) => item.angle === REQUIRED_ANGLE);
       if (!frame || !frame.bbox) {
-        throw new Error('Missing processed frame. Please capture a face image first.');
+        throw new Error(
+          "Missing processed frame. Please capture a face image first.",
+        );
       }
 
       if (!Array.isArray(frame.bbox) || frame.bbox.length !== 4) {
-        throw new Error('Invalid bbox format - expected array [x, y, width, height]');
+        throw new Error(
+          "Invalid bbox format - expected array [x, y, width, height]",
+        );
       }
 
       const payload = toBase64Payload(frame.dataUrl);
@@ -371,49 +430,77 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
         selectedMemberId,
         payload,
         frame.bbox,
-        frame.landmarks_5
+        frame.landmarks_5,
       );
 
       if (!result.success) {
-        throw new Error(result.error || 'Registration failed.');
+        throw new Error(result.error || "Registration failed.");
       }
 
-      updateFrame(frame.id, current => ({ ...current, status: 'registered' }));
+      updateFrame(frame.id, (current) => ({
+        ...current,
+        status: "registered",
+      }));
 
-      setSuccessMessage('Registration complete. Identity embedded successfully.');
+      setSuccessMessage(
+        "Registration complete. Identity embedded successfully.",
+      );
 
       await loadMemberStatus();
       if (onRefresh) {
         await onRefresh();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
       setGlobalError(message);
     } finally {
       setIsRegistering(false);
     }
-  }, [group, selectedMemberId, framesReady, frames, loadMemberStatus, onRefresh, updateFrame, members]);
+  }, [
+    group,
+    selectedMemberId,
+    framesReady,
+    frames,
+    loadMemberStatus,
+    onRefresh,
+    updateFrame,
+    members,
+  ]);
 
-  const handleRemoveFaceData = useCallback(async (member: AttendanceMember & { displayName: string }) => {
-    if (!group) return;
-    const confirmation = window.confirm(`Remove all face embeddings for ${member.displayName}?`);
-    if (!confirmation) return;
+  const handleRemoveFaceData = useCallback(
+    async (member: AttendanceMember & { displayName: string }) => {
+      if (!group) return;
+      const confirmation = window.confirm(
+        `Remove all face embeddings for ${member.displayName}?`,
+      );
+      if (!confirmation) return;
 
-    try {
-      const result = await attendanceManager.removeFaceDataForGroupPerson(group.id, member.person_id);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to remove embeddings');
+      try {
+        const result = await attendanceManager.removeFaceDataForGroupPerson(
+          group.id,
+          member.person_id,
+        );
+        if (!result.success) {
+          throw new Error(result.error || "Failed to remove embeddings");
+        }
+        await loadMemberStatus();
+        if (onRefresh) {
+          await onRefresh();
+        }
+        setSuccessMessage(`Embeddings purged for ${member.displayName}.`);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to remove face data.";
+        setGlobalError(message);
       }
-      await loadMemberStatus();
-      if (onRefresh) {
-        await onRefresh();
-      }
-      setSuccessMessage(`Embeddings purged for ${member.displayName}.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to remove face data.';
-      setGlobalError(message);
-    }
-  }, [group, loadMemberStatus, onRefresh]);
+    },
+    [group, loadMemberStatus, onRefresh],
+  );
 
   const resetWorkflow = useCallback(() => {
     resetFrames();
@@ -428,9 +515,22 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
         <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-200 flex items-center gap-3 flex-shrink-0">
           <div className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
           <span className="flex-1">{globalError}</span>
-          <button onClick={() => setGlobalError(null)} className="text-red-200/50 hover:text-red-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={() => setGlobalError(null)}
+            className="text-red-200/50 hover:text-red-100 transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -440,9 +540,22 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-200 flex items-center gap-3 flex-shrink-0">
           <div className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
           <span className="flex-1">{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-200/50 hover:text-emerald-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="text-emerald-200/50 hover:text-emerald-100 transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -456,8 +569,18 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
             <div className="flex items-center gap-3 flex-shrink-0">
               {/* Search Bar */}
               <div className="relative flex-1">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 <input
                   type="search"
@@ -474,80 +597,97 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
                   onClick={onBack}
                   className="group flex items-center gap-1.5 text-white/40 hover:text-white/80 transition-colors text-sm flex-shrink-0"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
                   </svg>
                   <span>Back</span>
                 </button>
               )}
             </div>
 
-          <div className="flex-1 space-y-1.5 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2">
-            {members.length === 0 && (
-              <div className="rounded-xl border border-dashed border-white/5 bg-white/[0.02] px-3 py-12 text-center">
-                <div className="text-xs text-white/40">No members yet</div>
-              </div>
-            )}
+            <div className="flex-1 space-y-1.5 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2">
+              {members.length === 0 && (
+                <div className="rounded-xl border border-dashed border-white/5 bg-white/[0.02] px-3 py-12 text-center">
+                  <div className="text-xs text-white/40">No members yet</div>
+                </div>
+              )}
 
-            {members.length > 0 && filteredMembers.length === 0 && (
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-6 text-center">
-                <div className="text-xs text-white/40">No results for "{memberSearch}"</div>
-              </div>
-            )}
+              {members.length > 0 && filteredMembers.length === 0 && (
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-6 text-center">
+                  <div className="text-xs text-white/40">
+                    No results for "{memberSearch}"
+                  </div>
+                </div>
+              )}
 
-             {filteredMembers.map(member => {
-               const isSelected = selectedMemberId === member.person_id;
-               const hasEmbeddings = memberStatus.get(member.person_id) ?? false;
-               return (
-                 <button
-                   key={member.person_id}
-                   onClick={() => setSelectedMemberId(member.person_id)}
-                   className={`group relative w-full rounded-xl border px-3 py-3 text-left transition-all ${
-                     isSelected 
-                       ? 'border-cyan-400/50 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 shadow-lg shadow-cyan-500/10' 
-                       : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
-                   }`}
-                 >
-                   <div className="flex items-center gap-3">
-                     <div className="flex-1 min-w-0">
-                       <div className={`text-sm font-medium truncate transition-colors ${
-                         isSelected ? 'text-cyan-100' : 'text-white'
-                       }`}>
-                         {member.displayName}
-                       </div>
-                       {member.role && (
-                         <div className="text-xs text-white/40 truncate">{member.role}</div>
-                       )}
-                     </div>
-                     {isSelected && (
-                       <div className="flex-shrink-0">
-                         <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                       </div>
-                     )}
-                   </div>
-                   {hasEmbeddings && isSelected && (
-                     <div
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         handleRemoveFaceData(member);
-                       }}
-                       role="button"
-                       tabIndex={0}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter' || e.key === ' ') {
-                           e.preventDefault();
-                           e.stopPropagation();
-                           handleRemoveFaceData(member);
-                         }
-                       }}
-                       className="mt-2 w-full rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors cursor-pointer"
-                     >
-                       Remove Face Data
-                     </div>
-                   )}
-                 </button>
-               );
-             })}
+              {filteredMembers.map((member) => {
+                const isSelected = selectedMemberId === member.person_id;
+                const hasEmbeddings =
+                  memberStatus.get(member.person_id) ?? false;
+                return (
+                  <button
+                    key={member.person_id}
+                    onClick={() => setSelectedMemberId(member.person_id)}
+                    className={`group relative w-full rounded-xl border px-3 py-3 text-left transition-all ${
+                      isSelected
+                        ? "border-cyan-400/50 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 shadow-lg shadow-cyan-500/10"
+                        : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`text-sm font-medium truncate transition-colors ${
+                            isSelected ? "text-cyan-100" : "text-white"
+                          }`}
+                        >
+                          {member.displayName}
+                        </div>
+                        {member.role && (
+                          <div className="text-xs text-white/40 truncate">
+                            {member.role}
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="flex-shrink-0">
+                          <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                        </div>
+                      )}
+                    </div>
+                    {hasEmbeddings && isSelected && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFaceData(member);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveFaceData(member);
+                          }
+                        }}
+                        className="mt-2 w-full rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors cursor-pointer"
+                      >
+                        Remove Face Data
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -555,195 +695,241 @@ export function FaceCapture({ group, members, onRefresh, onBack }: FaceCapturePr
         {/* Registration Panel - Show only when member selected */}
         {selectedMemberId && (
           <div className="space-y-4 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2 h-full">
-             {/* Header with Change Member button */}
-             <div className="rounded-xl border border-white/10 bg-white/5 p-1.5">
-               <div className="flex items-center gap-3">
-                 <div className="flex-1 min-w-0">
-                   <div className="text-sm font-medium text-white truncate">
-                     {membersWithDisplayNames.find(m => m.person_id === selectedMemberId)?.displayName}
-                   </div>
-                 </div>
-                 <button
-                   onClick={() => {
-                     setSelectedMemberId('');
-                     resetFrames();
-                   }}
-                   className="rounded-lg px-3 py-1.5 text-xs text-white/60 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all"
-                 >
-                   Change
-                 </button>
-               </div>
-             </div>
+            {/* Header with Change Member button */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-1.5">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">
+                    {
+                      membersWithDisplayNames.find(
+                        (m) => m.person_id === selectedMemberId,
+                      )?.displayName
+                    }
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedMemberId("");
+                    resetFrames();
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs text-white/60 border border-white/10 bg-white/5 hover:bg-white/10 hover:text-white transition-all"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
 
             <div className="flex gap-2">
-              {(['upload', 'live'] as CaptureSource[]).map(option => (
+              {(["upload", "live"] as CaptureSource[]).map((option) => (
                 <button
                   key={option}
                   onClick={() => setSource(option)}
-                  disabled={!!frames.find(f => f.angle === REQUIRED_ANGLE)}
+                  disabled={!!frames.find((f) => f.angle === REQUIRED_ANGLE)}
                   className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    source === option 
-                      ? 'bg-white/10 text-white border border-white/20' 
-                      : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60'
+                    source === option
+                      ? "bg-white/10 text-white border border-white/20"
+                      : "bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {option === 'upload' ? 'Upload' : 'Camera'}
+                  {option === "upload" ? "Upload" : "Camera"}
                 </button>
               ))}
             </div>
 
-             {/* Capture Area */}
-             {source === 'live' ? (
-               // Camera mode - only show camera if no frame exists
-               !frames.find(f => f.angle === REQUIRED_ANGLE) && (
-                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-                   <div className="p-4 space-y-3">
-                     <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-2">
-                         <div className={`h-2 w-2 rounded-full ${cameraReady ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                         <span className="text-xs text-white/60">
-                           {cameraReady ? 'Ready' : 'Initializing...'}
-                         </span>
-                       </div>
-                     </div>
-                     <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
-                       <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
-                       {!cameraReady && !cameraError && (
-                         <div className="absolute inset-0 flex items-center justify-center">
-                           <div className="flex flex-col items-center gap-2">
-                             <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
-                             <span className="text-xs text-white/40">Loading...</span>
-                           </div>
-                         </div>
-                       )}
-                       {cameraError && (
-                         <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
-                           <div className="space-y-2">
-                             <div className="text-xs text-red-300">{cameraError}</div>
-                           </div>
-                         </div>
-                       )}
-                     </div>
-                     <button
-                       onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
-                       disabled={!cameraReady || !!cameraError}
-                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
-                     >
-                       Capture Face
-                     </button>
-                   </div>
-                 </div>
-               )
-             ) : (
-               // Upload mode - only show upload area if no frame exists
-               !frames.find(f => f.angle === REQUIRED_ANGLE) && (
-                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-                   <label className="flex h-96 cursor-pointer flex-col items-center justify-center p-8 text-center hover:bg-white/5 transition-all group">
-                     <div className="flex flex-col items-center gap-4">
-                       <div>
-                         <div className="text-sm text-white/60 mb-1">Drop image or click to browse</div>
-                         <div className="text-xs text-white/30">PNG, JPG up to 10MB</div>
-                       </div>
-                     </div>
-                     <input
-                       type="file"
-                       accept="image/*"
-                       className="hidden"
-                       onChange={(e) => {
-                         void handleFileSelected(REQUIRED_ANGLE, e.target.files);
-                         e.target.value = '';
-                       }}
-                     />
-                   </label>
-                 </div>
-               )
-             )}
+            {/* Capture Area */}
+            {source === "live"
+              ? // Camera mode - only show camera if no frame exists
+                !frames.find((f) => f.angle === REQUIRED_ANGLE) && (
+                  <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`h-2 w-2 rounded-full ${cameraReady ? "bg-emerald-400 animate-pulse" : "bg-yellow-400"}`}
+                          />
+                          <span className="text-xs text-white/60">
+                            {cameraReady ? "Ready" : "Initializing..."}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black aspect-video">
+                        <video
+                          ref={videoRef}
+                          className="w-full h-full object-cover scale-x-[-1]"
+                          playsInline
+                          muted
+                        />
+                        {!cameraReady && !cameraError && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="h-12 w-12 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+                              <span className="text-xs text-white/40">
+                                Loading...
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {cameraError && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
+                            <div className="space-y-2">
+                              <div className="text-xs text-red-300">
+                                {cameraError}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => void captureFromCamera(REQUIRED_ANGLE)}
+                        disabled={!cameraReady || !!cameraError}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-4 text-sm font-medium text-white hover:bg-white/15 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+                      >
+                        Capture Face
+                      </button>
+                    </div>
+                  </div>
+                )
+              : // Upload mode - only show upload area if no frame exists
+                !frames.find((f) => f.angle === REQUIRED_ANGLE) && (
+                  <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+                    <label className="flex h-96 cursor-pointer flex-col items-center justify-center p-8 text-center hover:bg-white/5 transition-all group">
+                      <div className="flex flex-col items-center gap-4">
+                        <div>
+                          <div className="text-sm text-white/60 mb-1">
+                            Drop image or click to browse
+                          </div>
+                          <div className="text-xs text-white/30">
+                            PNG, JPG up to 10MB
+                          </div>
+                        </div>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          void handleFileSelected(
+                            REQUIRED_ANGLE,
+                            e.target.files,
+                          );
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
 
-              {/* Face Preview - Only show when frame exists */}
-              {frames.find(f => f.angle === REQUIRED_ANGLE) && (
-                <div className="space-y-3">
-                  {/* Preview */}
-                  <div className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
-                    <div className="p-3">
-                      {frames.filter(f => f.angle === REQUIRED_ANGLE).map(frame => {
-                        const left = frame.bbox ? (frame.bbox[0] / frame.width) * 100 : 0;
-                        const top = frame.bbox ? (frame.bbox[1] / frame.height) * 100 : 0;
-                        const width = frame.bbox ? (frame.bbox[2] / frame.width) * 100 : 0;
-                        const height = frame.bbox ? (frame.bbox[3] / frame.height) * 100 : 0;
-                        
+            {/* Face Preview - Only show when frame exists */}
+            {frames.find((f) => f.angle === REQUIRED_ANGLE) && (
+              <div className="space-y-3">
+                {/* Preview */}
+                <div className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3">
+                    {frames
+                      .filter((f) => f.angle === REQUIRED_ANGLE)
+                      .map((frame) => {
+                        const left = frame.bbox
+                          ? (frame.bbox[0] / frame.width) * 100
+                          : 0;
+                        const top = frame.bbox
+                          ? (frame.bbox[1] / frame.height) * 100
+                          : 0;
+                        const width = frame.bbox
+                          ? (frame.bbox[2] / frame.width) * 100
+                          : 0;
+                        const height = frame.bbox
+                          ? (frame.bbox[3] / frame.height) * 100
+                          : 0;
+
                         return (
                           <div key={frame.id} className="space-y-2">
                             <div className="relative rounded-lg overflow-hidden bg-black">
-                              <img src={frame.dataUrl} alt={frame.label} className="w-full" />
-                              {frame.status === 'processing' && (
+                              <img
+                                src={frame.dataUrl}
+                                alt={frame.label}
+                                className="w-full"
+                              />
+                              {frame.status === "processing" && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/80">
                                   <div className="flex flex-col items-center gap-2">
                                     <div className="h-6 w-6 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
-                                    <span className="text-xs text-white/60">Analyzing...</span>
+                                    <span className="text-xs text-white/60">
+                                      Analyzing...
+                                    </span>
                                   </div>
                                 </div>
                               )}
-                              {frame.status === 'error' && (
+                              {frame.status === "error" && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-red-500/20 p-3 text-center">
                                   <div className="space-y-1">
                                     <div className="text-xl">⚠️</div>
-                                    <div className="text-xs text-red-200">{frame.error || 'Failed'}</div>
+                                    <div className="text-xs text-red-200">
+                                      {frame.error || "Failed"}
+                                    </div>
                                   </div>
                                 </div>
                               )}
-                              {frame.status !== 'error' && frame.bbox && (
+                              {frame.status !== "error" && frame.bbox && (
                                 <div
                                   className="absolute border-2 border-cyan-400 shadow-lg shadow-cyan-400/50"
-                                  style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
+                                  style={{
+                                    left: `${left}%`,
+                                    top: `${top}%`,
+                                    width: `${width}%`,
+                                    height: `${height}%`,
+                                  }}
                                 />
                               )}
                             </div>
                             {frame.confidence && (
                               <div className="flex items-center gap-2 text-xs">
                                 <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                  <div 
+                                  <div
                                     className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400"
-                                    style={{ width: `${frame.confidence * 100}%` }}
+                                    style={{
+                                      width: `${frame.confidence * 100}%`,
+                                    }}
                                   />
                                 </div>
-                                <span className="text-emerald-300">{(frame.confidence * 100).toFixed(0)}%</span>
+                                <span className="text-emerald-300">
+                                  {(frame.confidence * 100).toFixed(0)}%
+                                </span>
                               </div>
                             )}
                           </div>
                         );
                       })}
-                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={resetWorkflow}
-                  className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white/50 hover:bg-white/10 hover:text-white/70 transition-all"
-                >
-                  Reset
-                </button>
-                <button
-                  onClick={() => void handleRegister()}
-                  disabled={!framesReady || !selectedMemberId || isRegistering}
-                  className="flex-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 px-4 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/30 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
-                >
-                  {isRegistering ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="h-3 w-3 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                      <span>Processing...</span>
-                    </div>
-                  ) : (
-                    'Register'
-                  )}
-                </button>
               </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={resetWorkflow}
+                className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white/50 hover:bg-white/10 hover:text-white/70 transition-all"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => void handleRegister()}
+                disabled={!framesReady || !selectedMemberId || isRegistering}
+                className="flex-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 px-4 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/30 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+              >
+                {isRegistering ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="h-3 w-3 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  "Register"
+                )}
+              </button>
             </div>
+          </div>
         )}
       </div>
     </div>
   );
 }
-

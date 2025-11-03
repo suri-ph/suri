@@ -1,48 +1,45 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
-  plugins: [
-    react(),
-    tailwindcss()
-  ],
+  plugins: [react(), tailwindcss()],
   build: {
     outDir: "dist-react",
-    target: 'esnext',  // Enable modern features
-    minify: 'terser',   // Better minification
-    sourcemap: false,   // Disable sourcemaps for smaller bundles
+    target: "esnext", // Enable modern features
+    minify: "terser", // Better minification
+    sourcemap: false, // Disable sourcemaps for smaller bundles
     assetsInlineLimit: 0, // Don't inline fonts
     rollupOptions: {
       output: {
         manualChunks: {
           // Split large dependencies into separate chunks for better caching
-          vendor: ['react', 'react-dom'],
-          ui: ['@fortawesome/fontawesome-free']
+          vendor: ["react", "react-dom"],
+          ui: ["@fortawesome/fontawesome-free"],
         },
         assetFileNames: (assetInfo) => {
           // Keep fonts in their original structure
-          if (assetInfo.name && assetInfo.name.endsWith('.ttf')) {
-            return 'fonts/inter/[name][extname]';
+          if (assetInfo.name && assetInfo.name.endsWith(".ttf")) {
+            return "fonts/inter/[name][extname]";
           }
-          return 'assets/[name]-[hash][extname]';
-        }
-      }
-    }
+          return "assets/[name]-[hash][extname]";
+        },
+      },
+    },
   },
   server: {
     port: 3000,
     strictPort: false,
     headers: {
       // Enable COOP/COEP for SharedArrayBuffer and threading
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
-    }
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
   },
   define: {
     // Enable WASM threads
-    global: 'globalThis'
-  }
- })
+    global: "globalThis",
+  },
+});

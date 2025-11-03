@@ -3,13 +3,13 @@
  * Handles process lifecycle, health checks, and communication
  */
 
-import { spawn, exec, execSync, ChildProcess } from 'child_process';
-import { app } from 'electron';
-import path from 'path';
-import fs from 'fs';
-import { promisify } from 'util';
-import { fileURLToPath } from 'node:url';
-import isDev from './util.js';
+import { spawn, exec, execSync, ChildProcess } from "child_process";
+import { app } from "electron";
+import path from "path";
+import fs from "fs";
+import { promisify } from "util";
+import { fileURLToPath } from "node:url";
+import isDev from "./util.js";
 
 const sleep = promisify(setTimeout);
 const execAsync = promisify(exec);
@@ -92,17 +92,17 @@ export class BackendService {
 
   constructor(config: Partial<BackendConfig> = {}) {
     this.config = {
-      port: 8700, 
-      host: '127.0.0.1',
+      port: 8700,
+      host: "127.0.0.1",
       timeout: 30000,
       maxRetries: 3,
       healthCheckInterval: 10000,
-      ...config
+      ...config,
     };
 
     this.status = {
       isRunning: false,
-      port: this.config.port
+      port: this.config.port,
     };
   }
 
@@ -113,19 +113,20 @@ export class BackendService {
     if (isDev()) {
       // In development, use Python script
       const currentDir = path.dirname(fileURLToPath(import.meta.url));
-      const serverDir = path.join(currentDir, '..', '..', '..', 'server');
-      return path.join(serverDir, 'run.py');
+      const serverDir = path.join(currentDir, "..", "..", "..", "server");
+      return path.join(serverDir, "run.py");
     } else {
       // In production, use PyInstaller executable
       const platform = process.platform;
-      const executableName = platform === 'win32' ? 'suri-backend.exe' : 'suri-backend';
-      
+      const executableName =
+        platform === "win32" ? "suri-backend.exe" : "suri-backend";
+
       // Try multiple possible locations
       const possiblePaths = [
-        path.join(process.resourcesPath, 'server', executableName),
+        path.join(process.resourcesPath, "server", executableName),
         path.join(process.resourcesPath, executableName),
-        path.join(app.getAppPath(), 'server', executableName),
-        path.join(app.getAppPath(), 'resources', 'server', executableName),
+        path.join(app.getAppPath(), "server", executableName),
+        path.join(app.getAppPath(), "resources", "server", executableName),
       ];
 
       for (const execPath of possiblePaths) {
@@ -134,7 +135,9 @@ export class BackendService {
         }
       }
 
-      throw new Error(`Server executable not found. Searched paths: ${possiblePaths.join(', ')}`);
+      throw new Error(
+        `Server executable not found. Searched paths: ${possiblePaths.join(", ")}`,
+      );
     }
   }
 
@@ -144,22 +147,22 @@ export class BackendService {
   private async findPythonExecutable(): Promise<string> {
     const possiblePaths = [
       // Try virtual environment first (if it exists)
-      path.join(process.cwd(), '..', 'venv', 'Scripts', 'python.exe'),
-      path.join(process.cwd(), '..', 'venv', 'bin', 'python'),
-      path.join(process.cwd(), 'venv', 'Scripts', 'python.exe'),
-      path.join(process.cwd(), 'venv', 'bin', 'python'),
+      path.join(process.cwd(), "..", "venv", "Scripts", "python.exe"),
+      path.join(process.cwd(), "..", "venv", "bin", "python"),
+      path.join(process.cwd(), "venv", "Scripts", "python.exe"),
+      path.join(process.cwd(), "venv", "bin", "python"),
       // Try system Python
-      'python',
-      'python3',
-      'python.exe',
+      "python",
+      "python3",
+      "python.exe",
       // Try common Python installations
-      'C:\\Python39\\python.exe',
-      'C:\\Python310\\python.exe',
-      'C:\\Python311\\python.exe',
-      'C:\\Python312\\python.exe',
-      '/usr/bin/python3',
-      '/usr/local/bin/python3',
-      '/opt/homebrew/bin/python3'
+      "C:\\Python39\\python.exe",
+      "C:\\Python310\\python.exe",
+      "C:\\Python311\\python.exe",
+      "C:\\Python312\\python.exe",
+      "/usr/bin/python3",
+      "/usr/local/bin/python3",
+      "/opt/homebrew/bin/python3",
     ];
 
     for (const pythonPath of possiblePaths) {
@@ -168,14 +171,14 @@ export class BackendService {
         if (fs.existsSync(pythonPath)) {
           // Test if it's actually Python by checking version
           const result = await execAsync(`"${pythonPath}" --version`);
-          if (result.stdout.includes('Python')) {
+          if (result.stdout.includes("Python")) {
             return pythonPath;
           }
-        } else if (!pythonPath.includes('\\') && !pythonPath.includes('/')) {
+        } else if (!pythonPath.includes("\\") && !pythonPath.includes("/")) {
           // For system commands like 'python' or 'python3', test directly
           try {
             const result = await execAsync(`${pythonPath} --version`);
-            if (result.stdout.includes('Python')) {
+            if (result.stdout.includes("Python")) {
               return pythonPath;
             }
           } catch {
@@ -187,7 +190,9 @@ export class BackendService {
       }
     }
 
-    throw new Error('Python executable not found. Please ensure Python is installed and accessible.');
+    throw new Error(
+      "Python executable not found. Please ensure Python is installed and accessible.",
+    );
   }
 
   /**
@@ -195,16 +200,19 @@ export class BackendService {
    */
   private async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(`http://${this.config.host}:${this.config.port}/`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000)
-      });
-      
+      const response = await fetch(
+        `http://${this.config.host}:${this.config.port}/`,
+        {
+          method: "GET",
+          signal: AbortSignal.timeout(5000),
+        },
+      );
+
       const isHealthy = response.ok;
       if (isHealthy) {
         this.status.lastHealthCheck = new Date();
       }
-      
+
       return isHealthy;
     } catch {
       return false;
@@ -242,16 +250,27 @@ export class BackendService {
       if (isDev()) {
         // Development mode - find Python executable (with or without venv)
         command = await this.findPythonExecutable();
-        args = [executablePath, '--port', this.config.port.toString(), '--host', this.config.host];
+        args = [
+          executablePath,
+          "--port",
+          this.config.port.toString(),
+          "--host",
+          this.config.host,
+        ];
       } else {
         // Production mode - use PyInstaller executable
         command = executablePath;
-        args = ['--port', this.config.port.toString(), '--host', this.config.host];
+        args = [
+          "--port",
+          this.config.port.toString(),
+          "--host",
+          this.config.host,
+        ];
       }
 
       // Spawn the process
       this.process = spawn(command, args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ["pipe", "pipe", "pipe"],
         detached: false,
         windowsHide: false,
       });
@@ -269,11 +288,10 @@ export class BackendService {
 
       // Start health monitoring
       this.startHealthMonitoring();
-
-
     } catch (error) {
       console.error(`[BackendService] Failed to start backend: ${error}`);
-      this.status.error = error instanceof Error ? error.message : String(error);
+      this.status.error =
+        error instanceof Error ? error.message : String(error);
       this.cleanup();
       throw error;
     } finally {
@@ -288,24 +306,27 @@ export class BackendService {
     if (!this.process) return;
 
     // Pipe stdout for important startup logs
-    this.process.stdout?.on('data', (data) => {
+    this.process.stdout?.on("data", (data) => {
       const output = data.toString().trim();
       // Only log important startup messages
-      if (output.includes('Starting server') || output.includes('Uvicorn running')) {
-        console.log('[Backend]', output);
+      if (
+        output.includes("Starting server") ||
+        output.includes("Uvicorn running")
+      ) {
+        console.log("[Backend]", output);
       }
     });
 
-    this.process.stderr?.on('data', (data) => {
-      console.error('[Backend Error]', data.toString().trim());
+    this.process.stderr?.on("data", (data) => {
+      console.error("[Backend Error]", data.toString().trim());
     });
 
-    this.process.on('error', (error) => {
+    this.process.on("error", (error) => {
       this.status.error = error.message;
       this.status.isRunning = false;
     });
 
-    this.process.on('exit', () => {
+    this.process.on("exit", () => {
       this.status.isRunning = false;
       this.cleanup();
     });
@@ -352,36 +373,34 @@ export class BackendService {
    */
   async stop(): Promise<void> {
     try {
-      if (process.platform === 'win32') {
+      if (process.platform === "win32") {
         // Windows: Kill ALL suri-backend.exe processes (multiple attempts)
         for (let i = 0; i < 3; i++) {
           try {
-            await execAsync('taskkill /F /IM suri-backend.exe /T');
+            await execAsync("taskkill /F /IM suri-backend.exe /T");
             await sleep(200); // Wait between attempts
           } catch (error: any) {
             // Process not found = all killed
-            if (error.message?.includes('not found') || error.code === 128) {
+            if (error.message?.includes("not found") || error.code === 128) {
               break;
             }
           }
         }
-        
       } else {
         // Unix/Mac: Kill all suri-backend processes with verification
         for (let i = 0; i < 3; i++) {
           try {
             // Check if processes exist
-            const checkResult = await execAsync('pgrep -f suri-backend');
-            
+            const checkResult = await execAsync("pgrep -f suri-backend");
+
             // If empty, all killed
             if (!checkResult.stdout.trim()) {
               break;
             }
-            
+
             // Kill all
-            await execAsync('pkill -9 suri-backend');
+            await execAsync("pkill -9 suri-backend");
             await sleep(200);
-            
           } catch {
             // pgrep error = no processes = success
             break;
@@ -390,8 +409,8 @@ export class BackendService {
       }
     } catch (error: any) {
       // Process not found is OK
-      if (!error.message?.includes('not found')) {
-        console.error('[BackendService] Error stopping:', error);
+      if (!error.message?.includes("not found")) {
+        console.error("[BackendService] Error stopping:", error);
       }
     }
 
@@ -407,87 +426,98 @@ export class BackendService {
    * AGGRESSIVE: Keeps retrying until NO processes remain
    */
   private killAllBackendProcesses(): void {
-    if (process.platform !== 'win32') {
+    if (process.platform !== "win32") {
       // Unix/Mac: Kill all suri-backend processes with verification
       let attempts = 0;
       const maxAttempts = 3;
-      
+
       while (attempts < maxAttempts) {
         attempts++;
-        
+
         try {
           // Check if any processes exist
-          const checkResult = execSync('pgrep -f suri-backend', { 
-            encoding: 'utf8',
-            timeout: 2000
+          const checkResult = execSync("pgrep -f suri-backend", {
+            encoding: "utf8",
+            timeout: 2000,
           });
-          
+
           // If no PIDs returned, we're done
           if (!checkResult.trim()) {
             return;
           }
-          
+
           // Processes exist - kill them
-          execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
-          
+          execSync("pkill -9 suri-backend", { stdio: "ignore", timeout: 2000 });
+
           // Wait for processes to die
           const start = Date.now();
           while (Date.now() - start < 300) {}
-          
         } catch {
           // pgrep returns non-zero if no matches = all killed = success
           return;
         }
       }
-      
+
       return;
     }
-    
+
     // Windows: AGGRESSIVE cleanup with verification
     let attempts = 0;
     const maxAttempts = 5;
-    
+
     while (attempts < maxAttempts) {
       attempts++;
-      
+
       try {
         // Check if any processes exist
-        const checkResult = execSync('tasklist /FI "IMAGENAME eq suri-backend.exe" /NH', { 
-          encoding: 'utf8',
-          timeout: 2000
-        });
-        
+        const checkResult = execSync(
+          'tasklist /FI "IMAGENAME eq suri-backend.exe" /NH',
+          {
+            encoding: "utf8",
+            timeout: 2000,
+          },
+        );
+
         // If no processes found, we're done
-        if (checkResult.includes('INFO: No tasks') || !checkResult.includes('suri-backend.exe')) {
+        if (
+          checkResult.includes("INFO: No tasks") ||
+          !checkResult.includes("suri-backend.exe")
+        ) {
           return;
         }
-        
+
         // Processes exist - kill them ALL
         // Strategy 1: Kill by image name
         try {
-          execSync('taskkill /F /IM suri-backend.exe /T', { 
-            stdio: 'ignore',
-            timeout: 2000 
+          execSync("taskkill /F /IM suri-backend.exe /T", {
+            stdio: "ignore",
+            timeout: 2000,
           });
         } catch {
           // Continue
         }
-        
+
         // Strategy 2: Kill each PID individually
         try {
-          const pidsOutput = execSync('tasklist /FI "IMAGENAME eq suri-backend.exe" /NH /FO CSV', {
-            encoding: 'utf8',
-            timeout: 2000
-          });
-          
-          const lines = pidsOutput.split('\n');
+          const pidsOutput = execSync(
+            'tasklist /FI "IMAGENAME eq suri-backend.exe" /NH /FO CSV',
+            {
+              encoding: "utf8",
+              timeout: 2000,
+            },
+          );
+
+          const lines = pidsOutput.split("\n");
           for (const line of lines) {
-            if (line.includes('suri-backend.exe')) {
+            if (line.includes("suri-backend.exe")) {
               const match = line.match(/"(\d+)"/);
               if (match && match[1]) {
                 const pid = match[1];
                 try {
-                  execSync(`taskkill /F /PID ${pid} /T`, { stdio: 'ignore', timeout: 1000 });
+                  execSync(`taskkill /F /PID ${pid} /T`, {
+                    stdio: "ignore",
+                    timeout: 1000,
+                  });
                 } catch {
                   // OK
                 }
@@ -497,14 +527,13 @@ export class BackendService {
         } catch {
           // OK
         }
-        
+
         // Wait 300ms for processes to die
         const start = Date.now();
         while (Date.now() - start < 300) {}
-        
       } catch (error: any) {
         // Error checking or killing - might mean processes are gone
-        if (error.message?.includes('not found')) {
+        if (error.message?.includes("not found")) {
           return;
         }
       }
@@ -516,91 +545,99 @@ export class BackendService {
    * AGGRESSIVE: Keeps killing until NO processes remain
    */
   killSync(): void {
-    if (process.platform !== 'win32') {
+    if (process.platform !== "win32") {
       // Unix/Mac: Kill all with verification
       let attempts = 0;
       const maxAttempts = 3;
-      
+
       while (attempts < maxAttempts) {
         attempts++;
-        
+
         try {
           // Check if any processes exist
-          const checkResult = execSync('pgrep -f suri-backend', { 
-            encoding: 'utf8',
-            timeout: 2000
+          const checkResult = execSync("pgrep -f suri-backend", {
+            encoding: "utf8",
+            timeout: 2000,
           });
-          
+
           // No processes found = success
           if (!checkResult.trim()) {
             break;
           }
-          
+
           // Processes still exist - kill them
-          execSync('pkill -9 suri-backend', { stdio: 'ignore', timeout: 2000 });
-          
+          execSync("pkill -9 suri-backend", { stdio: "ignore", timeout: 2000 });
+
           // Wait for processes to die
           const start = Date.now();
           while (Date.now() - start < 300) {}
-          
         } catch {
           // pgrep error = no processes found = success
           break;
         }
       }
-      
+
       this.cleanup();
       return;
     }
-    
+
     // Windows: AGGRESSIVE kill with verification
     let attempts = 0;
     const maxAttempts = 5;
-    
+
     while (attempts < maxAttempts) {
       attempts++;
-      
+
       try {
         // Check if any backend processes still exist
-        const checkResult = execSync('tasklist /FI "IMAGENAME eq suri-backend.exe" /NH', { 
-          encoding: 'utf8',
-          timeout: 2000
-        });
-        
+        const checkResult = execSync(
+          'tasklist /FI "IMAGENAME eq suri-backend.exe" /NH',
+          {
+            encoding: "utf8",
+            timeout: 2000,
+          },
+        );
+
         // No processes found = success
-        if (checkResult.includes('INFO: No tasks') || !checkResult.includes('suri-backend.exe')) {
+        if (
+          checkResult.includes("INFO: No tasks") ||
+          !checkResult.includes("suri-backend.exe")
+        ) {
           break;
         }
-        
+
         // Processes still exist - kill them
         // Strategy 1: Kill by image name with tree
         try {
-          execSync('taskkill /F /IM suri-backend.exe /T', { 
-            stdio: 'ignore',
-            timeout: 2000 
+          execSync("taskkill /F /IM suri-backend.exe /T", {
+            stdio: "ignore",
+            timeout: 2000,
           });
         } catch {
           // Continue to strategy 2
         }
-        
+
         // Strategy 2: Find all PIDs and kill each individually
         try {
-          const pidsOutput = execSync('tasklist /FI "IMAGENAME eq suri-backend.exe" /NH /FO CSV', {
-            encoding: 'utf8',
-            timeout: 2000
-          });
-          
+          const pidsOutput = execSync(
+            'tasklist /FI "IMAGENAME eq suri-backend.exe" /NH /FO CSV',
+            {
+              encoding: "utf8",
+              timeout: 2000,
+            },
+          );
+
           // Parse PIDs from CSV output
-          const lines = pidsOutput.split('\n');
+          const lines = pidsOutput.split("\n");
           for (const line of lines) {
-            if (line.includes('suri-backend.exe')) {
+            if (line.includes("suri-backend.exe")) {
               const match = line.match(/"(\d+)"/);
               if (match && match[1]) {
                 const pid = match[1];
                 try {
-                  execSync(`taskkill /F /PID ${pid} /T`, { 
-                    stdio: 'ignore',
-                    timeout: 1000 
+                  execSync(`taskkill /F /PID ${pid} /T`, {
+                    stdio: "ignore",
+                    timeout: 1000,
                   });
                 } catch {
                   // OK if already dead
@@ -611,19 +648,18 @@ export class BackendService {
         } catch {
           // OK if can't parse
         }
-        
+
         // Wait for processes to die
         const start = Date.now();
         while (Date.now() - start < 300) {}
-        
       } catch (error: any) {
         // Errors might mean processes are gone
-        if (error.message?.includes('not found')) {
+        if (error.message?.includes("not found")) {
           break;
         }
       }
     }
-    
+
     // Cleanup state
     this.process = null;
     this.status.isRunning = false;
@@ -677,22 +713,26 @@ export class BackendService {
   /**
    * Check backend availability for IPC
    */
-  async checkAvailability(): Promise<{ available: boolean; status?: number; error?: string }> {
+  async checkAvailability(): Promise<{
+    available: boolean;
+    status?: number;
+    error?: string;
+  }> {
     try {
       if (!this.status.isRunning) {
-        return { available: false, error: 'Backend service not started' };
+        return { available: false, error: "Backend service not started" };
       }
 
       const response = await fetch(`${this.getUrl()}/`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
       });
 
       return { available: response.ok, status: response.status };
     } catch (error) {
-      return { 
-        available: false, 
-        error: error instanceof Error ? error.message : String(error) 
+      return {
+        available: false,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -700,50 +740,70 @@ export class BackendService {
   /**
    * Check if backend is fully ready for face recognition (models loaded)
    */
-  async checkReadiness(): Promise<{ ready: boolean; modelsLoaded: boolean; error?: string }> {
+  async checkReadiness(): Promise<{
+    ready: boolean;
+    modelsLoaded: boolean;
+    error?: string;
+  }> {
     try {
       if (!this.status.isRunning) {
-        return { ready: false, modelsLoaded: false, error: 'Backend service not started' };
+        return {
+          ready: false,
+          modelsLoaded: false,
+          error: "Backend service not started",
+        };
       }
 
       // First check basic availability
       const healthResponse = await fetch(`${this.getUrl()}/`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
       });
 
       if (!healthResponse.ok) {
-        return { ready: false, modelsLoaded: false, error: 'Backend health check failed' };
+        return {
+          ready: false,
+          modelsLoaded: false,
+          error: "Backend health check failed",
+        };
       }
 
       // Then check if models are loaded and ready
       const modelsResponse = await fetch(`${this.getUrl()}/models`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(10000)
+        method: "GET",
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!modelsResponse.ok) {
-        return { ready: false, modelsLoaded: false, error: 'Models endpoint not available' };
+        return {
+          ready: false,
+          modelsLoaded: false,
+          error: "Models endpoint not available",
+        };
       }
 
       const modelsData: ModelsResponse = await modelsResponse.json();
-      
+
       // Check if critical models for face recognition are available
-      const faceDetectorAvailable = modelsData.models.face_detector?.available || false;
-      const faceRecognizerAvailable = modelsData.models.face_recognizer?.available || false;
-      
+      const faceDetectorAvailable =
+        modelsData.models.face_detector?.available || false;
+      const faceRecognizerAvailable =
+        modelsData.models.face_recognizer?.available || false;
+
       const modelsLoaded = faceDetectorAvailable && faceRecognizerAvailable;
-      
-      return { 
-        ready: modelsLoaded, 
+
+      return {
+        ready: modelsLoaded,
         modelsLoaded,
-        error: modelsLoaded ? undefined : 'Face recognition models not fully loaded'
+        error: modelsLoaded
+          ? undefined
+          : "Face recognition models not fully loaded",
       };
     } catch (error) {
-      return { 
-        ready: false, 
+      return {
+        ready: false,
         modelsLoaded: false,
-        error: error instanceof Error ? error.message : String(error) 
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -753,8 +813,8 @@ export class BackendService {
    */
   async getModels(): Promise<ModelsResponse> {
     const response = await fetch(`${this.getUrl()}/models`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(10000)
+      method: "GET",
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -767,21 +827,24 @@ export class BackendService {
   /**
    * Detect faces using backend API
    */
-  async detectFaces(imageBase64: string, options: DetectionOptions = {}): Promise<DetectionResponse> {
-      const request = {
-        image: imageBase64,
-        model_type: options.model_type || 'face_detector',
-        confidence_threshold: options.confidence_threshold || 0.5,
-        nms_threshold: options.nms_threshold || 0.3
+  async detectFaces(
+    imageBase64: string,
+    options: DetectionOptions = {},
+  ): Promise<DetectionResponse> {
+    const request = {
+      image: imageBase64,
+      model_type: options.model_type || "face_detector",
+      confidence_threshold: options.confidence_threshold || 0.5,
+      nms_threshold: options.nms_threshold || 0.3,
     };
 
     const response = await fetch(`${this.getUrl()}/detect`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
@@ -797,21 +860,27 @@ export class BackendService {
   /**
    * Recognize a face using backend API
    */
-  async recognizeFace(imageBase64: string, bbox: number[], _groupId?: string, landmarks_5?: number[][], enableLivenessDetection: boolean = true): Promise<FaceRecognitionResponse> {
+  async recognizeFace(
+    imageBase64: string,
+    bbox: number[],
+    _groupId?: string,
+    landmarks_5?: number[][],
+    enableLivenessDetection: boolean = true,
+  ): Promise<FaceRecognitionResponse> {
     const request = {
       image: imageBase64,
       bbox: bbox,
       landmarks_5: landmarks_5,
-      enable_liveness_detection: enableLivenessDetection
+      enable_liveness_detection: enableLivenessDetection,
     };
 
     const response = await fetch(`${this.getUrl()}/face/recognize`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {

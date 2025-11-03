@@ -1,4 +1,4 @@
-import { Dropdown } from '../../shared/Dropdown';
+import { Dropdown } from "../../shared/Dropdown";
 
 interface ControlBarProps {
   cameraDevices: MediaDeviceInfo[];
@@ -51,13 +51,12 @@ export function ControlBar({
         <button
           onClick={isStreaming ? stopCamera : startCamera}
           className={`px-4 rounded-lg font-medium text-sm transition-all duration-200 ease-in-out ${
-            isStreaming ? 'btn-error' : 'btn-success'
+            isStreaming ? "btn-error" : "btn-success"
           }`}
         >
-          {isStreaming ? 'Stop Scan' : 'Start Scan'}
+          {isStreaming ? "Stop Scan" : "Start Scan"}
         </button>
       </div>
     </div>
   );
 }
-

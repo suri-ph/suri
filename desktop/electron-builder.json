@@ -1,38 +1,35 @@
-{     
-    "files": [
-        "dist-electron/**/*",
-        "dist-react/**/*"
-    ],
-    "appId": "com.suri.app",
-    "productName": "suri",
-    "icon": "./suri_icon.png",
-    "beforePack": "scripts/before-pack.cjs",
-    "win": {
-        "target": ["portable", "msi"],
-        "extraResources": [
-            {
-                "from": "../server/dist/suri-backend.exe",
-                "to": "server/suri-backend.exe"
-            }
-        ]
-    },
-    "linux": {
-        "target": "AppImage",
-        "category": "utility",
-        "extraResources": [
-            {
-                "from": "../server/dist/suri-backend",
-                "to": "server/suri-backend"
-            }
-        ]
-    },
-    "mac": {
-        "target": "dmg",
-        "extraResources": [
-            {
-                "from": "../server/dist/suri-backend",
-                "to": "server/suri-backend"
-            }
-        ]
-    }
+{
+  "files": ["dist-electron/**/*", "dist-react/**/*"],
+  "appId": "com.suri.app",
+  "productName": "suri",
+  "icon": "./suri_icon.png",
+  "beforePack": "scripts/before-pack.cjs",
+  "win": {
+    "target": ["portable", "msi"],
+    "extraResources": [
+      {
+        "from": "../server/dist/suri-backend.exe",
+        "to": "server/suri-backend.exe"
+      }
+    ]
+  },
+  "linux": {
+    "target": "AppImage",
+    "category": "utility",
+    "extraResources": [
+      {
+        "from": "../server/dist/suri-backend",
+        "to": "server/suri-backend"
+      }
+    ]
+  },
+  "mac": {
+    "target": "dmg",
+    "extraResources": [
+      {
+        "from": "../server/dist/suri-backend",
+        "to": "server/suri-backend"
+      }
+    ]
+  }
 }

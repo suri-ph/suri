@@ -1,22 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 // Types
-export type { GroupSection } from './types';
-import type { GroupPanelProps } from './types';
+export type { GroupSection } from "./types";
+import type { GroupPanelProps } from "./types";
 
 // Custom Hooks
-import { useGroupData } from './hooks/useGroupData';
-import { useGroupModals } from './hooks/useGroupModals';
+import { useGroupData } from "./hooks/useGroupData";
+import { useGroupModals } from "./hooks/useGroupModals";
 
 // Components
-import { GroupSidebar } from './components/GroupSidebar';
-import { MobileDrawer } from './components/MobileDrawer';
-import { ErrorBanner } from './components/ErrorBanner';
-import { GroupContent } from './components/GroupContent';
-import { GroupModals } from './components/GroupModals';
+import { GroupSidebar } from "./components/GroupSidebar";
+import { MobileDrawer } from "./components/MobileDrawer";
+import { ErrorBanner } from "./components/ErrorBanner";
+import { GroupContent } from "./components/GroupContent";
+import { GroupModals } from "./components/GroupModals";
 
-export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChanged, isEmbedded = false }: GroupPanelProps) {
-  const [activeSection, setActiveSection] = useState(initialSection ?? 'overview');
+export function GroupPanel({
+  onBack,
+  initialSection,
+  initialGroup,
+  onGroupsChanged,
+  isEmbedded = false,
+}: GroupPanelProps) {
+  const [activeSection, setActiveSection] = useState(
+    initialSection ?? "overview",
+  );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
@@ -54,12 +62,16 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
   const handleDeleteGroup = async () => {
     if (!selectedGroup) return;
 
-    if (!confirm(`Delete group "${selectedGroup.name}"? This will remove all members and attendance records.`)) {
+    if (
+      !confirm(
+        `Delete group "${selectedGroup.name}"? This will remove all members and attendance records.`,
+      )
+    ) {
       return;
     }
 
     await deleteGroup(selectedGroup.id);
-    
+
     // Notify parent component that groups have changed
     if (onGroupsChanged) {
       onGroupsChanged();
@@ -92,17 +104,17 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
 
   // Restore sidebar state from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('suri_group_sidebar_collapsed');
+    const saved = localStorage.getItem("suri_group_sidebar_collapsed");
     if (saved !== null) {
-      setIsSidebarCollapsed(saved === 'true');
+      setIsSidebarCollapsed(saved === "true");
     }
   }, []);
 
   // Save sidebar state to localStorage
   const handleToggleSidebar = () => {
-    setIsSidebarCollapsed(prev => {
+    setIsSidebarCollapsed((prev) => {
       const newValue = !prev;
-      localStorage.setItem('suri_group_sidebar_collapsed', String(newValue));
+      localStorage.setItem("suri_group_sidebar_collapsed", String(newValue));
       return newValue;
     });
   };
@@ -112,7 +124,9 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
     return (
       <>
         {/* Error Banner */}
-        {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
+        {error && (
+          <ErrorBanner error={error} onDismiss={() => setError(null)} />
+        )}
 
         {/* Main Content Area - Full width when embedded */}
         <div className="h-full overflow-hidden bg-[#0f0f0f]">
@@ -121,7 +135,9 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
             groups={groups}
             members={members}
             activeSection={activeSection}
-            onMembersChange={() => selectedGroup && fetchGroupDetails(selectedGroup.id)}
+            onMembersChange={() =>
+              selectedGroup && fetchGroupDetails(selectedGroup.id)
+            }
             onEditMember={openEditMember}
             onAddMember={openAddMember}
             onEditGroup={openEditGroup}
@@ -169,7 +185,7 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
           </button>
           <div className="flex-1 min-w-0 text-right">
             <div className="text-xs text-white/50 truncate">
-              {selectedGroup ? selectedGroup.name : 'No group selected'}
+              {selectedGroup ? selectedGroup.name : "No group selected"}
             </div>
           </div>
         </div>
@@ -209,7 +225,9 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
           groups={groups}
           members={members}
           activeSection={activeSection}
-          onMembersChange={() => selectedGroup && fetchGroupDetails(selectedGroup.id)}
+          onMembersChange={() =>
+            selectedGroup && fetchGroupDetails(selectedGroup.id)
+          }
           onEditMember={openEditMember}
           onAddMember={openAddMember}
           onEditGroup={openEditGroup}
@@ -237,4 +255,3 @@ export function GroupPanel({ onBack, initialSection, initialGroup, onGroupsChang
     </div>
   );
 }
-

@@ -1,9 +1,12 @@
-import type { AttendanceGroup, AttendanceMember } from '../../../types/recognition';
+import type {
+  AttendanceGroup,
+  AttendanceMember,
+} from "../../../types/recognition";
 
-import { AddMember } from '../modals/AddMember';
-import { EditMember } from '../modals/EditMember';
-import { CreateGroup } from '../modals/CreateGroup';
-import { EditGroup } from '../modals/EditGroup';
+import { AddMember } from "../modals/AddMember";
+import { EditMember } from "../modals/EditMember";
+import { CreateGroup } from "../modals/CreateGroup";
+import { EditGroup } from "../modals/EditGroup";
 
 interface GroupModalsProps {
   selectedGroup: AttendanceGroup | null;
@@ -69,4 +72,3 @@ export function GroupModals({
     </>
   );
 }
-

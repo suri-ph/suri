@@ -8,14 +8,14 @@ interface FormInputProps {
   focusColor?: string;
 }
 
-export function FormInput({ 
-  type = "text", 
-  value, 
-  onChange, 
-  placeholder, 
-  disabled = false, 
+export function FormInput({
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
   className = "",
-  focusColor = "border-white/20"
+  focusColor = "border-white/20",
 }: FormInputProps) {
   return (
     <input

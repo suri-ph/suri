@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { attendanceManager } from '../../../services/AttendanceManager.js';
-import type { AttendanceGroup } from '../../../types/recognition.js';
-import { ErrorMessage } from '../../common/ErrorMessage';
-import { FormInput } from '../../common/FormInput';
-import { FormTextarea } from '../../common/FormTextarea';
+import { useState } from "react";
+import { attendanceManager } from "../../../services/AttendanceManager.js";
+import type { AttendanceGroup } from "../../../types/recognition.js";
+import { ErrorMessage } from "../../common/ErrorMessage";
+import { FormInput } from "../../common/FormInput";
+import { FormTextarea } from "../../common/FormTextarea";
 
 interface CreateGroupProps {
   onClose: () => void;
@@ -11,8 +11,8 @@ interface CreateGroupProps {
 }
 
 export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,13 +25,13 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
     try {
       const newGroup = await attendanceManager.createGroup(
         name.trim(),
-        description.trim() || undefined
+        description.trim() || undefined,
       );
       onSuccess(newGroup);
       onClose();
     } catch (err) {
-      console.error('Error creating group:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create group');
+      console.error("Error creating group:", err);
+      setError(err instanceof Error ? err.message : "Failed to create group");
     } finally {
       setLoading(false);
     }
@@ -41,11 +41,11 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
       <div className="bg-[#0f0f0f] border border-white/10 rounded-3xl p-6 w-full max-w-lg shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
         <h3 className="text-xl font-semibold mb-2">Create New Group</h3>
-        <p className="text-sm text-white/60 mb-4">Set up a new attendance group</p>
+        <p className="text-sm text-white/60 mb-4">
+          Set up a new attendance group
+        </p>
 
-        {error && (
-          <ErrorMessage message={error} />
-        )}
+        {error && <ErrorMessage message={error} />}
 
         <div className="grid gap-4">
           <label className="text-sm">
@@ -59,7 +59,9 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
           </label>
 
           <label className="text-sm">
-            <span className="text-white/60 block mb-2">Description (optional)</span>
+            <span className="text-white/60 block mb-2">
+              Description (optional)
+            </span>
             <FormTextarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
@@ -81,11 +83,10 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
             disabled={!name.trim() || loading}
             className="btn-success text-sm px-4 py-2 disabled:opacity-50"
           >
-            {loading ? 'Creating…' : 'Create Group'}
+            {loading ? "Creating…" : "Create Group"}
           </button>
         </div>
       </div>
     </div>
   );
 }
-

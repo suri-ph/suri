@@ -1,57 +1,61 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
 export default function WindowBar() {
-  const [isMaximized, setIsMaximized] = useState(false)
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     // Listen for window state changes
-    const handleMaximize = () => setIsMaximized(true)
-    const handleUnmaximize = () => setIsMaximized(false)
+    const handleMaximize = () => setIsMaximized(true);
+    const handleUnmaximize = () => setIsMaximized(false);
 
-    let cleanupMaximize: (() => void) | undefined
-    let cleanupUnmaximize: (() => void) | undefined
+    let cleanupMaximize: (() => void) | undefined;
+    let cleanupUnmaximize: (() => void) | undefined;
 
     if (window.suriElectron) {
-      cleanupMaximize = window.suriElectron.onMaximize(handleMaximize)
-      cleanupUnmaximize = window.suriElectron.onUnmaximize(handleUnmaximize)
+      cleanupMaximize = window.suriElectron.onMaximize(handleMaximize);
+      cleanupUnmaximize = window.suriElectron.onUnmaximize(handleUnmaximize);
     }
 
     return () => {
-      if (cleanupMaximize) cleanupMaximize()
-      if (cleanupUnmaximize) cleanupUnmaximize()
-    }
-  }, [])
+      if (cleanupMaximize) cleanupMaximize();
+      if (cleanupUnmaximize) cleanupUnmaximize();
+    };
+  }, []);
 
   const handleMinimize = () => {
     if (window.suriElectron) {
-      window.suriElectron.minimize()
+      window.suriElectron.minimize();
     }
-  }
+  };
 
   const handleMaximize = () => {
     if (window.suriElectron) {
-      window.suriElectron.maximize()
+      window.suriElectron.maximize();
     }
-  }
+  };
 
   const handleClose = () => {
     if (window.suriElectron) {
-      window.suriElectron.close()
+      window.suriElectron.close();
     }
-  }
+  };
 
   return (
-    <div 
+    <div
       className="z-60 absolute top-0 w-full h-auto bg-gradient-surface flex items-center justify-between select-none flex-shrink-0 border-b border-white/[0.08]"
-      style={{ WebkitAppRegion: isMaximized ? 'no-drag' : 'drag' } as React.CSSProperties}
+      style={
+        {
+          WebkitAppRegion: isMaximized ? "no-drag" : "drag",
+        } as React.CSSProperties
+      }
     >
       <div className="flex items-center ml-3 space-x-2 flex-1">
         <div className="text-white text-sm font-medium">SURI</div>
       </div>
 
-      <div 
+      <div
         className="flex items-center [webkit-app-region:no-drag]"
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <button
           onClick={handleMinimize}
@@ -64,13 +68,13 @@ export default function WindowBar() {
         <button
           onClick={handleMaximize}
           className="w-11.5 h-9 flex items-center justify-center text-white/40 hover:bg-white/10 transition-all duration-200 border-none bg-transparent p-0 rounded"
-          title={isMaximized ? 'Restore' : 'Maximize'}
+          title={isMaximized ? "Restore" : "Maximize"}
         >
-            {isMaximized ? (
-              <i className="far fa-window-restore text-[11px]"></i>
-            ) : (
-              <i className="far fa-square text-[11px]"></i>
-            )}
+          {isMaximized ? (
+            <i className="far fa-window-restore text-[11px]"></i>
+          ) : (
+            <i className="far fa-square text-[11px]"></i>
+          )}
         </button>
 
         <button
@@ -82,5 +86,5 @@ export default function WindowBar() {
         </button>
       </div>
     </div>
-  )
+  );
 }

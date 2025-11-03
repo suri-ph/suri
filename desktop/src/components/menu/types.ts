@@ -1,6 +1,11 @@
-import type { AttendanceGroup } from '../../types/recognition';
+import type { AttendanceGroup } from "../../types/recognition";
 
-export type MenuSection = 'overview' | 'members' | 'reports' | 'registration' | 'settings';
+export type MenuSection =
+  | "overview"
+  | "members"
+  | "reports"
+  | "registration"
+  | "settings";
 
 export interface MenuProps {
   onBack: () => void;
@@ -9,4 +14,3 @@ export interface MenuProps {
   onGroupsChanged?: () => void; // Callback when groups are created/deleted
   isEmbedded?: boolean; // Whether Menu is embedded in Settings or standalone
 }
-

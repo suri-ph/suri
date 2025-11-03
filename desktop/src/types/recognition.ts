@@ -105,7 +105,7 @@ export interface FaceWithRecognition {
     live_score?: number;
     spoof_score?: number;
     confidence?: number;
-    status: 'real' | 'fake' | 'uncertain' | 'error' | 'too_small';
+    status: "real" | "fake" | "uncertain" | "error" | "too_small";
     label?: string;
     message?: string;
   };
@@ -121,7 +121,7 @@ export interface DetectionWithRecognitionResult {
  * Attendance System Types and Interfaces
  */
 
-export type AttendanceStatus = 'present' | 'absent';
+export type AttendanceStatus = "present" | "absent";
 
 export interface AttendanceGroup {
   id: string;

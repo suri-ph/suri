@@ -8,14 +8,14 @@ interface FormTextareaProps {
   minHeight?: string;
 }
 
-export function FormTextarea({ 
-  value, 
-  onChange, 
-  placeholder, 
-  disabled = false, 
+export function FormTextarea({
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
   className = "",
   focusColor = "border-white/20",
-  minHeight = "min-h-[80px]"
+  minHeight = "min-h-[80px]",
 }: FormTextareaProps) {
   return (
     <textarea

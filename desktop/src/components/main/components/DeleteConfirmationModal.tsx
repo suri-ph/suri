@@ -1,4 +1,4 @@
-import type { AttendanceGroup } from '../types';
+import type { AttendanceGroup } from "../types";
 
 interface DeleteConfirmationModalProps {
   showDeleteConfirmation: boolean;
@@ -24,17 +24,20 @@ export function DeleteConfirmationModal({
 
         <div className="mb-6">
           <p className="text-white mb-4">
-            Are you sure you want to delete the group <strong>"{groupToDelete.name}"</strong>?
+            Are you sure you want to delete the group{" "}
+            <strong>"{groupToDelete.name}"</strong>?
           </p>
           <div className="bg-red-900/20 border border-red-500/30 rounded p-3 mb-4">
             <p className="text-red-300 text-sm">
-              <strong>Warning:</strong> This action cannot be undone. All group data, members, and attendance records will be permanently removed.
+              <strong>Warning:</strong> This action cannot be undone. All group
+              data, members, and attendance records will be permanently removed.
             </p>
           </div>
           {currentGroup?.id === groupToDelete.id && (
             <div className="bg-orange-900/20 border border-orange-500/30 rounded p-3">
               <p className="text-orange-300 text-sm">
-                <strong>Note:</strong> This is your currently active group. Deleting it will clear your current selection.
+                <strong>Note:</strong> This is your currently active group.
+                Deleting it will clear your current selection.
               </p>
             </div>
           )}

@@ -1,27 +1,33 @@
-import { memo, useMemo, useState, useEffect } from 'react';
-import type { CooldownInfo } from '../types';
+import { memo, useMemo, useState, useEffect } from "react";
+import type { CooldownInfo } from "../types";
 
 interface CooldownListProps {
-  trackingMode: 'auto' | 'manual';
+  trackingMode: "auto" | "manual";
   persistentCooldowns: Map<string, CooldownInfo>;
   attendanceCooldownSeconds: number;
 }
 
 // Memoize individual cooldown item to prevent unnecessary re-renders
-const CooldownItem = memo(({ 
-  cooldownInfo, 
-  remainingCooldown 
-}: { 
-  cooldownInfo: CooldownInfo; 
-  remainingCooldown: number;
-}) => (
-  <div className="flex items-center justify-between bg-red-900/20 border border-red-500/30 rounded px-2 py-1">
-    <span className="text-xs text-red-300">{cooldownInfo.memberName || cooldownInfo.personId}</span>
-    <span className="text-xs text-red-300 font-mono">{remainingCooldown}s</span>
-  </div>
-));
+const CooldownItem = memo(
+  ({
+    cooldownInfo,
+    remainingCooldown,
+  }: {
+    cooldownInfo: CooldownInfo;
+    remainingCooldown: number;
+  }) => (
+    <div className="flex items-center justify-between bg-red-900/20 border border-red-500/30 rounded px-2 py-1">
+      <span className="text-xs text-red-300">
+        {cooldownInfo.memberName || cooldownInfo.personId}
+      </span>
+      <span className="text-xs text-red-300 font-mono">
+        {remainingCooldown}s
+      </span>
+    </div>
+  ),
+);
 
-CooldownItem.displayName = 'CooldownItem';
+CooldownItem.displayName = "CooldownItem";
 
 export const CooldownList = memo(function CooldownList({
   trackingMode,
@@ -46,25 +52,26 @@ export const CooldownList = memo(function CooldownList({
 
     for (const cooldownInfo of persistentCooldowns.values()) {
       const timeSinceStart = now - cooldownInfo.startTime;
-      
+
       // Use stored cooldown duration to prevent premature removal when setting changes
-      const cooldownSecondsForThisCooldown = cooldownInfo.cooldownDurationSeconds ?? attendanceCooldownSeconds;
+      const cooldownSecondsForThisCooldown =
+        cooldownInfo.cooldownDurationSeconds ?? attendanceCooldownSeconds;
       const cooldownMsForThisCooldown = cooldownSecondsForThisCooldown * 1000;
       const expirationThreshold = cooldownMsForThisCooldown + 500;
-      
+
       if (timeSinceStart < expirationThreshold) {
         const remainingMs = cooldownMsForThisCooldown - timeSinceStart;
-        
+
         // Don't show cooldown if it's already expired or about to expire (0s remaining)
         if (remainingMs <= 0) {
           // Skip this cooldown - it's expired or at 0s
           continue;
         }
-        
+
         // Use Math.floor to show actual full seconds remaining, not rounded up
         // This ensures 5s setting shows 5s, not 6s
         const remainingCooldown = Math.floor(remainingMs / 1000);
-        
+
         // Only show if there's at least 1 second remaining
         if (remainingCooldown > 0) {
           active.push({ info: cooldownInfo, remaining: remainingCooldown });
@@ -76,19 +83,21 @@ export const CooldownList = memo(function CooldownList({
     return active;
   }, [persistentCooldowns, attendanceCooldownSeconds, currentTime]);
 
-  if (trackingMode !== 'auto' || activeCooldowns.length === 0) {
+  if (trackingMode !== "auto" || activeCooldowns.length === 0) {
     return null;
   }
 
   return (
     <div className="p-4 border-b border-white/[0.08] flex-shrink-0">
-      <div className="text-xs font-medium text-white/60 mb-2">Active Cooldowns:</div>
+      <div className="text-xs font-medium text-white/60 mb-2">
+        Active Cooldowns:
+      </div>
       <div className="space-y-1">
         {activeCooldowns.map(({ info, remaining }) => (
-          <CooldownItem 
-            key={info.personId} 
-            cooldownInfo={info} 
-            remainingCooldown={remaining} 
+          <CooldownItem
+            key={info.personId}
+            cooldownInfo={info}
+            remainingCooldown={remaining}
           />
         ))}
       </div>

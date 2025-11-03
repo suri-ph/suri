@@ -1,17 +1,17 @@
-import Main from './components/main/index.tsx'
-import WindowBar from './components/electron/WindowBar.tsx'
-import LoadingScreen from './components/common/LoadingScreen.tsx'
-import { useModelLoading } from './hooks/useModelLoading'
-import WindowFooter from './components/electron/WindowFooter.tsx'
+import Main from "./components/main/index.tsx";
+import WindowBar from "./components/electron/WindowBar.tsx";
+import LoadingScreen from "./components/common/LoadingScreen.tsx";
+import { useModelLoading } from "./hooks/useModelLoading";
+import WindowFooter from "./components/electron/WindowFooter.tsx";
 
 function App() {
-  const { modelsReady, isChecking } = useModelLoading()
+  const { modelsReady, isChecking } = useModelLoading();
 
   return (
     <div className="electron-window-container">
       {/* Custom Window Bar - Always visible */}
       <WindowBar />
-      
+
       {/* Show loading screen or main content */}
       {isChecking || !modelsReady ? (
         <LoadingScreen />
@@ -24,7 +24,7 @@ function App() {
       )}
       <WindowFooter />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

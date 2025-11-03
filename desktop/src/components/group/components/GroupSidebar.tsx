@@ -1,8 +1,8 @@
-import type { GroupSection } from '../types';
-import type { AttendanceGroup } from '../../../types/recognition';
-import { GroupHeader } from './GroupHeader';
-import { GroupNav } from './GroupNav';
-import { Dropdown } from '../../shared/Dropdown';
+import type { GroupSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
+import { GroupHeader } from "./GroupHeader";
+import { GroupNav } from "./GroupNav";
+import { Dropdown } from "../../shared/Dropdown";
 
 interface GroupSidebarProps {
   activeSection: GroupSection;
@@ -16,7 +16,6 @@ interface GroupSidebarProps {
   onToggleCollapse: () => void;
 }
 
-
 export function GroupSidebar({
   activeSection,
   onSectionChange,
@@ -28,17 +27,19 @@ export function GroupSidebar({
   isCollapsed,
   onToggleCollapse,
 }: GroupSidebarProps) {
-
   return (
     <aside
       className={`
         flex flex-col border-r border-white/[0.08] bg-white/[0.02]
         transition-all duration-300 ease-in-out flex-shrink-0
-        ${isCollapsed ? 'w-16' : 'w-64'} h-full
+        ${isCollapsed ? "w-16" : "w-64"} h-full
       `}
     >
       {/* Sidebar Header - Group + Collapse Button */}
-      <GroupHeader isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
+      <GroupHeader
+        isCollapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+      />
 
       {/* Group Selector Section - Above Navigation */}
       {!isCollapsed && (
@@ -46,14 +47,14 @@ export function GroupSidebar({
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Dropdown
-                options={groups.map(group => ({
+                options={groups.map((group) => ({
                   value: group.id,
                   label: group.name,
                 }))}
                 value={selectedGroup?.id ?? null}
                 onChange={(groupId: string | null) => {
                   if (groupId) {
-                    const group = groups.find(g => g.id === groupId);
+                    const group = groups.find((g) => g.id === groupId);
                     onGroupChange(group ?? null);
                   } else {
                     onGroupChange(null);
@@ -88,22 +89,34 @@ export function GroupSidebar({
       />
 
       {/* Close Button at Bottom */}
-      <div className={`py-3 border-t border-white/[0.08] mt-auto ${isCollapsed ? 'px-2' : 'px-4'}`}>
+      <div
+        className={`py-3 border-t border-white/[0.08] mt-auto ${isCollapsed ? "px-2" : "px-4"}`}
+      >
         <button
           onClick={onBack}
-          className={`w-full rounded-md text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 transition-all text-center ${isCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}
+          className={`w-full rounded-md text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 transition-all text-center ${isCollapsed ? "px-2 py-2" : "px-3 py-2"}`}
           aria-label="Close"
           title="Close"
         >
-          {!isCollapsed ? <span className="text-sm">Close</span> : (
-            <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          {!isCollapsed ? (
+            <span className="text-sm">Close</span>
+          ) : (
+            <svg
+              className="w-5 h-5 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           )}
         </button>
       </div>
-
     </aside>
   );
 }
-

@@ -1,12 +1,15 @@
-import type { AttendanceGroup, AttendanceMember } from '../../../types/recognition';
-import type { MenuSection } from '../types';
+import type {
+  AttendanceGroup,
+  AttendanceMember,
+} from "../../../types/recognition";
+import type { MenuSection } from "../types";
 
-import { Overview } from '../sections/Overview';
-import { Members } from '../sections/Members';
-import { Reports } from '../sections/Reports';
-import { Registration } from '../sections/Registration';
-import { GroupSettings } from '../sections/GroupSettings';
-import { EmptyState } from '../shared/EmptyState';
+import { Overview } from "../sections/Overview";
+import { Members } from "../sections/Members";
+import { Reports } from "../sections/Reports";
+import { Registration } from "../sections/Registration";
+import { GroupSettings } from "../sections/GroupSettings";
+import { EmptyState } from "../shared/EmptyState";
 
 interface MenuContentProps {
   selectedGroup: AttendanceGroup | null;
@@ -38,18 +41,21 @@ export function MenuContent({
   if (!selectedGroup) {
     return (
       <div className="h-full px-6 py-6">
-        <EmptyState onCreateGroup={onCreateGroup} hasGroups={(groups?.length ?? 0) > 0} />
+        <EmptyState
+          onCreateGroup={onCreateGroup}
+          hasGroups={(groups?.length ?? 0) > 0}
+        />
       </div>
     );
   }
 
   return (
     <div className="h-full px-6 py-6">
-      {activeSection === 'overview' && (
+      {activeSection === "overview" && (
         <Overview group={selectedGroup} members={members} />
       )}
 
-      {activeSection === 'members' && (
+      {activeSection === "members" && (
         <Members
           group={selectedGroup}
           members={members}
@@ -59,9 +65,9 @@ export function MenuContent({
         />
       )}
 
-      {activeSection === 'reports' && <Reports group={selectedGroup} />}
+      {activeSection === "reports" && <Reports group={selectedGroup} />}
 
-      {activeSection === 'registration' && (
+      {activeSection === "registration" && (
         <Registration
           group={selectedGroup}
           members={members}
@@ -69,7 +75,7 @@ export function MenuContent({
         />
       )}
 
-      {activeSection === 'settings' && (
+      {activeSection === "settings" && (
         <GroupSettings
           group={selectedGroup}
           memberCount={members.length}
@@ -82,4 +88,3 @@ export function MenuContent({
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import type { GroupSection } from '../types';
+import { useEffect } from "react";
+import type { GroupSection } from "../types";
 
 interface GroupNavProps {
   activeSection: GroupSection;
@@ -16,60 +16,69 @@ interface SectionConfig {
 }
 
 const SECTIONS: SectionConfig[] = [
-  { 
-    id: 'overview', 
-    label: 'Overview', 
-    icon: '',
-    shortcut: '1'
+  {
+    id: "overview",
+    label: "Overview",
+    icon: "",
+    shortcut: "1",
   },
-  { 
-    id: 'members', 
-    label: 'Members', 
-    icon: '',
-    shortcut: '2'
+  {
+    id: "members",
+    label: "Members",
+    icon: "",
+    shortcut: "2",
   },
-  { 
-    id: 'reports', 
-    label: 'Reports', 
-    icon: '',
-    shortcut: '3'
+  {
+    id: "reports",
+    label: "Reports",
+    icon: "",
+    shortcut: "3",
   },
-  { 
-    id: 'registration', 
-    label: 'Registration', 
-    icon: '',
-    shortcut: '4'
+  {
+    id: "registration",
+    label: "Registration",
+    icon: "",
+    shortcut: "4",
   },
-  { 
-    id: 'settings', 
-    label: 'Settings', 
-    icon: '',
-    shortcut: '5'
+  {
+    id: "settings",
+    label: "Settings",
+    icon: "",
+    shortcut: "5",
   },
 ];
 
-export function GroupNav({ activeSection, onSectionChange, selectedGroup, isCollapsed }: GroupNavProps) {
+export function GroupNav({
+  activeSection,
+  onSectionChange,
+  selectedGroup,
+  isCollapsed,
+}: GroupNavProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Only trigger if Ctrl/Cmd is not pressed (to avoid conflicts)
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      
+
       // Check if user is typing in an input
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
         return;
       }
 
-      const section = SECTIONS.find(s => s.shortcut === e.key);
+      const section = SECTIONS.find((s) => s.shortcut === e.key);
       if (section && selectedGroup) {
         e.preventDefault();
         onSectionChange(section.id);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [onSectionChange, selectedGroup]);
 
   return (
@@ -87,16 +96,17 @@ export function GroupNav({ activeSection, onSectionChange, selectedGroup, isColl
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
                   transition-all duration-200 group relative
-                  ${isActive
-                    ? 'bg-white/10 text-white'
-                    : isDisabled
-                    ? 'text-white/30 cursor-not-allowed'
-                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                  ${
+                    isActive
+                      ? "bg-white/10 text-white"
+                      : isDisabled
+                        ? "text-white/30 cursor-not-allowed"
+                        : "text-white/70 hover:text-white hover:bg-white/5"
                   }
                 `}
                 title={isCollapsed ? section.label : undefined}
                 aria-label={section.label}
-                aria-current={isActive ? 'page' : undefined}
+                aria-current={isActive ? "page" : undefined}
               >
                 {/* Label (hidden when collapsed) */}
                 {!isCollapsed && (

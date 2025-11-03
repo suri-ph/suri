@@ -1,7 +1,7 @@
-import type { MenuSection } from '../types';
-import type { AttendanceGroup } from '../../../types/recognition';
-import { MenuHeader } from './MenuHeader';
-import { MenuNav } from './MenuNav';
+import type { MenuSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
+import { MenuHeader } from "./MenuHeader";
+import { MenuNav } from "./MenuNav";
 
 interface MenuSidebarProps {
   activeSection: MenuSection;
@@ -15,7 +15,6 @@ interface MenuSidebarProps {
   onToggleCollapse: () => void;
 }
 
-
 export function MenuSidebar({
   activeSection,
   onSectionChange,
@@ -27,17 +26,19 @@ export function MenuSidebar({
   isCollapsed,
   onToggleCollapse,
 }: MenuSidebarProps) {
-
   return (
     <aside
       className={`
         flex flex-col border-r border-white/[0.08] bg-white/[0.02]
         transition-all duration-300 ease-in-out flex-shrink-0
-        ${isCollapsed ? 'w-16' : 'w-64'} h-full
+        ${isCollapsed ? "w-16" : "w-64"} h-full
       `}
     >
       {/* Sidebar Header - Menu + Collapse Button */}
-      <MenuHeader isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
+      <MenuHeader
+        isCollapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+      />
 
       {/* Group Selector Section - Above Navigation */}
       {!isCollapsed && (
@@ -45,19 +46,25 @@ export function MenuSidebar({
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <select
-                value={selectedGroup?.id ?? ''}
+                value={selectedGroup?.id ?? ""}
                 onChange={(event) => {
-                  const group = groups.find((item) => item.id === event.target.value) ?? null;
+                  const group =
+                    groups.find((item) => item.id === event.target.value) ??
+                    null;
                   onGroupChange(group);
                 }}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-8 text-sm text-white focus:outline-none focus:border-white/20 transition-all cursor-pointer h-10 appearance-none"
-                style={{ colorScheme: 'dark' }}
+                style={{ colorScheme: "dark" }}
               >
                 <option value="" className="bg-black text-white">
                   Select group…
                 </option>
                 {groups.map((group) => (
-                  <option key={group.id} value={group.id} className="bg-black text-white">
+                  <option
+                    key={group.id}
+                    value={group.id}
+                    className="bg-black text-white"
+                  >
                     {group.name}
                   </option>
                 ))}
@@ -71,7 +78,12 @@ export function MenuSidebar({
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </div>
@@ -97,22 +109,34 @@ export function MenuSidebar({
       />
 
       {/* Close Button at Bottom */}
-      <div className={`py-3 border-t border-white/[0.08] mt-auto ${isCollapsed ? 'px-2' : 'px-4'}`}>
+      <div
+        className={`py-3 border-t border-white/[0.08] mt-auto ${isCollapsed ? "px-2" : "px-4"}`}
+      >
         <button
           onClick={onBack}
-          className={`w-full rounded-md text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 transition-all text-center ${isCollapsed ? 'px-2 py-2' : 'px-3 py-2'}`}
+          className={`w-full rounded-md text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 transition-all text-center ${isCollapsed ? "px-2 py-2" : "px-3 py-2"}`}
           aria-label="Close"
           title="Close"
         >
-          {!isCollapsed ? <span className="text-sm">Close</span> : (
-            <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          {!isCollapsed ? (
+            <span className="text-sm">Close</span>
+          ) : (
+            <svg
+              className="w-5 h-5 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           )}
         </button>
       </div>
-
     </aside>
   );
 }
-

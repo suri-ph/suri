@@ -10,7 +10,7 @@ export interface QuickSettings {
 }
 
 export interface AttendanceSettings {
-  trackingMode: 'auto' | 'manual';
+  trackingMode: "auto" | "manual";
   lateThresholdEnabled: boolean;
   lateThresholdMinutes: number;
   classStartTime: string;
@@ -23,4 +23,3 @@ export interface SettingsOverview {
   totalMembers: number;
   lastUpdated: string;
 }
-

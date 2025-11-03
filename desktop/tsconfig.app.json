@@ -24,10 +24,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", 
-              "src/types/**/*", 
-              "src/components/**/*", 
-              "src/services/**/*",
-              "src/electron/**/*"
-            ]
+  "include": [
+    "src",
+    "src/types/**/*",
+    "src/components/**/*",
+    "src/services/**/*",
+    "src/electron/**/*"
+  ]
 }
