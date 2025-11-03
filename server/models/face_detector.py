@@ -42,7 +42,6 @@ class FaceDetector:
                 logger.error(f"Error loading face detector model: {e}")
 
     def detect_faces(self, image: np.ndarray) -> List[dict]:
-        # Detect faces in the given image
         if not self.detector or image is None or image.size == 0:
             logger.warning("Invalid image provided to face detector")
             return []
@@ -50,84 +49,92 @@ class FaceDetector:
         # Get original image dimensions
         orig_height, orig_width = image.shape[:2]
 
-        # Resize image for face detection
-        resized_img = cv.resize(image, self.input_size)
+        # Skip resize if image exactly matches input_size
+        if orig_width == self.input_size[0] and orig_height == self.input_size[1]:
+            detection_img = image
+            scale_x = 1.0
+            scale_y = 1.0
+        else:
+            # Use INTER_AREA for downscaling
+            interpolation = cv.INTER_AREA if (orig_width > self.input_size[0] or orig_height > self.input_size[1]) else cv.INTER_LINEAR
+            detection_img = cv.resize(image, self.input_size, interpolation=interpolation)
+            scale_x = orig_width / self.input_size[0]
+            scale_y = orig_height / self.input_size[1]
 
-        # Perform face detection
-        faces = self.detector.detect(resized_img)[1]
+        
+        faces = self.detector.detect(detection_img)[1]
 
+        # Exit if no faces detected
         if faces is None or len(faces) == 0:
             return []
 
-        # Convert detections to face detection dict
+        # Vectorized confidence filtering
+        valid_mask = faces[:, 14] >= self.conf_threshold
+        valid_faces = faces[valid_mask]
+
+        # Exit if no valid faces after filtering
+        if len(valid_faces) == 0:
+            return []
+
+        # Create detection dict
         detections = []
-        for face in faces:
+        for face in valid_faces:
             x, y, w, h = face[:4]
             landmarks_5 = face[4:14].reshape(5, 2)
-            conf = face[14]
+            conf = float(face[14])
 
+            # Scale bounding box coordinates to original image size
+            x1_orig = int(x * scale_x)
+            y1_orig = int(y * scale_y)
+            x2_orig = int((x + w) * scale_x)
+            y2_orig = int((y + h) * scale_y)
 
-            # Check if face is detected with confidence threshold
-            if conf >= self.conf_threshold:
+            # Ensure bounding box coordinates are within image bounds
+            x1_orig = max(0, x1_orig)
+            y1_orig = max(0, y1_orig)
+            x2_orig = min(orig_width, x2_orig)
+            y2_orig = min(orig_height, y2_orig)
 
-                # Scale face coordinates to original image size
-                scale_x = orig_width / self.input_size[0]
-                scale_y = orig_height / self.input_size[1]
+            # Calculate bounding box width and height in original image size
+            face_width_orig = x2_orig - x1_orig
+            face_height_orig = y2_orig - y1_orig
 
-                x1_orig = int(x * scale_x)
-                y1_orig = int(y * scale_y)
-                x2_orig = int((x + w) * scale_x)
-                y2_orig = int((y + h) * scale_y)
+            # Scale 5-point landmarks to original image size
+            landmarks_5[:, 0] *= scale_x
+            landmarks_5[:, 1] *= scale_y
 
-                # Ensure face coordinates are within image bounds
-                x1_orig = max(0, x1_orig)
-                y1_orig = max(0, y1_orig)
-                x2_orig = min(orig_width, x2_orig)
-                y2_orig = min(orig_height, y2_orig)
+            # Check if bounding box is too small for anti-spoof
+            is_bounding_box_too_small = self.min_face_size > 0 and (
+                face_width_orig < self.min_face_size
+                or face_height_orig < self.min_face_size
+            )
 
-                # Calculate face width and height in original image size
-                face_width_orig = x2_orig - x1_orig
-                face_height_orig = y2_orig - y1_orig
+            # Create detection dict
+            detection = {
+                "bbox": {
+                    "x": x1_orig,
+                    "y": y1_orig,
+                    "width": face_width_orig,
+                    "height": face_height_orig,
+                },
+                "confidence": conf,
+                "landmarks_5": landmarks_5.astype(int).tolist(),
+            }
 
-                # Scale landmarks to original image size
-                landmarks_5[:, 0] *= scale_x
-                landmarks_5[:, 1] *= scale_y
-
-                # Check if face is too small for anti-spoof
-                is_face_too_small = self.min_face_size > 0 and (
-                    face_width_orig < self.min_face_size
-                    or face_height_orig < self.min_face_size
-                )
-
-                # Create face detection dict
-                detection = {
-                    "bbox": {
-                        "x": x1_orig,
-                        "y": y1_orig,
-                        "width": face_width_orig,
-                        "height": face_height_orig,
-                    },
-                    "confidence": float(conf),
-                    "landmarks_5": landmarks_5.tolist(),
+            # Add liveness status for small faces
+            if is_bounding_box_too_small:
+                detection["liveness"] = {
+                    "is_real": False,
+                    "status": "insufficient_quality",
+                    "decision_reason": f"Face too small ({face_width_orig}x{face_height_orig}px) for reliable liveness detection (minimum: {self.min_face_size}px)",
                 }
 
-                # Add liveness status for small faces
-                if is_face_too_small:
-                    detection["liveness"] = {
-                        "is_real": False,
-                        "status": "insufficient_quality",
-                        "decision_reason": f"Face too small ({face_width_orig}x{face_height_orig}px) for reliable liveness detection (minimum: {self.min_face_size}px)",
-                        "quality_check_failed": True,
-                        "live_score": 0.0,
-                        "spoof_score": 1.0,
-                        "confidence": 0.0,
-                    }
-
-                # Add face detection dict to list
-                detections.append(detection)
+            # Add face detection dict to list
+            detections.append(detection)
 
         return detections
 
+    # Setters and Getters
     def set_input_size(self, input_size):
         """Update input size"""
         self.input_size = input_size
