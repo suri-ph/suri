@@ -16,7 +16,6 @@ onnxruntime
 
 # SORT tracker dependencies
 filterpy
-scipy
 lap
 
 # Attendance database dependencies

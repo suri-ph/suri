@@ -40,7 +40,6 @@ def check_dependencies():
         "numpy": "numpy",
         "pydantic": "pydantic",
         "filterpy": "filterpy",
-        "scipy": "scipy",
         "lap": "lap",
         "ulid": "ulid",
     }
