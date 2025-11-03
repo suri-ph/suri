@@ -147,12 +147,16 @@ class FaceDetector:
             )
 
             # Check if face has low visibility or is at edges
-            # For edge cases, mark as uncertain immediately without attempting liveness detection
-            # This prevents misclassification of spoof/real faces when partially visible
+            # Only mark as uncertain if liveness detection is enabled (min_face_size > 0)
+            # If spoof detection is OFF, allow recognition even for edge cases
             is_critically_low_visibility = visibility_ratio < 0.50
             is_edge_case_for_uncertain = (
                 is_near_edge and visibility_ratio < 0.85
             ) or landmarks_near_edge
+            
+            # Only apply edge case uncertain marking if liveness detection is enabled
+            # If min_face_size is 0, spoof detection is OFF - allow all faces including edge cases
+            liveness_detection_enabled = self.min_face_size > 0
 
             # Create detection dict
             detection = {
@@ -167,16 +171,18 @@ class FaceDetector:
             }
 
             # Add liveness status for small faces, edge cases, or low visibility faces
-            # Mark as uncertain immediately - don't attempt liveness detection for unreliable cases
+            # Only mark as uncertain if liveness detection is enabled (spoof detection ON)
+            # When spoof detection is OFF, don't mark edge cases as uncertain - allow recognition
             if is_bounding_box_too_small:
                 detection["liveness"] = {
                     "is_real": False,
                     "status": "too_small",
                     "decision_reason": f"Face too small ({face_width_orig}x{face_height_orig}px) for reliable liveness detection (minimum: {self.min_face_size}px)",
                 }
-            elif is_edge_case_for_uncertain or is_critically_low_visibility:
-                # Mark as uncertain for edge cases or low visibility - don't attempt classification
-                # This ensures we don't misclassify spoof/real faces when face is partially visible
+            elif liveness_detection_enabled and (is_edge_case_for_uncertain or is_critically_low_visibility):
+                # Mark as uncertain for edge cases or low visibility ONLY if liveness detection is enabled
+                # This prevents misclassification when spoof detection is ON
+                # When spoof detection is OFF, edge cases are allowed for recognition
                 if is_edge_case_for_uncertain:
                     detection["liveness"] = {
                         "is_real": False,
@@ -189,6 +195,8 @@ class FaceDetector:
                         "status": "uncertain",
                         "decision_reason": f"Face critically low visibility (visibility: {visibility_ratio:.1%}) - insufficient quality for reliable liveness detection",
                     }
+            # If liveness detection is disabled (spoof OFF), don't add liveness status for edge cases
+            # This allows edge cases to be recognized normally when spoof detection is OFF
 
             # Add face detection dict to list
             detections.append(detection)
