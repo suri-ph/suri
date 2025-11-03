@@ -397,7 +397,7 @@ class LivenessValidator:
             # Skip liveness processing if face already has liveness status (e.g., from size filter)
             if (
                 "liveness" in detection
-                and detection["liveness"].get("status") == "insufficient_quality"
+                and detection["liveness"].get("status") == "too_small"
             ):
                 # Keep existing liveness status from detector (small face filter)
                 results.append(detection)

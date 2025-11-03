@@ -130,7 +130,7 @@ class FaceDetector:
             if is_bounding_box_too_small:
                 detection["liveness"] = {
                     "is_real": False,
-                    "status": "insufficient_quality",
+                    "status": "too_small",
                     "decision_reason": f"Face too small ({face_width_orig}x{face_height_orig}px) for reliable liveness detection (minimum: {self.min_face_size}px)",
                 }
 

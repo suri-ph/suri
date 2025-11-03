@@ -17,7 +17,7 @@ import { Sidebar } from './components/Sidebar';
 import { GroupManagementModal } from './components/GroupManagementModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 
-const NON_LOGGING_ANTISPOOF_STATUSES = new Set<'real' | 'fake' | 'uncertain' | 'error' | 'insufficient_quality'>(['fake', 'uncertain', 'error', 'insufficient_quality']);
+const NON_LOGGING_ANTISPOOF_STATUSES = new Set<'real' | 'fake' | 'uncertain' | 'error' | 'too_small'>(['fake', 'uncertain', 'error', 'too_small']);
 
 const TRACKING_HISTORY_LIMIT = 20;
 

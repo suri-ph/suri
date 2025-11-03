@@ -649,9 +649,6 @@ async def recognize_face(request: FaceRecognitionRequest):
                 if status in [
                     "too_small",
                     "error",
-                    "processing_failed",
-                    "invalid_bbox",
-                    "out_of_frame",
                 ]:
                     processing_time = time.time() - start_time
                     logger.warning(
@@ -765,9 +762,6 @@ async def register_person(request: FaceRegistrationRequest):
                 if status in [
                     "too_small",
                     "error",
-                    "processing_failed",
-                    "invalid_bbox",
-                    "out_of_frame",
                 ]:
                     processing_time = time.time() - start_time
                     logger.warning(

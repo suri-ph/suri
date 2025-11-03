@@ -79,7 +79,7 @@ const DetectionCard = memo(({
           statusColor: 'text-yellow-400',
           score: null
         };
-      case 'insufficient_quality':
+      case 'too_small':
         return {
           borderColor: 'border-blue-500/60',
           bgColor: '',

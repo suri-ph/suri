@@ -105,7 +105,7 @@ export interface FaceWithRecognition {
     live_score?: number;
     spoof_score?: number;
     confidence?: number;
-    status: 'real' | 'fake' | 'uncertain' | 'error' | 'insufficient_quality';
+    status: 'real' | 'fake' | 'uncertain' | 'error' | 'too_small';
     label?: string;
     message?: string;
   };
