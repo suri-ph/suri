@@ -181,15 +181,13 @@ class AntiSpoof:
             or x_expanded + int(max_dim * bbox_inc) > real_w
             or y_expanded + int(max_dim * bbox_inc) > real_h
         ):
-            # Calculate padding needed
             top = max(0, y1_clamped - y_expanded)
             bottom = max(0, y_expanded + int(max_dim * bbox_inc) - y2_clamped)
             left = max(0, x1_clamped - x_expanded)
             right = max(0, x_expanded + int(max_dim * bbox_inc) - x2_clamped)
 
-            # Add minimal padding with edge replication (better than black)
             crop = cv2.copyMakeBorder(
-                crop, top, bottom, left, right, cv2.BORDER_REPLICATE
+                crop, top, bottom, left, right, cv2.BORDER_REFLECT_101
             )
 
         return crop
