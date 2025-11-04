@@ -55,7 +55,7 @@ a = Analysis(
     binaries=[],
     datas=onnx_datas + [
         ('models', 'models'),
-        ('database', 'database'),  # Database managers (attendance_db.py, face.py)
+        ('database', 'database'),  # Database managers (attendance.py, face.py)
         ('schemas', 'schemas'),  # API schemas (attendance_models.py)
         ('utils', 'utils'),
         ('routes', 'routes'),

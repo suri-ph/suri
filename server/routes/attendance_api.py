@@ -34,7 +34,7 @@ from schemas.attendance_models import (
     DatabaseStatsResponse,
     CleanupRequest,
 )
-from database.attendance_db import AttendanceDatabaseManager
+from database.attendance import AttendanceDatabaseManager
 from utils.websocket_manager import manager as ws_manager
 from utils.image_utils import decode_base64_image
 
