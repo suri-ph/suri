@@ -6,7 +6,7 @@ import ulid
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from models.attendance_models import (
+from schemas.attendance_models import (
     # Group models
     AttendanceGroupCreate,
     AttendanceGroupUpdate,
@@ -34,7 +34,7 @@ from models.attendance_models import (
     DatabaseStatsResponse,
     CleanupRequest,
 )
-from utils.attendance_database import AttendanceDatabaseManager
+from database.attendance_db import AttendanceDatabaseManager
 from utils.websocket_manager import manager as ws_manager
 from utils.image_utils import decode_base64_image
 

@@ -55,6 +55,8 @@ a = Analysis(
     binaries=[],
     datas=onnx_datas + [
         ('models', 'models'),
+        ('database', 'database'),  # Database managers (attendance_db.py, face.py)
+        ('schemas', 'schemas'),  # API schemas (attendance_models.py)
         ('utils', 'utils'),
         ('routes', 'routes'),
         ('weights', 'weights'),  # Bundle model weights from server/weights

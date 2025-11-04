@@ -29,7 +29,7 @@ from models.recognizer import FaceRecognizer
 from models.tracker import FaceTracker
 from utils.image_utils import decode_base64_image
 from utils.websocket_manager import manager
-from utils.attendance_database import AttendanceDatabaseManager
+from database.attendance_db import AttendanceDatabaseManager
 from routes import attendance
 from config import (
     FACE_DETECTOR_MODEL_PATH,
