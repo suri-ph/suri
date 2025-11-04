@@ -369,9 +369,13 @@ export class BackendService {
           try {
             await execAsync("taskkill /F /IM suri-backend.exe /T");
             await sleep(200); // Wait between attempts
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Process not found = all killed
-            if (error.message?.includes("not found") || error.code === 128) {
+            if (
+              error instanceof Error &&
+              (error.message?.includes("not found") ||
+                (error as { code?: number }).code === 128)
+            ) {
               break;
             }
           }
@@ -397,9 +401,9 @@ export class BackendService {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Process not found is OK
-      if (!error.message?.includes("not found")) {
+      if (!(error instanceof Error) || !error.message?.includes("not found")) {
         console.error("[BackendService] Error stopping:", error);
       }
     }
@@ -441,7 +445,9 @@ export class BackendService {
 
           // Wait for processes to die
           const start = Date.now();
-          while (Date.now() - start < 300) {}
+          while (Date.now() - start < 300) {
+            // Busy wait for process termination
+          }
         } catch {
           // pgrep returns non-zero if no matches = all killed = success
           return;
@@ -520,10 +526,12 @@ export class BackendService {
 
         // Wait 300ms for processes to die
         const start = Date.now();
-        while (Date.now() - start < 300) {}
-      } catch (error: any) {
+        while (Date.now() - start < 300) {
+          // Busy wait for process termination
+        }
+      } catch (error: unknown) {
         // Error checking or killing - might mean processes are gone
-        if (error.message?.includes("not found")) {
+        if (error instanceof Error && error.message?.includes("not found")) {
           return;
         }
       }
@@ -560,7 +568,9 @@ export class BackendService {
 
           // Wait for processes to die
           const start = Date.now();
-          while (Date.now() - start < 300) {}
+          while (Date.now() - start < 300) {
+            // Busy wait for process termination
+          }
         } catch {
           // pgrep error = no processes found = success
           break;
@@ -641,10 +651,12 @@ export class BackendService {
 
         // Wait for processes to die
         const start = Date.now();
-        while (Date.now() - start < 300) {}
-      } catch (error: any) {
+        while (Date.now() - start < 300) {
+          // Busy wait for process termination
+        }
+      } catch (error: unknown) {
         // Errors might mean processes are gone
-        if (error.message?.includes("not found")) {
+        if (error instanceof Error && error.message?.includes("not found")) {
           break;
         }
       }

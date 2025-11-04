@@ -119,7 +119,7 @@ export class AttendanceManager {
         }
         // Not ready yet, wait a bit
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
-      } catch (error) {
+      } catch {
         // Ignore errors during startup
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
       }
@@ -284,7 +284,7 @@ export class AttendanceManager {
         ...member,
         joined_at: new Date(member.joined_at),
       };
-    } catch (error) {
+    } catch {
       // Silently return undefined if member not found (person_id exists in face DB but not in attendance)
       // This is normal when someone is recognized but not enrolled in the current group
       return undefined;
@@ -753,20 +753,18 @@ export class AttendanceManager {
     }
   }
 
-  async getAttendanceStats(): Promise<any> {
+  async getAttendanceStats(): Promise<AttendanceStats> {
     try {
-      const response = await this.httpClient.get("/attendance/stats");
+      const response =
+        await this.httpClient.get<AttendanceStats>("/attendance/stats");
       return response;
     } catch (error) {
       console.error("Error getting attendance stats:", error);
       return {
-        total_groups: 0,
         total_members: 0,
-        total_records: 0,
-        total_sessions: 0,
-        database_path: "",
-        database_size_bytes: 0,
-        database_size_mb: 0,
+        present_today: 0,
+        absent_today: 0,
+        late_today: 0,
       };
     }
   }

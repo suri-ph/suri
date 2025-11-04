@@ -6,7 +6,7 @@
 export interface PersonWithName {
   person_id: string;
   name: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface PersonWithDisplayName extends PersonWithName {

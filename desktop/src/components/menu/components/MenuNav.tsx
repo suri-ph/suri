@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import type { MenuSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
 
 interface MenuNavProps {
   activeSection: MenuSection;
   onSectionChange: (section: MenuSection) => void;
-  selectedGroup: any;
+  selectedGroup: AttendanceGroup | null;
   isCollapsed: boolean;
 }
 

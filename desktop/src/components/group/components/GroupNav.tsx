@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import type { GroupSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
 
 interface GroupNavProps {
   activeSection: GroupSection;
   onSectionChange: (section: GroupSection) => void;
-  selectedGroup: any;
+  selectedGroup: AttendanceGroup | null;
   isCollapsed: boolean;
 }
 

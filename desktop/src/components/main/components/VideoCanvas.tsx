@@ -104,7 +104,6 @@ export const VideoCanvas = memo(function VideoCanvas({
     currentDetections,
     currentRecognitionResults,
     recognitionEnabled,
-    groupMembers,
     displayNameMap,
     getVideoRect,
     calculateScaleFactors,

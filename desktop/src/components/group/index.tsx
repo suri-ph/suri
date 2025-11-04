@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 // Types
 export type { GroupSection } from "./types";
 import type { GroupPanelProps } from "./types";
+import type { AttendanceGroup } from "../../types/recognition";
 
 // Custom Hooks
 import { useGroupData } from "./hooks/useGroupData";
@@ -84,7 +85,7 @@ export function GroupPanel({
     }
   };
 
-  const handleGroupSuccess = (newGroup?: any) => {
+  const handleGroupSuccess = (newGroup?: AttendanceGroup) => {
     fetchGroups();
     if (newGroup) {
       setSelectedGroup(newGroup);

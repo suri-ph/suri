@@ -1,9 +1,10 @@
 import type { GroupSection } from "../types";
+import type { AttendanceGroup } from "../../../types/recognition";
 
 interface MobileNavProps {
   activeSection: GroupSection;
   onSectionChange: (section: GroupSection) => void;
-  selectedGroup: any;
+  selectedGroup: AttendanceGroup | null;
   onClose: () => void;
 }
 

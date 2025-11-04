@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 // Types
 export type { MenuSection } from "./types";
 import type { MenuProps } from "./types";
+import type { AttendanceGroup } from "../../types/recognition";
 
 // Custom Hooks
 import { useMenuData } from "./hooks/useMenuData";
@@ -84,7 +85,7 @@ export function Menu({
     }
   };
 
-  const handleGroupSuccess = (newGroup?: any) => {
+  const handleGroupSuccess = (newGroup?: AttendanceGroup) => {
     fetchGroups();
     if (newGroup) {
       setSelectedGroup(newGroup);

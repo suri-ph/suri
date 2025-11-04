@@ -55,13 +55,10 @@ export function Reports({ group }: ReportsProps) {
     search: string;
   }
 
-  const defaultColumns: ColumnKey[] = [
-    "name",
-    "date",
-    "check_in_time",
-    "status",
-    "is_late",
-  ];
+  const defaultColumns: ColumnKey[] = useMemo(
+    () => ["name", "date", "check_in_time", "status", "is_late"],
+    [],
+  );
   const [visibleColumns, setVisibleColumns] =
     useState<ColumnKey[]>(defaultColumns);
   const [groupBy, setGroupBy] = useState<GroupByKey>("none");
@@ -182,7 +179,7 @@ export function Reports({ group }: ReportsProps) {
       setViews([]);
       setActiveViewIndex(null);
     }
-  }, [storageKey]);
+  }, [storageKey, defaultColumns, defaultViewNameKey]);
 
   const saveViewsToStorage = (next: SavedViewConfig[]) => {
     setViews(next);
@@ -221,7 +218,15 @@ export function Reports({ group }: ReportsProps) {
       current.statusFilter !== "all" ||
       current.search !== ""
     );
-  }, [visibleColumns, groupBy, statusFilter, search, activeViewIndex, views]);
+  }, [
+    visibleColumns,
+    groupBy,
+    statusFilter,
+    search,
+    activeViewIndex,
+    views,
+    defaultColumns,
+  ]);
 
   // Default view is now auto-set on selection; no explicit setter needed
 
@@ -334,6 +339,17 @@ export function Reports({ group }: ReportsProps) {
     return diffDays;
   }, [report, reportStartDate, reportEndDate]);
 
+  type RowData = {
+    person_id: string;
+    name: string;
+    date: string;
+    check_in_time?: Date;
+    status: "present" | "absent";
+    is_late: boolean;
+    late_minutes: number;
+    notes: string;
+  };
+
   return (
     <section className="h-full flex flex-col overflow-hidden space-y-4">
       <div className="flex items-center justify-between gap-3 flex-shrink-0">
@@ -374,7 +390,7 @@ export function Reports({ group }: ReportsProps) {
                 Object.values(groupedRows).forEach((groupArr) => {
                   groupArr.forEach((r) => {
                     const row = cols.map((c) => {
-                      const v = (r as any)[c.key];
+                      const v = (r as RowData)[c.key];
                       if (typeof v === "boolean") return v ? "true" : "false";
                       if (typeof v === "number") return String(v);
                       return v ?? "";
