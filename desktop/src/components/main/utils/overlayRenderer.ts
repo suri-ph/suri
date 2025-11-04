@@ -83,28 +83,22 @@ export const drawLandmarks = (
         }
       }
 
-      // CRITICAL: Clamp landmark coordinates to canvas bounds for edge case accuracy
-      // This ensures landmarks at video edges are still visible and accurate
       let finalX: number;
       let finalY: number;
 
       if (displayWidth !== undefined && displayHeight !== undefined) {
-        const clampedX = Math.max(0, Math.min(displayWidth, x));
-        const clampedY = Math.max(0, Math.min(displayHeight, y));
+        finalX = x;
+        finalY = y;
 
-        // Skip landmark if it's significantly outside bounds (more than small margin)
-        // Small margin allows slight out-of-bounds for visual accuracy at edges
-        const margin = 5;
+        const largeMargin = 50;
         if (
-          Math.abs(x - clampedX) > margin ||
-          Math.abs(y - clampedY) > margin
+          x < -largeMargin ||
+          x > displayWidth + largeMargin ||
+          y < -largeMargin ||
+          y > displayHeight + largeMargin
         ) {
           return;
         }
-
-        // Use clamped coordinates for rendering
-        finalX = clampedX;
-        finalY = clampedY;
 
         // FUTURISTIC MINIMALIST DESIGN
         ctx.save();
