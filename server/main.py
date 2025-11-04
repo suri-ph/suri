@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional
 import time
 
 import cv2
@@ -16,42 +15,52 @@ from fastapi import (
     File,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
-from models.face_detector import FaceDetector
-from models.validator import LivenessValidator
-from models.recognizer import FaceRecognizer
-from models.tracker import FaceTracker
-from utils.image_utils import decode_base64_image
-from utils.websocket_manager import manager
-from hooks import (
-    process_liveness_detection,
-    process_face_tracking,
-    set_model_references,
+from config import (
+    CORS_CONFIG,
+    DATA_DIR,
+    FACE_DETECTOR_CONFIG,
+    FACE_DETECTOR_MODEL_PATH,
+    FACE_RECOGNIZER_CONFIG,
+    FACE_RECOGNIZER_MODEL_PATH,
+    FACE_TRACKER_CONFIG,
+    LIVENESS_DETECTOR_CONFIG,
 )
 from database.attendance import AttendanceDatabaseManager
-from routes import attendance_api as attendance
-from config import (
-    FACE_DETECTOR_MODEL_PATH,
-    FACE_DETECTOR_CONFIG,
-    LIVENESS_DETECTOR_CONFIG,
-    FACE_RECOGNIZER_MODEL_PATH,
-    FACE_RECOGNIZER_CONFIG,
-    CORS_CONFIG,
-    FACE_TRACKER_CONFIG,
-    DATA_DIR,
+from hooks import (
+    process_face_tracking,
+    process_liveness_detection,
+    set_model_references,
 )
+from models import (
+    FaceDetector,
+    FaceRecognizer,
+    FaceTracker,
+    LivenessValidator,
+)
+from routes import attendance_api as attendance
+from schemas import (
+    DetectionRequest,
+    DetectionResponse,
+    FaceRecognitionRequest,
+    FaceRecognitionResponse,
+    FaceRegistrationRequest,
+    FaceRegistrationResponse,
+    OptimizationRequest,
+    PersonUpdateRequest,
+    SimilarityThresholdRequest,
+)
+from utils.image_utils import decode_base64_image
+from utils.websocket_manager import manager
 
-# Configure logging - use config from config.py (set up in run.py)
-# If logging hasn't been configured yet, use basic config
 if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+
 app = FastAPI(
-    title="Face Detection API",
-    description="High-performance async face detection pipeline with face detection, liveness detection, and face recognition",
+    title="SURI",
+    description="A desktop application for automated attendance tracking using Artificial Intelligence.",
     version="1.0.0",
 )
 
@@ -65,99 +74,15 @@ app.add_middleware(
     expose_headers=CORS_CONFIG.get("expose_headers", []),
 )
 
-# WebSocket manager is imported as 'manager' from utils.websocket_manager
-
-# Initialize models
+# Initialize global variables
 face_detector = None
 liveness_detector = None
 face_recognizer = None
 face_tracker = None
-
-# Initialize attendance database
 attendance_database = None
 
 # Include attendance routes
 app.include_router(attendance.router)
-
-
-# Pydantic models for request/response
-class DetectionRequest(BaseModel):
-    image: str  # Base64 encoded image
-    model_type: str = "face_detector"
-    confidence_threshold: float = 0.6
-    nms_threshold: float = 0.3
-    enable_liveness_detection: bool = True
-
-
-class DetectionResponse(BaseModel):
-    success: bool
-    faces: List[Dict]
-    processing_time: float
-    model_used: str
-    suggested_skip: int = 0
-
-
-class StreamingRequest(BaseModel):
-    session_id: str
-    model_type: str = "face_detector"
-    confidence_threshold: float = 0.6
-    nms_threshold: float = 0.3
-    enable_liveness_detection: bool = True
-
-
-class FaceRecognitionRequest(BaseModel):
-    image: str  # Base64 encoded image
-    bbox: List[float]  # Face bounding box [x, y, width, height]
-    landmarks_5: Optional[List[List[float]]] = (
-        None  # Optional 5-point landmarks from face detector (FAST!)
-    )
-    group_id: Optional[str] = (
-        None  # Optional group ID to filter recognition to specific group members
-    )
-    enable_liveness_detection: bool = (
-        True  # Enable/disable liveness detection for spoof protection
-    )
-
-
-class FaceRegistrationRequest(BaseModel):
-    person_id: str
-    image: str  # Base64 encoded image
-    bbox: List[float]  # Face bounding box [x, y, width, height]
-    enable_liveness_detection: bool = (
-        True  # Enable/disable liveness detection for spoof protection
-    )
-    landmarks_5: Optional[List[List[float]]] = (
-        None  # Optional 5-point landmarks from face detector (FAST!)
-    )
-
-
-class FaceRecognitionResponse(BaseModel):
-    success: bool
-    person_id: Optional[str] = None
-    similarity: float
-    processing_time: float
-    error: Optional[str] = None
-
-
-class FaceRegistrationResponse(BaseModel):
-    success: bool
-    person_id: str
-    total_persons: int
-    processing_time: float
-    error: Optional[str] = None
-
-
-class PersonRemovalRequest(BaseModel):
-    person_id: str
-
-
-class SimilarityThresholdRequest(BaseModel):
-    threshold: float
-
-
-class PersonUpdateRequest(BaseModel):
-    old_person_id: str
-    new_person_id: str
 
 
 @app.on_event("startup")
@@ -280,11 +205,6 @@ async def get_available_models():
         models_info["face_recognizer"] = {"available": False}
 
     return {"models": models_info}
-
-
-class OptimizationRequest(BaseModel):
-    cache_duration: float = 1.0
-    clear_cache: bool = False
 
 
 @app.post("/optimize/liveness")
@@ -520,8 +440,6 @@ async def recognize_face(request: FaceRecognitionRequest):
     """
     Recognize a face using face recognizer with liveness detection validation
     """
-    import time
-
     start_time = time.time()
 
     try:
@@ -634,8 +552,6 @@ async def register_person(request: FaceRegistrationRequest):
     """
     Register a new person in the face database with liveness detection validation
     """
-    import time
-
     start_time = time.time()
 
     try:
@@ -1078,7 +994,11 @@ async def websocket_detect_endpoint(websocket: WebSocket, client_id: str):
         pass  # WebSocket detection disconnected
     except Exception as e:
         # Only log if it's not a connection-related error
-        if "disconnect" not in str(e).lower() and "close" not in str(e).lower() and "send" not in str(e).lower():
+        if (
+            "disconnect" not in str(e).lower()
+            and "close" not in str(e).lower()
+            and "send" not in str(e).lower()
+        ):
             logger.error(f"WebSocket detection error: {e}")
 
 

@@ -248,4 +248,3 @@ class ImportDataRequest(BaseModel):
 
 class CleanupRequest(BaseModel):
     days_to_keep: int = Field(90, ge=1, le=365)
-

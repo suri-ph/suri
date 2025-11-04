@@ -2,6 +2,7 @@
 Face processing hooks for the API
 Handles liveness detection and face tracking processing
 """
+
 import asyncio
 import logging
 from typing import Dict, List
@@ -105,4 +106,3 @@ async def process_face_tracking(faces: List[Dict], image: np.ndarray) -> List[Di
         logger.warning(f"Deep SORT tracking failed: {e}")
         # Return original faces without tracking on error
         return faces
-

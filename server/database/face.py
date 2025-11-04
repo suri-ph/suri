@@ -492,4 +492,3 @@ class FaceDatabaseManager:
     def __del__(self):
         """Destructor to ensure proper cleanup"""
         self.close()
-
