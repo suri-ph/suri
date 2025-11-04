@@ -1312,11 +1312,6 @@ export default function Main() {
     isProcessingRef.current = false;
     backendServiceReadyRef.current = false;
 
-    if (backendServiceRef.current) {
-      backendServiceRef.current.disconnect();
-    }
-    setWebsocketStatus("disconnected");
-
     lastFrameTimestampRef.current = 0;
     lastDetectionHashRef.current = "";
     lastDetectionFrameRef.current = null;
@@ -1672,6 +1667,9 @@ export default function Main() {
     getCameraDevices();
     return () => {
       stopCamera();
+      if (backendServiceRef.current) {
+        backendServiceRef.current.disconnect();
+      }
     };
   }, [getCameraDevices, stopCamera]);
   useEffect(() => {
