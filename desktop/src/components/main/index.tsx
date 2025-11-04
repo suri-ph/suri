@@ -236,6 +236,19 @@ export default function Main() {
   const memberCacheRef = useRef<Map<string, AttendanceMember | null>>(
     new Map(),
   );
+  const calculateAngleConsistencyRef = useRef<
+    (
+      history: Array<{
+        timestamp: number;
+        bbox: { x: number; y: number; width: number; height: number };
+        confidence: number;
+      }>,
+    ) => number
+  >(() => 1.0);
+  const loadAttendanceDataRef = useRef<() => Promise<void>>(
+    async () => {},
+  );
+  const processCurrentFrameRef = useRef<() => Promise<void>>(async () => {});
 
   // Set current group with persistence
   const setCurrentGroup = useCallback((group: AttendanceGroup | null) => {
@@ -581,7 +594,7 @@ export default function Main() {
                       existingTrack.trackingHistory,
                     );
                     existingTrack.occlusionCount = 0;
-                    existingTrack.angleConsistency = calculateAngleConsistency(
+                    existingTrack.angleConsistency = calculateAngleConsistencyRef.current(
                       existingTrack.trackingHistory,
                     );
                     existingTrack.livenessStatus = currentLivenessStatus;
@@ -735,7 +748,7 @@ export default function Main() {
                             if ("requestIdleCallback" in window) {
                               requestIdleCallback(
                                 () => {
-                                  loadAttendanceData().catch((err) =>
+                                  loadAttendanceDataRef.current().catch((err) =>
                                     console.error(
                                       "Failed to refresh attendance:",
                                       err,
@@ -746,7 +759,7 @@ export default function Main() {
                               );
                             } else {
                               setTimeout(async () => {
-                                await loadAttendanceData();
+                                await loadAttendanceDataRef.current();
                               }, 100);
                             }
                           };
@@ -806,7 +819,9 @@ export default function Main() {
                 });
               });
             }
-          } catch {
+          } catch (error) {
+            // Silently handle recognition errors for individual faces
+            console.debug("Face recognition error:", error);
           }
           return null;
         });
@@ -880,10 +895,62 @@ export default function Main() {
       } catch (error) {
         console.error("❌ Face recognition processing failed:", error);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [captureFrame, trackingMode, attendanceCooldownSeconds],
+    [
+      trackingMode,
+      attendanceCooldownSeconds,
+      attendanceEnabled,
+    ],
   );
+
+  // Process current frame
+  const processCurrentFrame = useCallback(async () => {
+    if (
+      !backendServiceRef.current?.isWebSocketReady() ||
+      !detectionEnabledRef.current ||
+      !isStreamingRef.current
+    ) {
+      return;
+    }
+
+    frameCounter++;
+
+    if (frameCounter % (skipFrames + 1) !== 0) {
+      if (detectionEnabledRef.current && isStreamingRef.current) {
+        requestAnimationFrame(() => processCurrentFrameRef.current());
+      }
+      return;
+    }
+
+    try {
+      const frameData = await captureFrame();
+      if (!frameData || !backendServiceRef.current) {
+        return;
+      }
+
+      lastDetectionFrameRef.current = frameData;
+
+      backendServiceRef.current
+        .sendDetectionRequest(frameData)
+        .catch((error) => {
+          console.error("❌ WebSocket detection request failed:", error);
+
+          if (detectionEnabledRef.current && isStreamingRef.current) {
+            requestAnimationFrame(() => processCurrentFrameRef.current());
+          }
+        });
+    } catch (error) {
+      console.error("❌ Frame capture failed:", error);
+
+      if (detectionEnabledRef.current && isStreamingRef.current) {
+        requestAnimationFrame(() => processCurrentFrameRef.current());
+      }
+    }
+  }, [captureFrame]);
+
+  useEffect(() => {
+    processCurrentFrameRef.current = processCurrentFrame;
+  }, [processCurrentFrame]);
 
   // Initialize WebSocket
   const initializeWebSocket = useCallback(async () => {
@@ -1004,11 +1071,11 @@ export default function Main() {
             }
 
             if (detectionEnabledRef.current && isStreamingRef.current) {
-              requestAnimationFrame(() => processCurrentFrame());
+              requestAnimationFrame(() => processCurrentFrameRef.current());
             }
           } else {
             if (detectionEnabledRef.current && isStreamingRef.current) {
-              requestAnimationFrame(() => processCurrentFrame());
+              requestAnimationFrame(() => processCurrentFrameRef.current());
             }
           }
         },
@@ -1034,7 +1101,7 @@ export default function Main() {
           setError(`Detection error: ${data.message || "Unknown error"}`);
 
           if (detectionEnabledRef.current && isStreamingRef.current) {
-            requestAnimationFrame(() => processCurrentFrame());
+            requestAnimationFrame(() => processCurrentFrameRef.current());
           }
         },
       );
@@ -1045,53 +1112,11 @@ export default function Main() {
       }
       backendServiceReadyRef.current = false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recognitionEnabled, performFaceRecognition]);
-
-  // Process current frame
-  const processCurrentFrame = useCallback(async () => {
-    if (
-      !backendServiceRef.current?.isWebSocketReady() ||
-      !detectionEnabledRef.current ||
-      !isStreamingRef.current
-    ) {
-      return;
-    }
-
-    frameCounter++;
-
-    if (frameCounter % (skipFrames + 1) !== 0) {
-      if (detectionEnabledRef.current && isStreamingRef.current) {
-        requestAnimationFrame(() => processCurrentFrame());
-      }
-      return;
-    }
-
-    try {
-      const frameData = await captureFrame();
-      if (!frameData || !backendServiceRef.current) {
-        return;
-      }
-
-      lastDetectionFrameRef.current = frameData;
-
-      backendServiceRef.current
-        .sendDetectionRequest(frameData)
-        .catch((error) => {
-          console.error("❌ WebSocket detection request failed:", error);
-
-          if (detectionEnabledRef.current && isStreamingRef.current) {
-            requestAnimationFrame(() => processCurrentFrame());
-          }
-        });
-    } catch (error) {
-      console.error("❌ Frame capture failed:", error);
-
-      if (detectionEnabledRef.current && isStreamingRef.current) {
-        requestAnimationFrame(() => processCurrentFrame());
-      }
-    }
-  }, [captureFrame]);
+  }, [
+    recognitionEnabled,
+    performFaceRecognition,
+    websocketStatus,
+  ]);
 
   // Get camera devices
   const getCameraDevices = useCallback(async () => {
@@ -1110,8 +1135,8 @@ export default function Main() {
   }, [selectedCamera]);
 
   const processFrameForDetection = useCallback(() => {
-    processCurrentFrame();
-  }, [processCurrentFrame]);
+    processCurrentFrameRef.current();
+  }, []);
 
   const startDetectionInterval = useCallback(() => {
     if (
@@ -1535,7 +1560,7 @@ export default function Main() {
     } catch (error) {
       console.error("❌ Failed to load attendance data:", error);
     }
-  }, [currentGroup]);
+  }, [setCurrentGroup]);
 
   // Tracking helpers
   const calculateAngleConsistency = useCallback(
@@ -1563,6 +1588,10 @@ export default function Main() {
     },
     [],
   );
+
+  useEffect(() => {
+    calculateAngleConsistencyRef.current = calculateAngleConsistency;
+  }, [calculateAngleConsistency]);
 
   const handleOcclusion = useCallback(() => {
     setTrackedFaces((prev) => {
@@ -1608,8 +1637,11 @@ export default function Main() {
     } catch (error) {
       console.error("❌ Failed to load data for selected group:", error);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setCurrentGroup]);
+
+  useEffect(() => {
+    loadAttendanceDataRef.current = loadAttendanceData;
+  }, [loadAttendanceData]);
 
   const handleCreateGroup = useCallback(async () => {
     if (!newGroupName.trim()) return;
@@ -1655,8 +1687,7 @@ export default function Main() {
       setShowDeleteConfirmation(false);
       setGroupToDelete(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupToDelete, currentGroup, loadAttendanceData]);
+  }, [groupToDelete, currentGroup, loadAttendanceData, setCurrentGroup]);
 
   const cancelDeleteGroup = useCallback(() => {
     setShowDeleteConfirmation(false);
@@ -1780,7 +1811,7 @@ export default function Main() {
     initializeAttendance().catch((error) => {
       console.error("Error in initializeAttendance:", error);
     });
-  }, [handleSelectGroup, loadSettings]);
+  }, [handleSelectGroup, loadSettings, currentGroup, setCurrentGroup]);
 
   return (
     <div className="pt-9 pb-5 h-screen bg-black text-white flex flex-col overflow-hidden">
