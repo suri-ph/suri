@@ -38,7 +38,7 @@ class FaceRecognizer:
         # Model components
         self.session = None
 
-        # 🚀 OPTIMIZATION: In-memory cache for database queries
+        # OPTIMIZATION: In-memory cache for database queries
         # Prevents SQLite I/O bottleneck on every frame (+50% FPS)
         self._persons_cache = None
         self._cache_timestamp = 0
@@ -103,7 +103,7 @@ class FaceRecognizer:
     ) -> np.ndarray:
         """
         Create aligned face using similarity transform with all 5 landmarks
-        🚀 OPTIMIZED: OpenCV's optimized C++ implementation (10x faster than manual SVD)
+        OPTIMIZED: OpenCV's optimized C++ implementation (10x faster than manual SVD)
         Uses all 5 points for best accuracy with similarity transform (preserves face shape)
 
         Args:
@@ -343,7 +343,7 @@ class FaceRecognizer:
     ) -> Tuple[Optional[str], float]:
         """
         Find best matching person in database using fixed similarity threshold
-        🚀 OPTIMIZED: Uses in-memory cache to avoid database queries on every frame
+        OPTIMIZED: Uses in-memory cache to avoid database queries on every frame
 
         Args:
             embedding: Query embedding
@@ -355,7 +355,7 @@ class FaceRecognizer:
         if not self.db_manager:
             return None, 0.0
 
-        # 🚀 CRITICAL OPTIMIZATION: Cache database results for 1 second
+        # CRITICAL OPTIMIZATION: Cache database results for 1 second
         # Prevents SQLite I/O bottleneck (1500-3000 queries/sec → ~1 query/sec)
         current_time = time.time()
 
@@ -545,7 +545,7 @@ class FaceRecognizer:
                 stats = self.db_manager.get_stats()
                 total_persons = stats.get("total_persons", 0)
 
-                # 🚀 OPTIMIZATION: Invalidate cache after registration
+                # OPTIMIZATION: Invalidate cache after registration
                 self._invalidate_cache()
             else:
                 save_success = False
@@ -587,7 +587,7 @@ class FaceRecognizer:
                 remove_success = self.db_manager.remove_person(person_id)
 
                 if remove_success:
-                    # 🚀 OPTIMIZATION: Invalidate cache after removal
+                    # OPTIMIZATION: Invalidate cache after removal
                     self._invalidate_cache()
 
                     stats = self.db_manager.get_stats()
@@ -631,7 +631,7 @@ class FaceRecognizer:
                     old_person_id, new_person_id
                 )
                 if updated_count > 0:
-                    # 🚀 OPTIMIZATION: Invalidate cache after update
+                    # OPTIMIZATION: Invalidate cache after update
                     self._invalidate_cache()
 
                     return {
@@ -682,7 +682,7 @@ class FaceRecognizer:
                 clear_success = self.db_manager.clear_database()
 
                 if clear_success:
-                    # 🚀 OPTIMIZATION: Invalidate cache after clearing
+                    # OPTIMIZATION: Invalidate cache after clearing
                     self._invalidate_cache()
 
                     return {"success": True, "database_saved": True, "total_persons": 0}
@@ -697,7 +697,7 @@ class FaceRecognizer:
 
     def _invalidate_cache(self):
         """
-        🚀 OPTIMIZATION: Invalidate the database cache
+        OPTIMIZATION: Invalidate the database cache
         Call this after any database modification (add/remove/update/clear)
         """
         self._persons_cache = None

@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     # Startup
     global face_detector, liveness_detector, face_recognizer, face_tracker, attendance_database
     try:
-        logger.info("🚀 Starting up backend server...")
+        logger.info("Starting up backend server...")
         face_detector = FaceDetector(
             model_path=str(FACE_DETECTOR_MODEL_PATH),
             input_size=tuple(FACE_DETECTOR_CONFIG["input_size"]),
@@ -122,7 +122,7 @@ async def lifespan(app: FastAPI):
         # Set model references for face processing utilities
         set_model_references(liveness_detector, face_tracker, face_recognizer)
 
-        logger.info("✅ Startup complete")
+        logger.info("Startup complete")
 
     except Exception as e:
         logger.error(f"Failed to initialize models: {e}")
@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI):
     yield  # App runs here
 
     # Shutdown
-    logger.info("🛑 Shutting down backend server...")
+    logger.info("Shutting down backend server...")
     try:
         # Database connections use context managers - no explicit close needed
         logger.info("Releasing model references...")
@@ -143,10 +143,10 @@ async def lifespan(app: FastAPI):
         face_tracker = None
         attendance_database = None
 
-        logger.info("✅ Cleanup complete")
+        logger.info("Cleanup complete")
 
     except Exception as e:
-        logger.error(f"❌ Error during shutdown cleanup: {e}")
+        logger.error(f"Error during shutdown cleanup: {e}")
 
 
 app = FastAPI(

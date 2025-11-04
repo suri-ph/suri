@@ -192,7 +192,7 @@ class Track:
         if feature is not None:
             self.features.append(feature)
 
-        # 🚀 CRITICAL OPTIMIZATION: Reduced from 30 to 5 for 6x faster matching
+        # CRITICAL OPTIMIZATION: Reduced from 30 to 5 for 6x faster matching
         # For real-time tracking, 5 recent features provide sufficient accuracy
         # Previous: 30 features × 512 dims = 15,360 floats per track
         # Current:   5 features × 512 dims =  2,560 floats per track (6x less memory & computation)

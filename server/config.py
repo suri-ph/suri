@@ -131,7 +131,7 @@ except Exception as e:
     ]
 
 # Optimized ONNX Session Options for maximum performance
-# 🚀 OPTIMIZED: Thread configuration tuned for face detection workloads
+# OPTIMIZED: Thread configuration tuned for face detection workloads
 OPTIMIZED_SESSION_OPTIONS = {
     "enable_cpu_mem_arena": True,
     "enable_memory_pattern": True,
@@ -175,10 +175,10 @@ MODEL_CONFIGS = {
     },
     "face_tracker": {
         "max_age": 30,  # Maximum frames to keep track alive without detection
-        "n_init": 2,  # 🚀 OPTIMIZED: Reduced from 3 to 2 (faster track confirmation)
-        "max_iou_distance": 0.6,  # 🚀 OPTIMIZED: Reduced from 0.7 to 0.6 (stricter motion gating)
-        "max_cosine_distance": 0.25,  # 🚀 OPTIMIZED: Reduced from 0.3 to 0.25 (stricter appearance gating)
-        "nn_budget": 30,  # 🚀 OPTIMIZED: Reduced from 100 to 30 (faster matching, less memory)
+        "n_init": 2,  # OPTIMIZED: Reduced from 3 to 2 (faster track confirmation)
+        "max_iou_distance": 0.6,  # OPTIMIZED: Reduced from 0.7 to 0.6 (stricter motion gating)
+        "max_cosine_distance": 0.25,  # OPTIMIZED: Reduced from 0.3 to 0.25 (stricter appearance gating)
+        "nn_budget": 30,  # OPTIMIZED: Reduced from 100 to 30 (faster matching, less memory)
         "matching_weights": {
             "appearance": 0.7,  # 70% weight on appearance matching
             "motion": 0.3,  # 30% weight on IOU/motion matching

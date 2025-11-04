@@ -97,12 +97,12 @@ def install_pyinstaller():
 def build_backend(debug=False, onefile=True, clean=True):
     """Build the backend using PyInstaller"""
 
-    print("🚀 Starting Suri Backend Build Process")
+    print("Starting Suri Backend Build Process")
     print("=" * 50)
 
     # Get platform info
     platform_name, arch = get_platform_info()
-    print(f"🖥️  Platform: {platform_name}-{arch}")
+    print(f"Platform: {platform_name}-{arch}")
 
     # Check dependencies
     if not check_dependencies():
@@ -232,9 +232,9 @@ def main():
         test_executable()
 
     if success:
-        print("\n✅ Build completed successfully!")
+        print("\nBuild completed successfully!")
     else:
-        print("\n❌ Build failed!")
+        print("\nBuild failed!")
         sys.exit(1)
 
 

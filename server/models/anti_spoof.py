@@ -62,7 +62,7 @@ class AntiSpoof:
     def preprocessing(self, img: np.ndarray) -> np.ndarray:
         """
         Preprocess image for anti-spoofing model
-        🚀 OPTIMIZED: Uses in-place operations to reduce memory allocations
+        OPTIMIZED: Uses in-place operations to reduce memory allocations
 
         Args:
             img: Input image (BGR format from OpenCV)
@@ -96,14 +96,14 @@ class AntiSpoof:
             img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=[0, 0, 0]
         )
 
-        # 🚀 CRITICAL OPTIMIZATION: Minimize memory allocations
+        # CRITICAL OPTIMIZATION: Minimize memory allocations
         # Convert BGR to RGB
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         # Convert to float32 (avoid copy if possible)
         img_normalized = img_rgb.astype(np.float32, copy=False)
 
-        # 🚀 In-place division for normalization (no new array allocation)
+        # In-place division for normalization (no new array allocation)
         np.multiply(img_normalized, 1.0 / 255.0, out=img_normalized)
 
         # Transpose to CHW format
