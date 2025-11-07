@@ -75,77 +75,10 @@ class AntiSpoof:
         pred = softmax(prediction)
         return pred
 
-    def _align_face_crop(
-        self, crop: np.ndarray, landmarks_5: List, bbox: tuple, crop_offset: tuple
-    ) -> np.ndarray:
-        """Simple rotation-only alignment to preserve spoof detection cues"""
-        try:
-            landmarks = np.array(landmarks_5, dtype=np.float32)
-            if landmarks.shape != (5, 2):
-                return crop
-
-            # Adjust landmarks relative to crop region
-            x1_clamped, y1_clamped = crop_offset
-            crop_landmarks = landmarks.copy()
-            crop_landmarks[:, 0] -= x1_clamped
-            crop_landmarks[:, 1] -= y1_clamped
-
-            # Calculate rotation angle using all landmarks
-            crop_h, crop_w = crop.shape[:2]
-
-            # Scale reference points to match crop size
-            scale_x = crop_w / 112.0
-            scale_y = crop_h / 112.0
-            reference_points = np.array(
-                [
-                    [38.2946 * scale_x, 51.6963 * scale_y],  # left eye
-                    [73.5318 * scale_x, 51.5014 * scale_y],  # right eye
-                    [56.0252 * scale_x, 71.7366 * scale_y],  # nose tip
-                    [41.5493 * scale_x, 92.3655 * scale_y],  # left mouth corner
-                    [70.7299 * scale_x, 92.2041 * scale_y],  # right mouth corner
-                ],
-                dtype=np.float32,
-            )
-
-            # Use similarity transform to get rotation angle from all landmarks
-            tform, _ = cv2.estimateAffinePartial2D(
-                crop_landmarks,
-                reference_points,
-                method=cv2.LMEDS,
-                maxIters=1,
-                refineIters=0,
-            )
-
-            if tform is None:
-                return crop
-
-            # Extract rotation angle from transformation matrix
-            # Affine matrix: [a b tx; c d ty] where rotation is atan2(c, a)
-            angle = np.degrees(np.arctan2(tform[1, 0], tform[0, 0]))
-
-            # Normalize to smallest rotation
-            angle = ((angle + 90) % 180) - 90
-
-            # Apply rotation-only transform (preserves spoof detection cues)
-            center = (crop_w / 2, crop_h / 2)
-            rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-            aligned = cv2.warpAffine(
-                crop,
-                rotation_matrix,
-                (crop_w, crop_h),
-                flags=cv2.INTER_LINEAR,
-                borderMode=cv2.BORDER_REPLICATE,
-            )
-
-            return aligned
-        except Exception as e:
-            logger.warning(f"Face alignment failed: {e}")
-            return crop
-
     def increased_crop(
-        self, img: np.ndarray, bbox: tuple, landmarks_5: List, bbox_inc: float = 1.5
+        self, img: np.ndarray, bbox: tuple, bbox_inc: float = 1.5
     ) -> np.ndarray:
-        """Crop face with expanded bounding box, aligned using landmarks"""
+        """Crop face with expanded bounding box"""
         real_h, real_w = img.shape[:2]
         x1_input, y1_input, x2_input, y2_input = bbox
         w = x2_input - x1_input
@@ -177,9 +110,6 @@ class AntiSpoof:
             crop = cv2.copyMakeBorder(
                 crop, top, bottom, left, right, cv2.BORDER_REFLECT_101
             )
-
-        # Align face crop using landmarks (YuNet always provides landmarks)
-        crop = self._align_face_crop(crop, landmarks_5, bbox, (x1_clamped, y1_clamped))
 
         return crop
 
@@ -318,15 +248,8 @@ class AntiSpoof:
                 continue
 
             try:
-                landmarks_5 = detection.get("landmarks_5")
-                if not landmarks_5:
-                    logger.warning(
-                        "Missing landmarks_5 in detection, skipping liveness check"
-                    )
-                    continue
-
                 face_crop = self.increased_crop(
-                    image, (x, y, x + w, y + h), landmarks_5, bbox_inc=1.5
+                    image, (x, y, x + w, y + h), bbox_inc=1.5
                 )
                 if face_crop is None or face_crop.size == 0:
                     continue
