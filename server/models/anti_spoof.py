@@ -123,7 +123,6 @@ class AntiSpoof:
                 live_score = float(pred[0][0])
                 print_score = float(pred[0][1])
                 replay_score = float(pred[0][2])
-                predicted_class = int(np.argmax(pred[0]))
 
                 spoof_score = print_score + replay_score
                 max_confidence = max(live_score, spoof_score)
@@ -134,54 +133,19 @@ class AntiSpoof:
                     and (margin >= 0.05)  # safety margin
                 )
 
-                if live_score > spoof_score:
-                    if max_confidence >= self.confidence_threshold and margin >= 0.05:
-                        decision_reason = f"Live face detected with high confidence ({max_confidence:.3f} ≥ {self.confidence_threshold}) and sufficient margin ({margin:.3f} ≥ 0.05)"
-                    elif max_confidence < self.confidence_threshold:
-                        decision_reason = f"Low confidence detection ({max_confidence:.3f} < {self.confidence_threshold}), rejecting as spoof for safety"
-                    else:
-                        decision_reason = f"Insufficient margin ({margin:.3f} < 0.05), rejecting as spoof for safety"
-                else:
-                    decision_reason = f"Spoof detected: spoof_score ({spoof_score:.3f}) > live_score ({live_score:.3f})"
-
                 if is_real:
                     attack_type = "live"
                     label = "Live"
-                    detailed_label = f"Live Face (confidence: {live_score:.3f})"
                 else:
-                    # Determine spoof attack type
-                    # If model predicted live but confidence is low, mark as unknown spoof
-                    if live_score > spoof_score:
-                        # Low confidence live prediction - treat as unknown spoof for safety
-                        attack_type = "unknown"
-                        label = "Spoof"
-                        detailed_label = f"Low confidence detection (max confidence: {max_confidence:.3f} < {self.confidence_threshold})"
-                    elif print_score > replay_score:
-                        attack_type = "print"
-                        label = "Print Attack"
-                        detailed_label = f"Print Attack (confidence: {print_score:.3f})"
-                    elif replay_score > print_score:
-                        attack_type = "replay"
-                        label = "Replay Attack"
-                        detailed_label = (
-                            f"Replay Attack (confidence: {replay_score:.3f})"
-                        )
-                    else:
-                        attack_type = "unknown"
-                        label = "Spoof"
-                        detailed_label = f"Spoof Attack (print: {print_score:.3f}, replay: {replay_score:.3f})"
+                    attack_type = "unknown"
+                    label = "Spoof"
 
                 result = {
                     "is_real": bool(is_real),
                     "live_score": float(live_score),
                     "spoof_score": float(spoof_score),
                     "confidence": float(max_confidence),
-                    "decision_reason": decision_reason,
                     "label": label,
-                    "detailed_label": detailed_label,
-                    "predicted_class": int(predicted_class),
-                    "print_score": float(print_score),
-                    "replay_score": float(replay_score),
                     "attack_type": attack_type,
                 }
                 results.append(result)
@@ -252,13 +216,8 @@ class AntiSpoof:
                     "live_score": prediction["live_score"],
                     "spoof_score": prediction["spoof_score"],
                     "confidence": prediction["confidence"],
-                    "decision_reason": prediction["decision_reason"],
                     "label": prediction["label"],
-                    "detailed_label": prediction["detailed_label"],
                     "status": "real" if prediction["is_real"] else "fake",
-                    "predicted_class": prediction["predicted_class"],
-                    "print_score": prediction["print_score"],
-                    "replay_score": prediction["replay_score"],
                     "attack_type": prediction["attack_type"],
                 }
             # If prediction is None, detection is added without liveness data

@@ -25,8 +25,8 @@ export interface DetectionResult {
       spoof_score?: number;
       status: "real" | "fake" | "error" | "too_small";
       label?: string;
+      attack_type?: string;
       message?: string;
-      decision_reason?: string;
     };
   }>;
   model_used: string;
@@ -44,8 +44,8 @@ export interface WebSocketFaceData {
     spoof_score?: number;
     status?: "real" | "fake" | "error" | "too_small";
     label?: string;
+    attack_type?: string;
     message?: string;
-    decision_reason?: string;
   };
 }
 

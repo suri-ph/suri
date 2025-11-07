@@ -9,6 +9,12 @@ export interface PersonWithName {
   [key: string]: unknown;
 }
 
+// Base interface for types that can be used with display name utilities
+export interface HasPersonIdAndName {
+  person_id: string;
+  name: string;
+}
+
 export interface PersonWithDisplayName extends PersonWithName {
   displayName: string;
 }
@@ -35,7 +41,7 @@ export interface PersonWithDisplayName extends PersonWithName {
  * //   { person_id: '3', name: 'john smith', displayName: 'john smith (2)' }
  * // ]
  */
-export function generateDisplayNames<T extends PersonWithName>(
+export function generateDisplayNames<T extends HasPersonIdAndName>(
   persons: T[],
 ): (T & { displayName: string })[] {
   // Count occurrences of each name (case-insensitive)
@@ -81,12 +87,12 @@ export function generateDisplayNames<T extends PersonWithName>(
  * Returns the person's name with differentiation if there are duplicates
  *
  * @param personId - The person_id to look up
- * @param persons - Array of persons
+ * @param persons - Array of persons with person_id and name
  * @returns Display name or 'Unknown' if not found
  */
-export function getDisplayName(
+export function getDisplayName<T extends HasPersonIdAndName>(
   personId: string,
-  persons: PersonWithName[],
+  persons: T[],
 ): string {
   const withDisplayNames = generateDisplayNames(persons);
   const person = withDisplayNames.find((p) => p.person_id === personId);
@@ -96,11 +102,11 @@ export function getDisplayName(
 /**
  * Creates a map of person_id to display name for efficient lookups
  *
- * @param persons - Array of persons
+ * @param persons - Array of persons with person_id and name
  * @returns Map<person_id, displayName>
  */
-export function createDisplayNameMap(
-  persons: PersonWithName[],
+export function createDisplayNameMap<T extends HasPersonIdAndName>(
+  persons: T[],
 ): Map<string, string> {
   const withDisplayNames = generateDisplayNames(persons);
   return new Map(withDisplayNames.map((p) => [p.person_id, p.displayName]));

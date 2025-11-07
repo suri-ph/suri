@@ -107,6 +107,7 @@ export interface FaceWithRecognition {
     confidence?: number;
     status: "real" | "fake" | "error" | "too_small";
     label?: string;
+    attack_type?: string;
     message?: string;
   };
   recognition?: RecognitionResult;

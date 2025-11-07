@@ -63,8 +63,8 @@ interface IPCMessage {
       confidence?: number;
       status?: "real" | "fake" | "error" | "too_small";
       label?: string;
+      attack_type?: string;
       message?: string;
-      decision_reason?: string;
     };
     track_id?: number;
   }>;

@@ -43,6 +43,7 @@ const DetectionCard = memo(
       }
 
       const status = face.liveness.status;
+      const label = face.liveness.label;
       const liveScore = face.liveness.live_score ?? null;
       const spoofScore = face.liveness.spoof_score ?? null;
 
@@ -51,22 +52,18 @@ const DetectionCard = memo(
           return {
             borderColor: "border-green-500/60",
             bgColor: "",
-            statusText: "REAL",
+            statusText: label?.toUpperCase() || "REAL",
             statusColor: "text-green-400",
             score:
               liveScore !== null && liveScore !== undefined ? liveScore : null,
           };
         case "fake":
-          // Enhanced spoof styling - very prominent
           return {
             borderColor: "border-red-500/90",
             bgColor: "bg-red-950/30",
-            statusText: "SPOOF",
+            statusText: label?.toUpperCase(),
             statusColor: "text-red-300 font-semibold",
-            score:
-              spoofScore !== null && spoofScore !== undefined
-                ? spoofScore
-                : null,
+            score: spoofScore,
           };
         case "error":
           return {
@@ -88,7 +85,7 @@ const DetectionCard = memo(
           return {
             borderColor: "border-white/20",
             bgColor: "",
-            statusText: "UNKNOWN",
+            statusText: label?.toUpperCase() || "UNKNOWN",
             statusColor: "text-white/60",
             score: null,
           };
@@ -128,7 +125,9 @@ const DetectionCard = memo(
                   isSpoof ? "text-red-300/70" : "text-white/40"
                 }`}
               >
-                {isSpoof ? "Spoofed Face" : "Unknown"}
+                {isSpoof 
+                  ? "Spoofed Face"
+                  : "Unknown"}
               </span>
             )}
           </div>
@@ -185,20 +184,33 @@ export function DetectionPanel({
 
   // Filter faces: if spoof detection is OFF, only show recognized faces
   // If spoof detection is ON, show all faces (current behavior)
+  // Sort: LIVE faces always on top
   const filteredFaces = useMemo(() => {
     if (!currentDetections?.faces) return [];
 
+    let faces: DetectionResult["faces"] = [];
+
     if (!enableSpoofDetection) {
       // Only show recognized faces when spoof detection is off
-      return currentDetections.faces.filter((face) => {
+      faces = currentDetections.faces.filter((face) => {
         const trackId = face.track_id!;
         const recognitionResult = currentRecognitionResults.get(trackId);
         return recognitionEnabled && !!recognitionResult?.person_id;
       });
+    } else {
+      // Show all faces when spoof detection is on
+      faces = currentDetections.faces;
     }
 
-    // Show all faces when spoof detection is on
-    return currentDetections.faces;
+    // Sort: LIVE faces (status === "real") always on top
+    return [...faces].sort((a, b) => {
+      const aIsLive = a.liveness?.status === "real";
+      const bIsLive = b.liveness?.status === "real";
+      
+      if (aIsLive && !bIsLive) return -1; // a comes first
+      if (!aIsLive && bIsLive) return 1;  // b comes first
+      return 0; // maintain original order for same status
+    });
   }, [
     currentDetections?.faces,
     currentRecognitionResults,
