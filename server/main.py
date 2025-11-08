@@ -463,7 +463,11 @@ async def recognize_face(request: FaceRecognitionRequest):
                 "track_id": -1,
             }
 
-            liveness_results = await liveness_detector.detect_faces(image, [temp_face])
+            # Process liveness detection
+            loop = asyncio.get_event_loop()
+            liveness_results = await loop.run_in_executor(
+                None, liveness_detector.detect_faces, image, [temp_face]
+            )
 
             if liveness_results and len(liveness_results) > 0:
                 liveness_data = liveness_results[0].get("liveness", {})
@@ -572,7 +576,11 @@ async def register_person(request: FaceRegistrationRequest):
                 "track_id": -1,
             }
 
-            liveness_results = await liveness_detector.detect_faces(image, [temp_face])
+            # Process liveness detection (sync method wrapped in executor for true parallelism)
+            loop = asyncio.get_event_loop()
+            liveness_results = await loop.run_in_executor(
+                None, liveness_detector.detect_faces, image, [temp_face]
+            )
 
             if liveness_results and len(liveness_results) > 0:
                 liveness_data = liveness_results[0].get("liveness", {})

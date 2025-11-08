@@ -213,7 +213,7 @@ class AntiSpoof:
 
         return results
 
-    async def detect_faces(
+    def detect_faces(
         self, image: np.ndarray, face_detections: List[Dict]
     ) -> List[Dict]:
         """Process face detections with anti-spoofing"""

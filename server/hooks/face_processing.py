@@ -34,7 +34,10 @@ async def process_liveness_detection(
 
     try:
         # Process liveness detection
-        faces_with_liveness = await liveness_detector.detect_faces(image, faces)
+        loop = asyncio.get_event_loop()
+        faces_with_liveness = await loop.run_in_executor(
+            None, liveness_detector.detect_faces, image, faces
+        )
         return faces_with_liveness
 
     except Exception as e:
