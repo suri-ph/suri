@@ -88,7 +88,6 @@ async def lifespan(app: FastAPI):
             confidence_threshold=LIVENESS_DETECTOR_CONFIG["confidence_threshold"],
             min_face_size=LIVENESS_DETECTOR_CONFIG["min_face_size"],
             bbox_inc=LIVENESS_DETECTOR_CONFIG["bbox_inc"],
-            config=LIVENESS_DETECTOR_CONFIG,
         )
 
         # Initialize face recognizer (uses face detector landmarks for alignment)
@@ -215,18 +214,9 @@ async def configure_liveness_optimization(request: OptimizationRequest):
         raise HTTPException(status_code=500, detail="Liveness detector not available")
 
     try:
-        if request.clear_cache:
-            liveness_detector.clear_cache()
-
-        liveness_detector.cache_duration = request.cache_duration
-
         return {
             "success": True,
             "message": "Optimization settings updated",
-            "settings": {
-                "cache_duration": request.cache_duration,
-                "cache_cleared": request.clear_cache,
-            },
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {e}")

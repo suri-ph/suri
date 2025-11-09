@@ -87,5 +87,4 @@ class SimilarityThresholdRequest(BaseModel):
 
 
 class OptimizationRequest(BaseModel):
-    cache_duration: float = 1.0
-    clear_cache: bool = False
+    pass

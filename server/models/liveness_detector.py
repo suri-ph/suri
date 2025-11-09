@@ -13,12 +13,9 @@ class LivenessDetector:
         confidence_threshold: float,
         min_face_size: int,
         bbox_inc: float,
-        config: Dict = None,
     ):
         self.model_img_size = model_img_size
         self.confidence_threshold = confidence_threshold
-        self.config = config or {}
-        self.cache_duration = 0
         self.min_face_size = min_face_size
         self.bbox_inc = bbox_inc
 
@@ -343,7 +340,3 @@ class LivenessDetector:
                 f.write(result_line + "\n")
         except Exception:
             pass
-
-    def clear_cache(self):
-        """Clear cache (stub method for API compatibility)"""
-        pass
