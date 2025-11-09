@@ -5,7 +5,7 @@ import os
 from typing import List, Dict
 
 
-class AntiSpoof:
+class LivenessDetector:
     def __init__(
         self,
         model_path: str,
