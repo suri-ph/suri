@@ -61,7 +61,7 @@ interface IPCMessage {
       live_score?: number;
       spoof_score?: number;
       confidence?: number;
-      status?: "real" | "fake" | "error" | "too_small";
+      status?: "live" | "spoof" | "error" | "too_small";
       label?: string;
       attack_type?: string;
       message?: string;
