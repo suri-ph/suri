@@ -6,7 +6,7 @@ import ulid
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from schemas.attendance_models import (
+from api.schemas import (
     # Group models
     AttendanceGroupCreate,
     AttendanceGroupUpdate,

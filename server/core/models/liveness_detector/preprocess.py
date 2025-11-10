@@ -109,7 +109,7 @@ def extract_face_crops_from_detections(
 ) -> Tuple[List[np.ndarray], List[Dict], List[Dict]]:
     """
     Extract face crops from detections.
-    
+
     Returns:
         Tuple of (face_crops, valid_detections, skipped_results)
         - face_crops: List of cropped face images

@@ -44,11 +44,15 @@ class LivenessDetector:
         """Apply softmax to prediction (supports both single and batch predictions)"""
         return softmax(prediction)
 
-    def increased_crop(self, img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarray:
+    def increased_crop(
+        self, img: np.ndarray, bbox: tuple, bbox_inc: float
+    ) -> np.ndarray:
         """Crop face with expanded bounding box"""
         return crop_with_margin(img, bbox, bbox_inc)
 
-    def detect_faces(self, image: np.ndarray, face_detections: List[Dict]) -> List[Dict]:
+    def detect_faces(
+        self, image: np.ndarray, face_detections: List[Dict]
+    ) -> List[Dict]:
         """Process face detections with anti-spoofing"""
         if not face_detections:
             return []

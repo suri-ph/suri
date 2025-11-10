@@ -83,3 +83,44 @@ async def process_face_tracking(faces: List[Dict], image: np.ndarray) -> List[Di
         logger.warning(f"Deep SORT tracking failed: {e}")
         # Return original faces without tracking on error
         return faces
+
+
+async def process_liveness_for_face_operation(
+    image: np.ndarray,
+    bbox: list,
+    enable_liveness_detection: bool,
+    operation_name: str,
+) -> tuple[bool, str | None]:
+    """
+    Process liveness detection for face recognition/registration operations.
+    Returns (should_block, error_message)
+    """
+    from core.lifespan import liveness_detector
+
+    if not (liveness_detector and enable_liveness_detection):
+        return False, None
+
+    # Liveness detector supports list format directly - only bbox is required
+    loop = asyncio.get_event_loop()
+    liveness_results = await loop.run_in_executor(
+        None, liveness_detector.detect_faces, image, [{"bbox": bbox}]
+    )
+
+    if liveness_results and len(liveness_results) > 0:
+        liveness_data = liveness_results[0].get("liveness", {})
+        is_real = liveness_data.get("is_real", False)
+        status = liveness_data.get("status", "unknown")
+
+        # Block for spoofed faces
+        if not is_real or status == "spoof":
+            return (
+                True,
+                f"{operation_name} blocked: spoofed face detected (status: {status})",
+            )
+
+        # Block other problematic statuses
+        if status in ["too_small", "error"]:
+            logger.warning(f"{operation_name} blocked for face with status: {status}")
+            return True, f"{operation_name} blocked: face status {status}"
+
+    return False, None

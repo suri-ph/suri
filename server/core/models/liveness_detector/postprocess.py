@@ -85,20 +85,19 @@ def process_prediction(
     return result
 
 
-def validate_detection(detection: Dict, min_face_size: int) -> Tuple[bool, Optional[Dict]]:
+def validate_detection(
+    detection: Dict, min_face_size: int
+) -> Tuple[bool, Optional[Dict]]:
     """
     Validate detection and check if it meets minimum face size requirement.
-    
+
     Returns:
         Tuple of (is_valid, liveness_status_dict)
         - is_valid: True if detection should be processed, False if skipped
         - liveness_status_dict: None if valid, or liveness dict if marked as too_small
     """
     # Skip if already marked as too_small
-    if (
-        "liveness" in detection
-        and detection["liveness"].get("status") == "too_small"
-    ):
+    if "liveness" in detection and detection["liveness"].get("status") == "too_small":
         return False, None
 
     bbox = detection.get("bbox", {})
@@ -107,14 +106,10 @@ def validate_detection(detection: Dict, min_face_size: int) -> Tuple[bool, Optio
 
     # Handle dict format: {"x": x, "y": y, "width": w, "height": h}
     if isinstance(bbox, dict):
-        x = int(bbox.get("x", 0))
-        y = int(bbox.get("y", 0))
         w = int(bbox.get("width", 0))
         h = int(bbox.get("height", 0))
     # Handle list/tuple format: [x, y, width, height]
     elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
-        x = int(bbox[0])
-        y = int(bbox[1])
         w = int(bbox[2])
         h = int(bbox[3])
     else:
@@ -146,8 +141,8 @@ def run_batch_inference(
     postprocess_fn,
 ) -> List[Optional[np.ndarray]]:
     """
-    Run batch inference on face crops.
-    
+    Run inference on face crops (one at a time since model expects batch size 1).
+
     Returns:
         List of raw predictions (or None for failed predictions)
     """
@@ -158,33 +153,28 @@ def run_batch_inference(
     if not ort_session:
         return [None] * len(face_crops)
 
-    try:
-        # Batch preprocess all face crops: [N, C, H, W]
-        batch_inputs = np.concatenate(
-            [preprocess_fn(img) for img in face_crops], axis=0
-        )
+    # Process each face individually since model expects batch size 1
+    for i, face_crop in enumerate(face_crops):
+        try:
+            # Preprocess single face crop: [1, C, H, W]
+            single_input = preprocess_fn(face_crop)  # Shape: [1, 3, 128, 128]
 
-        # Run single batch inference
-        onnx_results = ort_session.run([], {input_name: batch_inputs})
-        batch_logits = onnx_results[0]  # Shape: [N, 3]
+            # Run inference on single face
+            onnx_results = ort_session.run([], {input_name: single_input})
+            logits = onnx_results[0]  # Shape: [1, 3]
 
-        # Validate batch output shape
-        if batch_logits.shape[1] != 3:
-            return [None] * len(face_crops)
-
-        # Apply postprocessing (softmax) to entire batch at once
-        batch_predictions = postprocess_fn(batch_logits)  # Shape: [N, 3]
-
-        # Extract individual predictions
-        for i in range(len(face_crops)):
-            try:
-                raw_pred = batch_predictions[i]  # Shape: [3]
-                raw_predictions.append(raw_pred)
-            except Exception:
+            # Validate output shape
+            if logits.shape[1] != 3:
                 raw_predictions.append(None)
-    except Exception:
-        # Fallback to None for all predictions on batch failure
-        return [None] * len(face_crops)
+                continue
+
+            # Apply postprocessing (softmax)
+            prediction = postprocess_fn(logits)  # Shape: [1, 3]
+            raw_pred = prediction[0]  # Shape: [3]
+            raw_predictions.append(raw_pred)
+
+        except Exception:
+            raw_predictions.append(None)
 
     return raw_predictions
 

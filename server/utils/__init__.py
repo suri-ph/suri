@@ -1,7 +1,7 @@
 """
 Utility functions package
 
-Contains image processing utilities and WebSocket management.
+Contains image processing utilities, WebSocket management, and face serialization.
 """
 
 from .image_utils import (
@@ -15,6 +15,7 @@ from .image_utils import (
     draw_detection_info,
 )
 from .websocket_manager import manager, ConnectionManager, handle_websocket_message
+from .face_utils import serialize_faces
 
 __all__ = [
     "decode_base64_image",
@@ -28,4 +29,5 @@ __all__ = [
     "manager",
     "ConnectionManager",
     "handle_websocket_message",
+    "serialize_faces",
 ]

@@ -13,7 +13,7 @@ def get_weights_dir() -> Path:
         return Path(sys._MEIPASS) / "weights"
     else:
         # Development mode - use the server weights directory
-        # config.py is now in server/core, so go up one level to server/
+        # config.py is now in server/config, so go up one level to server/
         base_dir = Path(__file__).parent.parent
         return base_dir / "weights"
 
@@ -31,7 +31,7 @@ def get_data_dir() -> Path:
         return data_dir
     else:
         # Development mode - use server/data directory
-        # config.py is now in server/core, so go up one level to server/
+        # config.py is now in server/config, so go up one level to server/
         base_dir = Path(__file__).parent.parent
         data_dir = base_dir / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -134,16 +134,29 @@ except Exception as e:
 
 # Optimized ONNX Session Options for maximum performance
 # OPTIMIZED: Thread configuration tuned for face detection workloads
-OPTIMIZED_SESSION_OPTIONS = {
-    "enable_cpu_mem_arena": True,
-    "enable_memory_pattern": True,
-    "enable_profiling": False,
-    "execution_mode": ort.ExecutionMode.ORT_SEQUENTIAL,  # Best for single-threaded inference
-    "graph_optimization_level": ort.GraphOptimizationLevel.ORT_ENABLE_ALL,  # Maximum optimization
-    "inter_op_num_threads": 0,  # Reduced from 0 (all cores) to 2 to avoid thread contention
-    "intra_op_num_threads": 0,  # Reduced from 0 (all cores) to 4 for parallel ops within a node
-    "log_severity_level": 3,  # Reduce logging overhead
-}
+try:
+    import onnxruntime as ort
+
+    OPTIMIZED_SESSION_OPTIONS = {
+        "enable_cpu_mem_arena": True,
+        "enable_memory_pattern": True,
+        "enable_profiling": False,
+        "execution_mode": ort.ExecutionMode.ORT_SEQUENTIAL,  # Best for single-threaded inference
+        "graph_optimization_level": ort.GraphOptimizationLevel.ORT_ENABLE_ALL,  # Maximum optimization
+        "inter_op_num_threads": 0,  # Reduced from 0 (all cores) to 2 to avoid thread contention
+        "intra_op_num_threads": 0,  # Reduced from 0 (all cores) to 4 for parallel ops within a node
+        "log_severity_level": 3,  # Reduce logging overhead
+    }
+except ImportError:
+    # Fallback if onnxruntime is not available
+    OPTIMIZED_SESSION_OPTIONS = {
+        "enable_cpu_mem_arena": True,
+        "enable_memory_pattern": True,
+        "enable_profiling": False,
+        "inter_op_num_threads": 0,
+        "intra_op_num_threads": 0,
+        "log_severity_level": 3,
+    }
 
 # Model configurations - OPTIMIZED FOR MAXIMUM PERFORMANCE
 MODEL_CONFIGS = {
@@ -367,11 +380,11 @@ def validate_model_paths():
 
 def validate_directories():
     """Validate that required directories exist"""
-    # BASE_DIR is now server/core, so models is at BASE_DIR / "models"
+    # BASE_DIR is now server/config, so models is at BASE_DIR.parent / "core" / "models"
     # but utils is at server/utils, so BASE_DIR.parent / "utils"
     required_dirs = [
         WEIGHTS_DIR,
-        BASE_DIR / "models",
+        BASE_DIR.parent / "core" / "models",
         BASE_DIR.parent / "utils",
     ]
 
