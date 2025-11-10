@@ -28,7 +28,6 @@ class FaceRecognizer:
         self.similarity_threshold = similarity_threshold
         self.providers = providers or ["CPUExecutionProvider"]
         self.database_path = database_path
-        self.session_options = session_options
 
         self.INPUT_MEAN = 127.5
         self.INPUT_STD = 127.5
@@ -36,12 +35,11 @@ class FaceRecognizer:
 
         self.session = None
 
-        # Cache for persons to minimize database queries
         self._persons_cache = None
         self._cache_timestamp = 0
         self._cache_ttl = 1.0
+
         if self.database_path:
-            # Convert .json extension to .db for SQLite
             if self.database_path.endswith(".json"):
                 sqlite_path = self.database_path.replace(".json", ".db")
             else:
@@ -56,48 +54,38 @@ class FaceRecognizer:
             if not os.path.exists(self.model_path):
                 raise FileNotFoundError(f"Model file not found: {self.model_path}")
 
-            session_options = ort.SessionOptions()
+            ort_opts = ort.SessionOptions()
 
-            if self.session_options:
-                for key, value in self.session_options.items():
-                    if hasattr(session_options, key):
-                        setattr(session_options, key, value)
+            if session_options:
+                for key, value in session_options.items():
+                    if hasattr(ort_opts, key):
+                        setattr(ort_opts, key, value)
 
             self.session = ort.InferenceSession(
-                self.model_path, sess_options=session_options, providers=self.providers
+                self.model_path, sess_options=ort_opts, providers=self.providers
             )
 
         except Exception as e:
             logger.error(f"Failed to initialize face recognizer model: {e}")
             raise
 
-    def _align_face(self, image: np.ndarray, landmarks_5: List) -> np.ndarray:
-        landmarks = np.array(landmarks_5, dtype=np.float32)
-        aligned_face = self._create_aligned_face(image, landmarks)
-        return aligned_face
-
-    def _create_aligned_face(
-        self, image: np.ndarray, landmarks: np.ndarray
-    ) -> np.ndarray:
+    def _align_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         """Align face using similarity transformation based on 5 landmarks."""
         try:
             reference_points = np.array(
                 [
-                    [38.2946, 51.6963],  # Left eye
-                    [73.5318, 51.5014],  # Right eye
-                    [56.0252, 71.7366],  # Nose tip
-                    [41.5493, 92.3655],  # Left mouth corner
-                    [70.7299, 92.2041],  # Right mouth corner
+                    [38.2946, 51.6963],
+                    [73.5318, 51.5014],
+                    [56.0252, 71.7366],
+                    [41.5493, 92.3655],
+                    [70.7299, 92.2041],
                 ],
                 dtype=np.float32,
             )
 
-            src_points = landmarks.astype(np.float32)
-            dst_points = reference_points.astype(np.float32)
-
             tform, _ = cv2.estimateAffinePartial2D(
-                src_points,
-                dst_points,
+                landmarks,
+                reference_points,
                 method=cv2.LMEDS,
                 maxIters=1,
                 refineIters=0,
@@ -106,7 +94,6 @@ class FaceRecognizer:
             if tform is None:
                 raise ValueError("Failed to compute similarity transformation matrix")
 
-            # INTER_CUBIC: sharper images, better texture preservation, improves accuracy
             aligned_face = cv2.warpAffine(
                 image,
                 tform,
@@ -133,112 +120,68 @@ class FaceRecognizer:
             return cv2.resize(face_crop, self.input_size)
 
     def _preprocess_image(self, aligned_face: np.ndarray) -> np.ndarray:
-        try:
-            rgb_image = cv2.cvtColor(aligned_face, cv2.COLOR_BGR2RGB)
-            normalized = (
-                rgb_image.astype(np.float32) - self.INPUT_MEAN
-            ) / self.INPUT_STD
-            input_tensor = np.transpose(normalized, (2, 0, 1))
-            input_tensor = np.expand_dims(input_tensor, axis=0)
-
-            return input_tensor
-
-        except Exception as e:
-            logger.error(f"Image preprocessing failed: {e}")
-            raise
+        rgb_image = cv2.cvtColor(aligned_face, cv2.COLOR_BGR2RGB)
+        normalized = (rgb_image.astype(np.float32) - self.INPUT_MEAN) / self.INPUT_STD
+        input_tensor = np.transpose(normalized, (2, 0, 1))
+        return np.expand_dims(input_tensor, axis=0)
 
     def _extract_embedding(self, image: np.ndarray, landmarks_5: List) -> np.ndarray:
-        try:
-            aligned_face = self._align_face(image, landmarks_5)
-            input_tensor = self._preprocess_image(aligned_face)
-            feeds = {self.session.get_inputs()[0].name: input_tensor}
-            outputs = self.session.run(None, feeds)
-            embedding = outputs[0][0]
+        landmarks = np.array(landmarks_5, dtype=np.float32)
+        aligned_face = self._align_face(image, landmarks)
+        input_tensor = self._preprocess_image(aligned_face)
 
-            # L2 normalization for cosine similarity
-            norm = np.linalg.norm(embedding)
-            if norm > 0:
-                embedding = embedding / norm
+        feeds = {self.session.get_inputs()[0].name: input_tensor}
+        outputs = self.session.run(None, feeds)
+        embedding = outputs[0][0]
 
-            return embedding.astype(np.float32)
+        norm = np.linalg.norm(embedding)
+        if norm > 0:
+            embedding = embedding / norm
 
-        except Exception as e:
-            logger.error(f"Embedding extraction failed: {e}")
-            raise
+        return embedding.astype(np.float32)
 
     def _extract_embeddings_batch(
         self, image: np.ndarray, face_data_list: List[Dict]
     ) -> List[np.ndarray]:
         """BATCH PROCESSING: Extract embeddings in single inference call"""
-        try:
-            if not face_data_list:
-                return []
+        if not face_data_list:
+            return []
 
-            aligned_faces = []
+        aligned_faces = []
+        for i, face_data in enumerate(face_data_list):
+            try:
+                landmarks_5 = face_data.get("landmarks_5")
+                landmarks = np.array(landmarks_5, dtype=np.float32)
+                aligned_face = self._align_face(image, landmarks)
+                aligned_faces.append(aligned_face)
+            except Exception as e:
+                logger.warning(f"Failed to align face {i}: {e}")
+                continue
 
-            for i, face_data in enumerate(face_data_list):
-                try:
-                    landmarks_5 = face_data.get("landmarks_5")
-                    aligned_face = self._align_face(image, landmarks_5)
-                    aligned_faces.append(aligned_face)
-                except Exception as e:
-                    logger.warning(f"Failed to align face {i}: {e}")
-                    continue
+        if not aligned_faces:
+            return []
 
-            if not aligned_faces:
-                return []
+        batch_tensors = [self._preprocess_image(face)[0] for face in aligned_faces]
+        batch_input = np.stack(batch_tensors, axis=0)
 
-            batch_tensors = []
-            for aligned_face in aligned_faces:
-                rgb_image = cv2.cvtColor(aligned_face, cv2.COLOR_BGR2RGB)
-                normalized = (
-                    rgb_image.astype(np.float32) - self.INPUT_MEAN
-                ) / self.INPUT_STD
-                tensor = np.transpose(normalized, (2, 0, 1))
-                batch_tensors.append(tensor)
+        feeds = {self.session.get_inputs()[0].name: batch_input}
+        outputs = self.session.run(None, feeds)
 
-            batch_input = np.stack(batch_tensors, axis=0)
-            feeds = {self.session.get_inputs()[0].name: batch_input}
-            outputs = self.session.run(None, feeds)
+        embeddings = outputs[0]
+        normalized_embeddings = []
 
-            embeddings = outputs[0]
-            normalized_embeddings = []
+        for embedding in embeddings:
+            norm = np.linalg.norm(embedding)
+            if norm > 0:
+                embedding = embedding / norm
+            normalized_embeddings.append(embedding.astype(np.float32))
 
-            for embedding in embeddings:
-                norm = np.linalg.norm(embedding)
-                if norm > 0:
-                    embedding = embedding / norm
-                normalized_embeddings.append(embedding.astype(np.float32))
-
-            return normalized_embeddings
-
-        except Exception as e:
-            logger.error(f"Batch embedding extraction failed: {e}")
-            embeddings = []
-            for face_data in face_data_list:
-                try:
-                    landmarks_5 = face_data.get("landmarks_5")
-                    emb = self._extract_embedding(image, landmarks_5)
-                    embeddings.append(emb)
-                except Exception:
-                    continue
-            return embeddings
-
-    def _calculate_similarity(
-        self, embedding1: np.ndarray, embedding2: np.ndarray
-    ) -> float:
-        try:
-            similarity = np.dot(embedding1, embedding2)
-            return float(similarity)
-
-        except Exception as e:
-            logger.error(f"Similarity calculation failed: {e}")
-            return 0.0
+        return normalized_embeddings
 
     def _find_best_match(
         self, embedding: np.ndarray, allowed_person_ids: Optional[List[str]] = None
     ) -> Tuple[Optional[str], float]:
-        """OPTIMIZED: In-memory cache prevents database queries on every frame"""
+        """Find best matching person using cached database"""
         if not self.db_manager:
             return None, 0.0
 
@@ -269,7 +212,7 @@ class FaceRecognizer:
         best_similarity = 0.0
 
         for person_id, stored_embedding in all_persons.items():
-            similarity = self._calculate_similarity(embedding, stored_embedding)
+            similarity = float(np.dot(embedding, stored_embedding))
 
             if similarity > best_similarity:
                 best_similarity = similarity
@@ -283,10 +226,18 @@ class FaceRecognizer:
         else:
             return None, best_similarity
 
+    def _refresh_cache(self):
+        """Refresh cache after database modifications"""
+        if self.db_manager:
+            self._persons_cache = self.db_manager.get_all_persons()
+            self._cache_timestamp = time.time()
+        else:
+            self._persons_cache = None
+            self._cache_timestamp = 0
+
     def recognize_face(
         self,
         image: np.ndarray,
-        bbox: List[float],
         landmarks_5: List,
         allowed_person_ids: Optional[List[str]] = None,
     ) -> Dict:
@@ -312,13 +263,12 @@ class FaceRecognizer:
     async def recognize_face_async(
         self,
         image: np.ndarray,
-        bbox: List[float],
         landmarks_5: List,
         allowed_person_ids: Optional[List[str]] = None,
     ) -> Dict:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self.recognize_face, image, bbox, landmarks_5, allowed_person_ids
+            None, self.recognize_face, image, landmarks_5, allowed_person_ids
         )
 
     def extract_embeddings_for_tracking(
@@ -361,7 +311,7 @@ class FaceRecognizer:
             return []
 
     def register_person(
-        self, person_id: str, image: np.ndarray, bbox: List[float], landmarks_5: List
+        self, person_id: str, image: np.ndarray, landmarks_5: List
     ) -> Dict:
         try:
             embedding = self._extract_embedding(image, landmarks_5)
@@ -370,7 +320,7 @@ class FaceRecognizer:
                 save_success = self.db_manager.add_person(person_id, embedding)
                 stats = self.db_manager.get_stats()
                 total_persons = stats.get("total_persons", 0)
-                self._invalidate_cache()
+                self._refresh_cache()
             else:
                 save_success = False
                 total_persons = 0
@@ -388,11 +338,11 @@ class FaceRecognizer:
             return {"success": False, "error": str(e), "person_id": person_id}
 
     async def register_person_async(
-        self, person_id: str, image: np.ndarray, bbox: List[float], landmarks_5: List
+        self, person_id: str, image: np.ndarray, landmarks_5: List
     ) -> Dict:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self.register_person, person_id, image, bbox, landmarks_5
+            None, self.register_person, person_id, image, landmarks_5
         )
 
     def remove_person(self, person_id: str) -> Dict:
@@ -401,7 +351,7 @@ class FaceRecognizer:
                 remove_success = self.db_manager.remove_person(person_id)
 
                 if remove_success:
-                    self._invalidate_cache()
+                    self._refresh_cache()
                     stats = self.db_manager.get_stats()
                     total_persons = stats.get("total_persons", 0)
 
@@ -441,7 +391,7 @@ class FaceRecognizer:
                     old_person_id, new_person_id
                 )
                 if updated_count > 0:
-                    self._invalidate_cache()
+                    self._refresh_cache()
                     return {
                         "success": True,
                         "message": f"Person '{old_person_id}' renamed to '{new_person_id}' successfully",
@@ -484,7 +434,7 @@ class FaceRecognizer:
                 clear_success = self.db_manager.clear_database()
 
                 if clear_success:
-                    self._invalidate_cache()
+                    self._refresh_cache()
                     return {"success": True, "database_saved": True, "total_persons": 0}
                 else:
                     return {"success": False, "error": "Failed to clear database"}
@@ -496,6 +446,6 @@ class FaceRecognizer:
             return {"success": False, "error": str(e)}
 
     def _invalidate_cache(self):
-        """Invalidate cache after database modifications"""
+        """Invalidate cache without refreshing"""
         self._persons_cache = None
         self._cache_timestamp = 0
