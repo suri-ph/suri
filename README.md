@@ -65,14 +65,14 @@ Attendance Recording (with cooldown + deduplication)
 
 ### System Components
 
-#### 1. **Face Detection Module** (`server/models/face_detector.py`)
+#### 1. **Face Detection Module**
 - Lightweight CNN-based architecture optimized for real-time performance
 - Configurable input size (640×640 default for distant face detection)
 - NMS (Non-Maximum Suppression) for overlapping face elimination
 - Outputs: bounding boxes, confidence scores, 5-point facial landmarks
 - Minimum face size filtering (80px default for liveness compatibility)
 
-#### 2. **Face Tracking System** (`server/models/tracker.py`)
+#### 2. **Face Tracking System**
 - **Deep SORT Algorithm**: 
   - Kalman filter for motion prediction
   - Appearance-based matching with face embeddings (512-dim)
@@ -82,7 +82,7 @@ Attendance Recording (with cooldown + deduplication)
 - **Track Lifetime**: Maintains tracks for 30 frames without detection
 - **Benefits**: Reduces false positives, maintains identity during occlusions
 
-#### 3. **Liveness Detection** (`server/models/validator.py`)
+#### 3. **Liveness Detection**
 - **3-Class Model**: Live, Print Attack, Replay Attack
 - **CONFIDENCE Strategy**: 
   ```
@@ -92,7 +92,7 @@ Attendance Recording (with cooldown + deduplication)
 - **Attack Analysis**: Detailed statistics on attack types and distributions
 - **Safety-first**: Rejects low confidence cases as spoof to prevent false positives
 
-#### 4. **Face Recognition** (`server/models/recognizer.py`)
+#### 4. **Face Recognition**
 - **Embedding Extraction**: 
   - Similarity transform alignment using 5-point landmarks
   - 512-dimensional normalized embeddings (L2 normalization)
@@ -105,7 +105,7 @@ Attendance Recording (with cooldown + deduplication)
   - SQLite storage with indexed lookups
   - Automatic ID updates and duplicate prevention
 
-#### 5. **Attendance Database** (`server/utils/attendance_database.py`)
+#### 5. **Attendance Database**
 - **Schema Design**:
   - `attendance_groups`: Group metadata with settings
   - `attendance_members`: Person-to-group mapping
@@ -169,10 +169,10 @@ pnpm install
 ```
 
 **4. Place AI Models**
-Download the ONNX model files and place them in `server/weights/`:
-- `detector_fast.onnx` - Face detection model
-- `recognizer_light.onnx` - Face recognition model
-- `validator_standard.onnx` - Liveness detection model
+Download the ONNX model files and place them in the server weights directory:
+- Face detection model
+- Face recognition model
+- Liveness detection model
 
 > **Model Sources**: Contact the repository maintainer for pre-trained models, or train your own using the provided architectures.
 
@@ -257,7 +257,7 @@ Installer will be created in `desktop/dist/`
 
 ## ⚙️ Configuration
 
-### Backend Configuration (`server/config.py`)
+### Backend Configuration
 
 **Server Settings**
 ```python
@@ -523,9 +523,7 @@ python --version  # Should be 3.10 or 3.11
 # Verify virtual environment
 which python  # Should point to venv
 
-# Check model files exist
-ls server/weights/
-# Should show: detector_fast.onnx, recognizer_light.onnx, validator_standard.onnx
+# Check model files exist in weights directory
 ```
 
 **GPU not detected**
@@ -580,61 +578,6 @@ FACE_TRACKER_CONFIG["max_age"] = 20
 
 ---
 
-## 📊 Project Structure
-
-```
-Suri/
-├── desktop/                    # Electron + React frontend
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── main/          # Main app components
-│   │   │   ├── menu/          # Menu navigation
-│   │   │   ├── settings/      # Settings UI
-│   │   │   └── common/        # Shared components
-│   │   ├── electron/
-│   │   │   ├── main.ts        # Electron main process
-│   │   │   ├── preload.ts     # IPC bridge
-│   │   │   └── backendService.ts  # Backend communication
-│   │   ├── services/
-│   │   │   ├── BackendService.ts      # Face detection API
-│   │   │   └── AttendanceManager.ts   # Attendance API
-│   │   └── hooks/             # React hooks
-│   ├── dist/                  # Production build
-│   └── package.json
-│
-├── server/                     # Python FastAPI backend
-│   ├── models/
-│   │   ├── face_detector.py   # Face detection
-│   │   ├── recognizer.py      # Face recognition
-│   │   ├── validator.py       # Liveness detection
-│   │   ├── tracker.py         # Deep SORT tracking
-│   │   └── attendance_models.py  # Pydantic schemas
-│   ├── routes/
-│   │   └── attendance.py      # REST API endpoints
-│   ├── utils/
-│   │   ├── attendance_database.py    # SQLite manager
-│   │   ├── database_manager.py       # Face DB manager
-│   │   ├── websocket_manager.py      # WebSocket handler
-│   │   └── image_utils.py            # Image processing
-│   ├── weights/               # ONNX model files
-│   │   ├── detector_fast.onnx
-│   │   ├── recognizer_light.onnx
-│   │   └── validator_standard.onnx
-│   ├── data/                  # SQLite databases
-│   │   ├── face_database.db
-│   │   └── attendance.db
-│   ├── config.py              # Configuration
-│   ├── main.py                # FastAPI app
-│   ├── run.py                 # Development runner
-│   ├── build_backend.py       # PyInstaller build
-│   └── requirements.txt
-│
-├── build-all.sh              # Cross-platform build
-├── dev-start.sh              # Development launcher
-└── README.md
-```
-
----
 
 ## 🤝 Contributing
 
