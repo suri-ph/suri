@@ -14,22 +14,15 @@ from core.config import config, validate_model_paths, validate_directories
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-# Global flag for graceful shutdown
-shutdown_flag = False
-
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
-    global shutdown_flag
-
     signal_name = (
         "SIGINT"
         if signum == signal.SIGINT
         else "SIGTERM" if signum == signal.SIGTERM else f"Signal {signum}"
     )
     print(f"\nReceived {signal_name} - shutting down gracefully...")
-
-    shutdown_flag = True
     sys.exit(0)
 
 
@@ -128,10 +121,6 @@ def main():
         print("Traceback:")
         traceback.print_exc()
         sys.exit(1)
-    finally:
-        # Final cleanup
-        logger.info("Final cleanup...")
-        print("Backend server stopped")
 
 
 if __name__ == "__main__":

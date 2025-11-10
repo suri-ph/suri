@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, protocol } from "electron";
-import { execSync } from "child_process";
 import path from "path";
 import { fileURLToPath } from "node:url";
 import isDev from "./util.js";
@@ -630,23 +629,3 @@ app.on("before-quit", (event) => {
   }
 });
 
-// Failsafe: Process exit (synchronous emergency cleanup)
-process.on("exit", (code) => {
-  console.log(`[Main] Process exiting (code ${code})`);
-
-  // Emergency kill if backend still running
-  if (!isQuitting) {
-    try {
-      if (process.platform === "win32") {
-        execSync("taskkill /F /IM suri-backend.exe /T", {
-          stdio: "ignore",
-          timeout: 2000,
-        });
-      } else {
-        execSync("pkill -9 suri-backend", { stdio: "ignore", timeout: 2000 });
-      }
-    } catch {
-      // Already stopped - OK
-    }
-  }
-});

@@ -105,10 +105,20 @@ def validate_detection(detection: Dict, min_face_size: int) -> Tuple[bool, Optio
     if not bbox:
         return False, None
 
-    x = int(bbox.get("x", 0))
-    y = int(bbox.get("y", 0))
-    w = int(bbox.get("width", 0))
-    h = int(bbox.get("height", 0))
+    # Handle dict format: {"x": x, "y": y, "width": w, "height": h}
+    if isinstance(bbox, dict):
+        x = int(bbox.get("x", 0))
+        y = int(bbox.get("y", 0))
+        w = int(bbox.get("width", 0))
+        h = int(bbox.get("height", 0))
+    # Handle list/tuple format: [x, y, width, height]
+    elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+        x = int(bbox[0])
+        y = int(bbox[1])
+        w = int(bbox[2])
+        h = int(bbox[3])
+    else:
+        return False, None
 
     if w <= 0 or h <= 0:
         return False, None

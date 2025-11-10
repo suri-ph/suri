@@ -59,6 +59,109 @@ if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _serialize_faces(faces: list, endpoint_name: str = "") -> list:
+    """Serialize face detection results for API response"""
+    serialized_faces = []
+    for face in faces:
+        # Validate required fields - no fallbacks
+        if "bbox" not in face or not isinstance(face["bbox"], dict):
+            logger.warning(f"Face missing bbox in {endpoint_name}: {face}")
+            continue
+
+        # Use bbox_original if present, otherwise use bbox
+        if "bbox_original" in face:
+            bbox_orig = face["bbox_original"]
+            if not isinstance(bbox_orig, dict):
+                logger.warning(f"Face bbox_original is not a dict: {face}")
+                continue
+        else:
+            bbox_orig = face["bbox"]
+
+        # Validate bbox has all required fields
+        required_bbox_fields = ["x", "y", "width", "height"]
+        if not all(field in bbox_orig for field in required_bbox_fields):
+            logger.warning(f"Face bbox missing required fields: {bbox_orig}")
+            continue
+
+        # Validate confidence is present
+        if "confidence" not in face or face["confidence"] is None:
+            logger.warning(f"Face missing confidence: {face}")
+            continue
+
+        # Serialize bbox as array [x, y, width, height]
+        face["bbox"] = [
+            bbox_orig["x"],
+            bbox_orig["y"],
+            bbox_orig["width"],
+            bbox_orig["height"],
+        ]
+
+        # Convert track_id to int if present
+        if "track_id" in face and face["track_id"] is not None:
+            track_id_value = face["track_id"]
+            if isinstance(track_id_value, (np.integer, np.int32, np.int64)):
+                face["track_id"] = int(track_id_value)
+
+        # Validate liveness data if present
+        if "liveness" in face:
+            liveness = face["liveness"]
+            if not isinstance(liveness, dict):
+                logger.warning(f"Face liveness is not a dict: {face}")
+                del face["liveness"]
+            else:
+                # Validate required liveness fields
+                if "status" not in liveness:
+                    logger.warning(f"Face liveness missing status: {liveness}")
+                    del face["liveness"]
+                elif "is_real" not in liveness:
+                    logger.warning(f"Face liveness missing is_real: {liveness}")
+                    del face["liveness"]
+
+        # Remove embedding to reduce payload size
+        if "embedding" in face:
+            del face["embedding"]
+
+        serialized_faces.append(face)
+
+    return serialized_faces
+
+
+async def _process_liveness_for_face_operation(
+    image: np.ndarray,
+    bbox: list,
+    enable_liveness_detection: bool,
+    operation_name: str,
+) -> tuple[bool, str | None]:
+    """
+    Process liveness detection for face recognition/registration operations.
+    Returns (should_block, error_message)
+    """
+    if not (liveness_detector and enable_liveness_detection):
+        return False, None
+
+    # Liveness detector supports list format directly - only bbox is required
+    loop = asyncio.get_event_loop()
+    liveness_results = await loop.run_in_executor(
+        None, liveness_detector.detect_faces, image, [{"bbox": bbox}]
+    )
+
+    if liveness_results and len(liveness_results) > 0:
+        liveness_data = liveness_results[0].get("liveness", {})
+        is_real = liveness_data.get("is_real", False)
+        status = liveness_data.get("status", "unknown")
+
+        # Block for spoofed faces
+        if not is_real or status == "spoof":
+            return True, f"{operation_name} blocked: spoofed face detected (status: {status})"
+
+        # Block other problematic statuses
+        if status in ["too_small", "error"]:
+            logger.warning(f"{operation_name} blocked for face with status: {status}")
+            return True, f"{operation_name} blocked: face status {status}"
+
+    return False, None
+
 # Initialize global variables
 face_detector = None
 liveness_detector = None
@@ -70,7 +173,6 @@ attendance_database = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global face_detector, liveness_detector, face_recognizer, face_tracker, attendance_database
-    cleanup_task = None
 
     try:
         logger.info("Starting up backend server...")
@@ -118,17 +220,6 @@ async def lifespan(app: FastAPI):
 
         set_model_references(liveness_detector, face_tracker, face_recognizer)
 
-        async def cleanup_loop():
-            while True:
-                try:
-                    await asyncio.sleep(300)
-                    await manager.cleanup_inactive_connections(timeout_minutes=30)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"Cleanup loop error: {e}")
-
-        cleanup_task = asyncio.create_task(cleanup_loop())
         logger.info("Startup complete")
 
     except Exception as e:
@@ -137,32 +228,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    if cleanup_task:
-        try:
-            cleanup_task.cancel()
-            await cleanup_task
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            logger.error(f"Error stopping cleanup task: {e}")
-
     logger.info("Shutdown complete")
-    logger.info("Shutting down backend server...")
-    try:
-        # Database connections use context managers - no explicit close needed
-        logger.info("Releasing model references...")
-
-        # Clear model references to free memory
-        face_detector = None
-        liveness_detector = None
-        face_recognizer = None
-        face_tracker = None
-        attendance_database = None
-
-        logger.info("Cleanup complete")
-
-    except Exception as e:
-        logger.error(f"Error during shutdown cleanup: {e}")
 
 
 app = FastAPI(
@@ -317,68 +383,7 @@ async def detect_faces(request: DetectionRequest):
             )
 
         processing_time = time.time() - start_time
-
-        serialized_faces = []
-        for face in faces:
-            # Validate required fields - no fallbacks
-            if "bbox" not in face or not isinstance(face["bbox"], dict):
-                logger.warning(f"Face missing bbox in /detect endpoint: {face}")
-                continue
-
-            # Use bbox_original if present, otherwise use bbox
-            if "bbox_original" in face:
-                bbox_orig = face["bbox_original"]
-                if not isinstance(bbox_orig, dict):
-                    logger.warning(f"Face bbox_original is not a dict: {face}")
-                    continue
-            else:
-                bbox_orig = face["bbox"]
-
-            # Validate bbox has all required fields
-            required_bbox_fields = ["x", "y", "width", "height"]
-            if not all(field in bbox_orig for field in required_bbox_fields):
-                logger.warning(f"Face bbox missing required fields: {bbox_orig}")
-                continue
-
-            # Validate confidence is present
-            if "confidence" not in face or face["confidence"] is None:
-                logger.warning(f"Face missing confidence: {face}")
-                continue
-
-            # Serialize bbox as array [x, y, width, height]
-            face["bbox"] = [
-                bbox_orig["x"],
-                bbox_orig["y"],
-                bbox_orig["width"],
-                bbox_orig["height"],
-            ]
-
-            # Convert track_id to int if present
-            if "track_id" in face and face["track_id"] is not None:
-                track_id_value = face["track_id"]
-                if isinstance(track_id_value, (np.integer, np.int32, np.int64)):
-                    face["track_id"] = int(track_id_value)
-
-            # Validate liveness data if present
-            if "liveness" in face:
-                liveness = face["liveness"]
-                if not isinstance(liveness, dict):
-                    logger.warning(f"Face liveness is not a dict: {face}")
-                    del face["liveness"]
-                else:
-                    # Validate required liveness fields
-                    if "status" not in liveness:
-                        logger.warning(f"Face liveness missing status: {liveness}")
-                        del face["liveness"]
-                    elif "is_real" not in liveness:
-                        logger.warning(f"Face liveness missing is_real: {liveness}")
-                        del face["liveness"]
-
-            # Remove embedding to reduce payload size
-            if "embedding" in face:
-                del face["embedding"]
-
-            serialized_faces.append(face)
+        serialized_faces = _serialize_faces(faces, "/detect endpoint")
 
         processing_time_ms = processing_time * 1000
         if processing_time_ms > 50:
@@ -460,68 +465,7 @@ async def detect_faces_upload(
             )
 
         processing_time = time.time() - start_time
-
-        serialized_faces = []
-        for face in faces:
-            # Validate required fields - no fallbacks
-            if "bbox" not in face or not isinstance(face["bbox"], dict):
-                logger.warning(f"Face missing bbox in /detect/upload endpoint: {face}")
-                continue
-
-            # Use bbox_original if present, otherwise use bbox
-            if "bbox_original" in face:
-                bbox_orig = face["bbox_original"]
-                if not isinstance(bbox_orig, dict):
-                    logger.warning(f"Face bbox_original is not a dict: {face}")
-                    continue
-            else:
-                bbox_orig = face["bbox"]
-
-            # Validate bbox has all required fields
-            required_bbox_fields = ["x", "y", "width", "height"]
-            if not all(field in bbox_orig for field in required_bbox_fields):
-                logger.warning(f"Face bbox missing required fields: {bbox_orig}")
-                continue
-
-            # Validate confidence is present
-            if "confidence" not in face or face["confidence"] is None:
-                logger.warning(f"Face missing confidence: {face}")
-                continue
-
-            # Serialize bbox as array [x, y, width, height]
-            face["bbox"] = [
-                bbox_orig["x"],
-                bbox_orig["y"],
-                bbox_orig["width"],
-                bbox_orig["height"],
-            ]
-
-            # Convert track_id to int if present
-            if "track_id" in face and face["track_id"] is not None:
-                track_id_value = face["track_id"]
-                if isinstance(track_id_value, (np.integer, np.int32, np.int64)):
-                    face["track_id"] = int(track_id_value)
-
-            # Validate liveness data if present
-            if "liveness" in face:
-                liveness = face["liveness"]
-                if not isinstance(liveness, dict):
-                    logger.warning(f"Face liveness is not a dict: {face}")
-                    del face["liveness"]
-                else:
-                    # Validate required liveness fields
-                    if "status" not in liveness:
-                        logger.warning(f"Face liveness missing status: {liveness}")
-                        del face["liveness"]
-                    elif "is_real" not in liveness:
-                        logger.warning(f"Face liveness missing is_real: {liveness}")
-                        del face["liveness"]
-
-            # Remove embedding to reduce payload size
-            if "embedding" in face:
-                del face["embedding"]
-
-            serialized_faces.append(face)
+        serialized_faces = _serialize_faces(faces, "/detect/upload endpoint")
 
         processing_time_ms = processing_time * 1000
         if processing_time_ms > 50:
@@ -561,60 +505,19 @@ async def recognize_face(request: FaceRecognitionRequest):
         # OPTIMIZATION: Keep BGR format (no conversion needed)
         image = decode_base64_image(request.image)
 
-        # Only perform liveness detection if enabled
-        if liveness_detector and request.enable_liveness_detection:
-            # landmarks_5 completely removed from liveness detection (rotation removed from anti-spoof)
-            temp_face = {
-                "bbox": {
-                    "x": request.bbox[0],
-                    "y": request.bbox[1],
-                    "width": request.bbox[2],
-                    "height": request.bbox[3],
-                },
-                "confidence": 1.0,
-                "track_id": -1,
-            }
-
-            # Process liveness detection
-            loop = asyncio.get_event_loop()
-            liveness_results = await loop.run_in_executor(
-                None, liveness_detector.detect_faces, image, [temp_face]
+        # Check liveness detection
+        should_block, error_msg = await _process_liveness_for_face_operation(
+            image, request.bbox, request.enable_liveness_detection, "Recognition"
+        )
+        if should_block:
+            processing_time = time.time() - start_time
+            return FaceRecognitionResponse(
+                success=False,
+                person_id=None,
+                similarity=0.0,
+                processing_time=processing_time,
+                error=error_msg,
             )
-
-            if liveness_results and len(liveness_results) > 0:
-                liveness_data = liveness_results[0].get("liveness", {})
-                is_real = liveness_data.get("is_real", False)
-                status = liveness_data.get("status", "unknown")
-
-                # Block recognition for spoofed faces
-                if not is_real or status == "spoof":
-                    processing_time = time.time() - start_time
-                    return FaceRecognitionResponse(
-                        success=False,
-                        person_id=None,
-                        similarity=0.0,
-                        processing_time=processing_time,
-                        error=f"Recognition blocked: spoofed face detected (status: {status})",
-                    )
-
-                # Also block other problematic statuses
-                # Security & Efficiency: Block at recognition stage (first) rather than logging (later)
-                # This prevents wasted API calls and potential misidentification of partial/edge faces
-                if status in [
-                    "too_small",
-                    "error",
-                ]:
-                    processing_time = time.time() - start_time
-                    logger.warning(
-                        f"Recognition blocked for face with status: {status}"
-                    )
-                    return FaceRecognitionResponse(
-                        success=False,
-                        person_id=None,
-                        similarity=0.0,
-                        processing_time=processing_time,
-                        error=f"Recognition blocked: face status {status}",
-                    )
 
         # Get landmarks_5 for face_recognizer (required for face alignment)
         landmarks_5 = request.landmarks_5
@@ -672,63 +575,19 @@ async def register_person(request: FaceRegistrationRequest):
         # OPTIMIZATION: Keep BGR format (no conversion needed)
         image = decode_base64_image(request.image)
 
-        # Only perform liveness detection if enabled
-        if liveness_detector and request.enable_liveness_detection:
-            # landmarks_5 completely removed from liveness detection (rotation removed from anti-spoof)
-            temp_face = {
-                "bbox": {
-                    "x": request.bbox[0],
-                    "y": request.bbox[1],
-                    "width": request.bbox[2],
-                    "height": request.bbox[3],
-                },
-                "confidence": 1.0,
-                "track_id": -1,
-            }
-
-            # Process liveness detection (sync method wrapped in executor for true parallelism)
-            loop = asyncio.get_event_loop()
-            liveness_results = await loop.run_in_executor(
-                None, liveness_detector.detect_faces, image, [temp_face]
+        # Check liveness detection
+        should_block, error_msg = await _process_liveness_for_face_operation(
+            image, request.bbox, request.enable_liveness_detection, "Registration"
+        )
+        if should_block:
+            processing_time = time.time() - start_time
+            return FaceRegistrationResponse(
+                success=False,
+                person_id=request.person_id,
+                total_persons=0,
+                processing_time=processing_time,
+                error=error_msg,
             )
-
-            if liveness_results and len(liveness_results) > 0:
-                liveness_data = liveness_results[0].get("liveness", {})
-                is_real = liveness_data.get("is_real", False)
-                status = liveness_data.get("status", "unknown")
-
-                # Block registration for spoofed faces
-                if not is_real or status == "spoof":
-                    processing_time = time.time() - start_time
-                    logger.warning(
-                        f"Registration blocked for spoofed face: status={status}, is_real={is_real}"
-                    )
-                    return FaceRegistrationResponse(
-                        success=False,
-                        person_id=request.person_id,
-                        total_persons=0,
-                        processing_time=processing_time,
-                        error=f"Registration blocked: spoofed face detected (status: {status})",
-                    )
-
-                # Also block other problematic statuses
-                # Block problematic statuses to prevent registration of unreliable edge cases
-                # Edge cases have insufficient quality for reliable face registration
-                if status in [
-                    "too_small",
-                    "error",
-                ]:
-                    processing_time = time.time() - start_time
-                    logger.warning(
-                        f"Registration blocked for face with status: {status}"
-                    )
-                    return FaceRegistrationResponse(
-                        success=False,
-                        person_id=request.person_id,
-                        total_persons=0,
-                        processing_time=processing_time,
-                        error=f"Registration blocked: face status {status}",
-                    )
 
         # Get landmarks_5 for face_recognizer (required for face alignment)
         landmarks_5 = request.landmarks_5

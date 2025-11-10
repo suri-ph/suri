@@ -318,7 +318,11 @@ export class BackendService {
         `[BackendService] Process exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
       );
       this.status.isRunning = false;
-      this.cleanup();
+      // Only cleanup if process wasn't already cleaned up by killSync()
+      // When killed externally, killSync() handles cleanup, so this is redundant
+      if (this.process !== null) {
+        this.cleanup();
+      }
     });
   }
 
@@ -577,6 +581,10 @@ export class BackendService {
         }
       }
 
+      // Cleanup state (process.on("exit") may not fire when killed externally)
+      this.process = null;
+      this.status.isRunning = false;
+      this.status.pid = undefined;
       this.cleanup();
       return;
     }
@@ -662,7 +670,7 @@ export class BackendService {
       }
     }
 
-    // Cleanup state
+    // Cleanup state (process.on("exit") may not fire reliably when killed externally)
     this.process = null;
     this.status.isRunning = false;
     this.status.pid = undefined;
@@ -857,9 +865,6 @@ export class BackendService {
   }
 
   /**
-   * Clean up on app exit
-   */
-  /**
    * Recognize a face using backend API
    */
   async recognizeFace(
@@ -890,10 +895,6 @@ export class BackendService {
     }
 
     return await response.json();
-  }
-
-  async dispose(): Promise<void> {
-    await this.stop();
   }
 }
 
