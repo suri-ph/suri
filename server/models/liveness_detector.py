@@ -68,14 +68,15 @@ class LivenessDetector:
         return img_batch
 
     def postprocessing(self, prediction: np.ndarray) -> np.ndarray:
-        """Apply softmax to prediction"""
-
-        def softmax(x):
-            x = x - np.max(x)
-            exp_x = np.exp(x)
-            return exp_x / np.sum(exp_x)
-
-        return softmax(prediction)
+        """Apply softmax to prediction (supports both single and batch predictions)"""
+        # Handle both single prediction [1, 3] and batch predictions [N, 3]
+        if len(prediction.shape) == 1:
+            prediction = prediction.reshape(1, -1)
+        
+        # Apply softmax along the last dimension (axis=-1) for each sample
+        # Subtract max for numerical stability
+        exp_pred = np.exp(prediction - np.max(prediction, axis=-1, keepdims=True))
+        return exp_pred / np.sum(exp_pred, axis=-1, keepdims=True)
 
     def increased_crop(
         self, img: np.ndarray, bbox: tuple, bbox_inc: float
@@ -133,7 +134,7 @@ class LivenessDetector:
         if not face_detections:
             return []
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         seen_bboxes = {}
         deduplicated_detections = []
@@ -213,7 +214,7 @@ class LivenessDetector:
 
             try:
                 face_crop = self.increased_crop(
-                    image, (x, y, x + w, y + h), bbox_inc=self.bbox_inc
+                    rgb_image, (x, y, x + w, y + h), bbox_inc=self.bbox_inc
                 )
                 if (
                     face_crop is None
@@ -235,27 +236,38 @@ class LivenessDetector:
         if not face_crops:
             return results if results else face_detections
 
+        # Batch inference for performance (single ONNX call for all faces)
         raw_predictions = []
-        for img in face_crops:
-            if not self.ort_session:
-                raw_predictions.append(None)
-                continue
-
+        if not self.ort_session:
+            raw_predictions = [None] * len(face_crops)
+        else:
             try:
-                onnx_result = self.ort_session.run(
-                    [], {self.input_name: self.preprocessing(img)}
+                # Batch preprocess all face crops: [N, C, H, W]
+                batch_inputs = np.concatenate(
+                    [self.preprocessing(img) for img in face_crops], axis=0
                 )
-                raw_logits = onnx_result[0]
-                pred = self.postprocessing(raw_logits)
-
-                if pred.shape[1] != 3:
-                    raw_predictions.append(None)
-                    continue
-
-                raw_pred = pred[0]
-                raw_predictions.append(raw_pred)
+                
+                # Run single batch inference (much faster than N individual calls, especially on GPU)
+                onnx_results = self.ort_session.run([], {self.input_name: batch_inputs})
+                batch_logits = onnx_results[0]  # Shape: [N, 3]
+                
+                # Validate batch output shape
+                if batch_logits.shape[1] != 3:
+                    raw_predictions = [None] * len(face_crops)
+                else:
+                    # Apply postprocessing (softmax) to entire batch at once
+                    batch_predictions = self.postprocessing(batch_logits)  # Shape: [N, 3]
+                    
+                    # Extract individual predictions
+                    for i in range(len(face_crops)):
+                        try:
+                            raw_pred = batch_predictions[i]  # Shape: [3]
+                            raw_predictions.append(raw_pred)
+                        except Exception:
+                            raw_predictions.append(None)
             except Exception:
-                raw_predictions.append(None)
+                # Fallback to None for all predictions on batch failure
+                raw_predictions = [None] * len(face_crops)
 
         processed_predictions = []
 
@@ -276,7 +288,7 @@ class LivenessDetector:
             spoof_score = print_score + replay_score
             max_confidence = max(live_score, spoof_score)
 
-            is_real = live_score >= self.confidence_threshold
+            is_real = live_score > spoof_score and live_score >= self.confidence_threshold
 
             result = {
                 "is_real": bool(is_real),
