@@ -22,8 +22,8 @@ const SECTIONS: SectionConfig[] = [
     icon: "",
     description: "Statistics & activity",
   },
-  { id: "members", label: "Members", icon: "", description: "Manage members" },
   { id: "reports", label: "Reports", icon: "", description: "View reports" },
+  { id: "members", label: "Members", icon: "", description: "Manage members" },
   {
     id: "registration",
     label: "Registration",

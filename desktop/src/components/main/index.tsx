@@ -1752,6 +1752,11 @@ export default function Main() {
     [setCurrentGroup],
   );
 
+  const handleOpenSettingsForRegistration = useCallback(() => {
+    setGroupInitialSection("members");
+    setShowSettings(true);
+  }, []);
+
   useEffect(() => {
     loadAttendanceDataRef.current = loadAttendanceData;
   }, [loadAttendanceData]);
@@ -2134,6 +2139,7 @@ export default function Main() {
           setShowGroupManagement={setShowGroupManagement}
           setShowSettings={setShowSettings}
           enableSpoofDetection={enableSpoofDetection}
+          onOpenSettingsForRegistration={handleOpenSettingsForRegistration}
         />
       </div>
 

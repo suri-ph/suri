@@ -70,12 +70,18 @@ export function Members({
     <section className="h-full flex flex-col overflow-hidden space-y-4">
       <div className="flex items-center justify-between flex-shrink-0">
         <h2 className="text-lg font-semibold">Members</h2>
-        <button onClick={onAdd} className="btn-success text-xs px-2 py-1">
-          Add member
-        </button>
+        {members.length > 0 && (
+          <button
+            onClick={onAdd}
+            className="px-4 py-2 text-xs bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] rounded text-white/70 hover:text-white/90 transition-colors flex items-center gap-2"
+          >
+            <i className="fa-solid fa-user-plus text-xs"></i>
+            Add Member
+          </button>
+        )}
       </div>
 
-      {members.length > 0 && (
+      {members.length > 0 ? (
         <div className="flex-1 overflow-y-auto custom-scroll overflow-x-hidden min-h-0">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 pr-2">
             {membersWithDisplayNames.map((member) => {
@@ -147,6 +153,21 @@ export function Members({
                 </div>
               );
             })}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div className="text-white/40 text-xs text-center">
+              No members in this group yet
+            </div>
+            <button
+              onClick={onAdd}
+              className="px-4 py-2 text-xs bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] rounded text-white/70 hover:text-white/90 transition-colors flex items-center gap-2"
+            >
+              <i className="fa-solid fa-user-plus text-xs"></i>
+              Add Member
+            </button>
           </div>
         </div>
       )}

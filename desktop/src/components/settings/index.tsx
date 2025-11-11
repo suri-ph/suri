@@ -51,7 +51,7 @@ export const Settings: React.FC<SettingsProps> = ({
   initialGroups = [],
 }) => {
   const [activeSection, setActiveSection] = useState<string>(
-    initialGroupSection ? "group" : "display",
+    initialGroupSection ? "group" : "attendance",
   );
   const [groupInitialSection, setGroupInitialSection] = useState<
     GroupSection | undefined
@@ -120,21 +120,19 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   // Group subsections state
-  const [isGroupExpanded, setIsGroupExpanded] = useState(
-    initialGroupSection ? true : false,
-  );
+  const [isGroupExpanded, setIsGroupExpanded] = useState(true);
 
   const groupSections = [
     { id: "overview", label: "Overview", icon: "fa-solid fa-chart-line" },
-    { id: "members", label: "Members", icon: "fa-solid fa-users" },
     { id: "reports", label: "Reports", icon: "fa-solid fa-chart-bar" },
+    { id: "members", label: "Members", icon: "fa-solid fa-users" },
     { id: "registration", label: "Registration", icon: "fa-solid fa-id-card" },
     { id: "settings", label: "Configuration", icon: "fa-solid fa-sliders" },
   ];
 
   const sections = [
-    { id: "display", label: "Display", icon: "fa-solid fa-desktop" },
     { id: "attendance", label: "Attendance", icon: "fa-solid fa-user-check" },
+    { id: "display", label: "Display", icon: "fa-solid fa-desktop" },
     { id: "database", label: "Database", icon: "fa-solid fa-database" },
   ];
 
@@ -273,7 +271,6 @@ export const Settings: React.FC<SettingsProps> = ({
             onClick={onBack}
             className="w-full px-3 py-2 rounded-md text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 transition-all text-center flex items-center justify-center gap-2"
           >
-            <i className="fa-solid fa-xmark text-sm"></i>
             Close
           </button>
         </div>
@@ -305,7 +302,7 @@ export const Settings: React.FC<SettingsProps> = ({
           {activeSection === "group" && (
             <div className="h-full -m-8">
               <GroupPanel
-                onBack={() => setActiveSection("display")}
+                onBack={() => setActiveSection("attendance")}
                 initialSection={groupInitialSection}
                 initialGroup={currentGroup}
                 onGroupsChanged={() => {

@@ -24,14 +24,14 @@ const SECTIONS: SectionConfig[] = [
     shortcut: "1",
   },
   {
-    id: "members",
-    label: "Members",
+    id: "reports",
+    label: "Reports",
     icon: "",
     shortcut: "2",
   },
   {
-    id: "reports",
-    label: "Reports",
+    id: "members",
+    label: "Members",
     icon: "",
     shortcut: "3",
   },

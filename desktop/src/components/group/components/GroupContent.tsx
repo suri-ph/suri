@@ -55,6 +55,8 @@ export function GroupContent({
         <Overview group={selectedGroup} members={members} />
       )}
 
+      {activeSection === "reports" && <Reports group={selectedGroup} />}
+
       {activeSection === "members" && (
         <Members
           group={selectedGroup}
@@ -64,8 +66,6 @@ export function GroupContent({
           onAdd={onAddMember}
         />
       )}
-
-      {activeSection === "reports" && <Reports group={selectedGroup} />}
 
       {activeSection === "registration" && (
         <Registration

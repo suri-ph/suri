@@ -197,11 +197,11 @@ export function DetectionPanel({
   return (
     <>
       {!hasDetections ? (
-        <div className="text-white/40 text-xs text-center flex items-center justify-center h-full">
+        <div className="text-white/40 text-xs text-center">
           NO DETECTION
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 w-full">
           {filteredFaces.map((face, index) => {
             const trackId = face.track_id!;
             const recognitionResult = currentRecognitionResults.get(trackId);

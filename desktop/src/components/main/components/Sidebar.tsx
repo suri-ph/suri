@@ -36,6 +36,7 @@ interface SidebarProps {
   // Settings
   setShowSettings: (show: boolean) => void;
   enableSpoofDetection: boolean;
+  onOpenSettingsForRegistration?: () => void;
 }
 
 const MIN_WIDTH = 50; // Collapsed width (icon only)
@@ -60,6 +61,7 @@ export const Sidebar = memo(function Sidebar({
   setShowGroupManagement,
   setShowSettings,
   enableSpoofDetection,
+  onOpenSettingsForRegistration,
 }: SidebarProps) {
   // Persistent state from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -70,15 +72,21 @@ export const Sidebar = memo(function Sidebar({
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem("suri_sidebar_width");
     const width = saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
-    // Ensure saved width respects minimum expanded width
     return Math.max(MIN_EXPANDED_WIDTH, Math.min(MAX_WIDTH, width));
   });
 
   const [isResizing, setIsResizing] = useState(false);
+  const isResizingRef = useRef(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const resizeStartX = useRef(0);
   const resizeStartWidth = useRef(0);
+  const currentResizeWidth = useRef(0);
   const originalTransition = useRef<string>("");
+
+  // Sync isResizing ref with state
+  useEffect(() => {
+    isResizingRef.current = isResizing;
+  }, [isResizing]);
 
   // Save state to localStorage
   useEffect(() => {
@@ -86,8 +94,10 @@ export const Sidebar = memo(function Sidebar({
   }, [isCollapsed]);
 
   useEffect(() => {
-    localStorage.setItem("suri_sidebar_width", String(sidebarWidth));
-  }, [sidebarWidth]);
+    if (!isResizing) {
+      localStorage.setItem("suri_sidebar_width", String(sidebarWidth));
+    }
+  }, [sidebarWidth, isResizing]);
 
   // Toggle collapse/expand
   const toggleSidebar = useCallback(() => {
@@ -98,15 +108,15 @@ export const Sidebar = memo(function Sidebar({
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (isCollapsed) return; // Don't allow resize when collapsed
+      if (isCollapsed) return;
 
-      setIsResizing(true);
       resizeStartX.current = e.clientX;
       resizeStartWidth.current = sidebarWidth;
+      currentResizeWidth.current = sidebarWidth;
+      isResizingRef.current = true;
+      setIsResizing(true);
 
-      // Disable transitions for smooth, real-time resizing
       if (sidebarRef.current) {
-        // Store original transition value
         originalTransition.current = sidebarRef.current.style.transition || "";
         sidebarRef.current.style.transition = "none";
       }
@@ -115,58 +125,47 @@ export const Sidebar = memo(function Sidebar({
   );
 
   // Handle resize move
-  const handleResizeMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing || !sidebarRef.current) return;
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizingRef.current || !sidebarRef.current) return;
 
-      const delta = resizeStartX.current - e.clientX; // Right-to-left sidebar
-      // Use MIN_EXPANDED_WIDTH when resizing (sidebar is expanded during resize)
-      const newWidth = Math.min(
-        MAX_WIDTH,
-        Math.max(MIN_EXPANDED_WIDTH, resizeStartWidth.current + delta),
-      );
+    const delta = resizeStartX.current - e.clientX;
+    const newWidth = Math.min(
+      MAX_WIDTH,
+      Math.max(MIN_EXPANDED_WIDTH, resizeStartWidth.current + delta),
+    );
 
-      // Direct DOM manipulation for smooth, real-time resizing without React re-renders
-      if (sidebarRef.current) {
-        sidebarRef.current.style.width = `${newWidth}px`;
-        sidebarRef.current.style.minWidth = `${newWidth}px`;
-        sidebarRef.current.style.maxWidth = `${newWidth}px`;
-      }
-
-      // Update state in the background (for localStorage save on end)
-      setSidebarWidth(newWidth);
-    },
-    [isResizing],
-  );
+    currentResizeWidth.current = newWidth;
+    sidebarRef.current.style.width = `${newWidth}px`;
+    sidebarRef.current.style.minWidth = `${newWidth}px`;
+    sidebarRef.current.style.maxWidth = `${newWidth}px`;
+  }, []);
 
   // Handle resize end
   const handleResizeEnd = useCallback(() => {
-    if (!sidebarRef.current) {
-      setIsResizing(false);
-      return;
+    if (!isResizingRef.current) return;
+
+    let finalWidth = currentResizeWidth.current;
+    
+    if (sidebarRef.current && (!finalWidth || finalWidth < MIN_EXPANDED_WIDTH)) {
+      const domWidth = parseFloat(sidebarRef.current.style.width);
+      if (!isNaN(domWidth) && domWidth >= MIN_EXPANDED_WIDTH) {
+        finalWidth = domWidth;
+      }
+    }
+    
+    if (!finalWidth || finalWidth < MIN_EXPANDED_WIDTH) {
+      finalWidth = sidebarWidth;
     }
 
-    // Get final width from DOM to ensure accuracy
-    const finalWidth =
-      parseFloat(sidebarRef.current.style.width) || sidebarWidth;
+    finalWidth = Math.min(MAX_WIDTH, Math.max(MIN_EXPANDED_WIDTH, finalWidth));
 
-    // Update state with final width
     setSidebarWidth(finalWidth);
-
-    // Re-enable transitions after resize is complete (restore original or use CSS class default)
-    sidebarRef.current.style.transition = originalTransition.current;
-
-    // Sync styles to ensure consistency (React will handle via style prop after render)
-    // Small delay to allow transition to be restored first
-    requestAnimationFrame(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.style.width = "";
-        sidebarRef.current.style.minWidth = "";
-        sidebarRef.current.style.maxWidth = "";
-      }
-    });
-
     setIsResizing(false);
+    isResizingRef.current = false;
+
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition = originalTransition.current;
+    }
   }, [sidebarWidth]);
 
   // Setup resize event listeners
@@ -207,6 +206,18 @@ export const Sidebar = memo(function Sidebar({
   }, [toggleSidebar, setShowSettings]);
 
   const currentWidth = isCollapsed ? MIN_WIDTH : sidebarWidth;
+
+  // Clear stale inline styles after resize completes
+  useEffect(() => {
+    if (!isResizing && sidebarRef.current) {
+      const inlineWidth = sidebarRef.current.style.width;
+      if (inlineWidth && Math.abs(parseFloat(inlineWidth) - sidebarWidth) > 1) {
+        sidebarRef.current.style.width = "";
+        sidebarRef.current.style.minWidth = "";
+        sidebarRef.current.style.maxWidth = "";
+      }
+    }
+  }, [sidebarWidth, isResizing]);
 
   return (
     <>
@@ -285,7 +296,7 @@ export const Sidebar = memo(function Sidebar({
         >
           {/* Face Detection Display - Half of remaining space */}
           <div className="flex-1 border-b border-white/[0.08] flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto custom-scroll">
+            <div className="flex-1 overflow-y-auto custom-scroll flex flex-col min-h-0">
               {/* Active Cooldowns - Only show in Auto mode */}
               <CooldownList
                 trackingMode={trackingMode}
@@ -293,7 +304,7 @@ export const Sidebar = memo(function Sidebar({
                 attendanceCooldownSeconds={attendanceCooldownSeconds}
               />
 
-              <div className="px-2 py-1.5">
+              <div className="flex-1 flex items-center justify-center min-h-[0] px-2">
                 <DetectionPanel
                   currentDetections={currentDetections}
                   currentRecognitionResults={currentRecognitionResults}
@@ -315,6 +326,7 @@ export const Sidebar = memo(function Sidebar({
             groupMembers={groupMembers}
             handleSelectGroup={handleSelectGroup}
             setShowGroupManagement={setShowGroupManagement}
+            onOpenSettingsForRegistration={onOpenSettingsForRegistration}
           />
         </div>
 
