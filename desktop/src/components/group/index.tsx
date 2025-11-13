@@ -91,9 +91,9 @@ export function GroupPanel({
     if (newGroup) {
       setSelectedGroup(newGroup);
     }
-    // Notify parent component that groups have changed
+    // Notify parent component that groups have changed, passing the new group if created
     if (onGroupsChanged) {
-      onGroupsChanged();
+      onGroupsChanged(newGroup);
     }
   };
 

@@ -82,21 +82,19 @@ export const Settings: React.FC<SettingsProps> = ({
       const [faceStats, attendanceStats, groupsData] = await Promise.all([
         backendService.getDatabaseStats(),
         attendanceManager.getAttendanceStats(),
-        initialGroups.length === 0 ? attendanceManager.getGroups() : Promise.resolve(initialGroups),
+        attendanceManager.getGroups(),
       ]);
       setSystemData({
         totalPersons: faceStats.total_persons,
         totalMembers: attendanceStats.total_members,
         lastUpdated: new Date().toISOString(),
       });
-      // Only update groups if we didn't receive them as props
-      if (initialGroups.length === 0) {
-        setGroups(groupsData);
-      }
+      // Always update groups to reflect current state
+      setGroups(groupsData);
     } catch (error) {
       console.error("Failed to load system data:", error);
     }
-  }, [initialGroups]);
+  }, []);
 
   useEffect(() => {
     loadSystemData();
@@ -347,14 +345,28 @@ export const Settings: React.FC<SettingsProps> = ({
                 initialSection={groupInitialSection}
                 initialGroup={currentGroup}
                 triggerCreateGroup={triggerCreateGroup}
-                onGroupsChanged={async () => {
-                  loadSystemData();
+                onGroupsChanged={async (newGroup?: AttendanceGroup) => {
+                  await loadSystemData();
                   if (onGroupsChanged) onGroupsChanged();
-                  // Refresh members if showing registration section
-                  if (
+                  // If a new group was created, automatically select it
+                  if (newGroup && onGroupSelect) {
+                    onGroupSelect(newGroup);
+                    // Refresh members if showing registration section with the new group
+                    if (groupInitialSection === "registration") {
+                      try {
+                        const groupMembers = await attendanceManager.getGroupMembers(
+                          newGroup.id,
+                        );
+                        setMembers(groupMembers);
+                      } catch (error) {
+                        console.error("Failed to refresh members:", error);
+                      }
+                    }
+                  } else if (
                     groupInitialSection === "registration" &&
                     currentGroup
                   ) {
+                    // Refresh members if showing registration section with current group
                     try {
                       const groupMembers = await attendanceManager.getGroupMembers(
                         currentGroup.id,
@@ -405,7 +417,10 @@ export const Settings: React.FC<SettingsProps> = ({
               groups={groups}
               isLoading={isLoading}
               onClearDatabase={handleClearDatabase}
-              onGroupsChanged={loadSystemData}
+              onGroupsChanged={() => {
+                loadSystemData();
+                if (onGroupsChanged) onGroupsChanged();
+              }}
             />
           )}
         </div>

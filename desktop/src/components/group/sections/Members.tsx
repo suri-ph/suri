@@ -115,8 +115,15 @@ export function Members({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="text-base font-semibold truncate">
-                        {member.displayName}
+                      <div className="flex items-center gap-2">
+                        <div className="text-base font-semibold truncate">
+                          {member.displayName}
+                        </div>
+                        {!member.has_face_data && (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-200 border border-amber-400/40 whitespace-nowrap">
+                            Not Registered
+                          </span>
+                        )}
                       </div>
                       {member.role && (
                         <div className="text-xs text-white/50 mt-0.5">
@@ -129,11 +136,13 @@ export function Members({
                         </div>
                       )}
                     </div>
-                    <div
-                      className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusClass}`}
-                    >
-                      {statusLabel}
-                    </div>
+                    {member.has_face_data && (
+                      <div
+                        className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusClass}`}
+                      >
+                        {statusLabel}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2 text-xs">
