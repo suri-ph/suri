@@ -10,12 +10,16 @@ import { Settings, type QuickSettings } from "../settings";
 import { attendanceManager } from "../../services/AttendanceManager";
 import type { GroupSection } from "../group";
 import type {
-  FaceRecognitionResponse,
   AttendanceGroup,
   AttendanceMember,
   AttendanceRecord,
 } from "../../types/recognition";
 import { drawOverlays } from "./utils/overlayRenderer";
+import {
+  trimTrackingHistory,
+  areRecognitionMapsEqual,
+  type ExtendedFaceRecognitionResponse,
+} from "./utils/recognitionHelpers";
 import type {
   DetectionResult,
   WebSocketFaceData,
@@ -30,61 +34,7 @@ import { VideoCanvas } from "./components/VideoCanvas";
 import { Sidebar } from "./components/Sidebar";
 import { GroupManagementModal } from "./components/GroupManagementModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
-
-const NON_LOGGING_ANTISPOOF_STATUSES = new Set<
-  "live" | "spoof" | "error" | "too_small"
->(["spoof", "error", "too_small"]);
-
-const TRACKING_HISTORY_LIMIT = 20;
-
-let skipFrames = 0;
-let frameCounter = 0;
-
-export interface ExtendedFaceRecognitionResponse
-  extends FaceRecognitionResponse {
-  memberName?: string;
-}
-
-const trimTrackingHistory = <T,>(history: T[]): T[] => {
-  if (history.length <= TRACKING_HISTORY_LIMIT) {
-    return history;
-  }
-  return history.slice(history.length - TRACKING_HISTORY_LIMIT);
-};
-
-const isRecognitionResponseEqual = (
-  a: ExtendedFaceRecognitionResponse | undefined,
-  b: ExtendedFaceRecognitionResponse | undefined,
-): boolean => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-
-  return (
-    a.success === b.success &&
-    a.person_id === b.person_id &&
-    a.name === b.name &&
-    a.similarity === b.similarity &&
-    a.error === b.error &&
-    a.memberName === b.memberName
-  );
-};
-
-const areRecognitionMapsEqual = (
-  prev: Map<number, ExtendedFaceRecognitionResponse>,
-  next: Map<number, ExtendedFaceRecognitionResponse>,
-): boolean => {
-  if (prev === next) return true;
-  if (prev.size !== next.size) return false;
-
-  for (const [key, nextValue] of next) {
-    const prevValue = prev.get(key);
-    if (!isRecognitionResponseEqual(prevValue, nextValue)) {
-      return false;
-    }
-  }
-
-  return true;
-};
+import { NON_LOGGING_ANTISPOOF_STATUSES } from "./constants";
 
 export default function Main() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -96,6 +46,8 @@ export default function Main() {
   const isProcessingRef = useRef<boolean>(false);
   const isStreamingRef = useRef<boolean>(false);
   const lastDetectionFrameRef = useRef<ArrayBuffer | null>(null);
+  const frameCounterRef = useRef(0);
+  const skipFramesRef = useRef(0);
 
   const lastStartTimeRef = useRef<number>(0);
   const lastStopTimeRef = useRef<number>(0);
@@ -885,9 +837,9 @@ export default function Main() {
       return;
     }
 
-    frameCounter++;
+    frameCounterRef.current += 1;
 
-    if (frameCounter % (skipFrames + 1) !== 0) {
+    if (frameCounterRef.current % (skipFramesRef.current + 1) !== 0) {
       requestAnimationFrame(() => processCurrentFrameRef.current());
       return;
     }
@@ -1028,7 +980,7 @@ export default function Main() {
 
           if (data.faces && Array.isArray(data.faces)) {
             if (data.suggested_skip !== undefined) {
-              skipFrames = data.suggested_skip;
+              skipFramesRef.current = data.suggested_skip;
             }
 
             if (!data.model_used) {
@@ -1306,7 +1258,8 @@ export default function Main() {
         setIsVideoLoading(false);
         setCameraActive(true);
 
-        frameCounter = 0;
+        frameCounterRef.current = 0;
+        skipFramesRef.current = 0;
         lastFrameTimestampRef.current = 0;
 
         isScanningRef.current = true;
@@ -1461,7 +1414,8 @@ export default function Main() {
       }
     }
 
-    frameCounter = 0;
+    frameCounterRef.current = 0;
+    skipFramesRef.current = 0;
 
     isStoppingRef.current = false;
   }, []);
