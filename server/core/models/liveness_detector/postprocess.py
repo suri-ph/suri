@@ -167,6 +167,14 @@ def assemble_liveness_results(
     """Assemble liveness results from predictions and add to results list."""
     for detection, raw_pred in zip(valid_detections, raw_predictions):
         if raw_pred is None:
+            # Fail-safe: Mark as spoofed if prediction fails
+            detection["liveness"] = {
+                "is_real": False,
+                "live_score": 0.0,
+                "spoof_score": 1.0,
+                "confidence": 0.0,
+                "status": "error",
+            }
             results.append(detection)
             continue
 
