@@ -5,7 +5,6 @@ import type {
   AttendanceMember,
   AttendanceRecord,
 } from "../../types/recognition";
-import type { MenuSection } from "../menu";
 
 export interface DetectionResult {
   faces: Array<{
@@ -74,8 +73,6 @@ export interface WebSocketErrorMessage {
   error?: string;
 }
 
-export type DashboardTab = MenuSection;
-
 export interface TrackedFace {
   id: string;
   bbox: { x: number; y: number; width: number; height: number };
@@ -108,5 +105,4 @@ export type {
   AttendanceGroup,
   AttendanceMember,
   AttendanceRecord,
-  MenuSection,
 };

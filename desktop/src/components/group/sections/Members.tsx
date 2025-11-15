@@ -66,10 +66,20 @@ export function Members({
     }
   };
 
+  const registered = members.filter((member) => member.has_face_data).length;
+  const total = members.length;
+
   return (
     <section className="h-full flex flex-col overflow-hidden space-y-4 p-6">
       <div className="flex items-center justify-between flex-shrink-0">
-        <h2 className="text-lg font-semibold">Members</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold">Members</h2>
+          {total > 0 && (
+            <div className="text-sm text-white/50">
+              Registered: <span className="text-white/70">{registered} out of {total} {total === 1 ? 'member' : 'members'}</span>
+            </div>
+          )}
+        </div>
         {members.length > 0 && (
           <button
             onClick={onAdd}

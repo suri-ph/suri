@@ -836,7 +836,7 @@ export function FaceCapture({
 
         {/* Registration Panel - Show only when member selected */}
         {selectedMemberId && (
-          <div className="flex flex-col h-full overflow-hidden p-6">
+          <div className="flex flex-col h-full overflow-hidden p-6 space-y-2">
 
             {/* Content Area - Takes available space */}
             <div className="flex-1 min-h-0 flex flex-col space-y-4 overflow-hidden">

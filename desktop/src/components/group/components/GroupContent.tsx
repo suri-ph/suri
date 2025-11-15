@@ -23,6 +23,10 @@ interface GroupContentProps {
   onDeleteGroup: () => void;
   onExportData: () => void;
   onCreateGroup: () => void;
+  onRegistrationSourceChange?: (source: "upload" | "camera" | null) => void;
+  registrationSource?: "upload" | "camera" | null;
+  onRegistrationModeChange?: (mode: "single" | "bulk" | "queue" | null) => void;
+  registrationMode?: "single" | "bulk" | "queue" | null;
 }
 
 export function GroupContent({
@@ -37,6 +41,10 @@ export function GroupContent({
   onDeleteGroup,
   onExportData,
   onCreateGroup,
+  onRegistrationSourceChange,
+  registrationSource,
+  onRegistrationModeChange,
+  registrationMode,
 }: GroupContentProps) {
   if (!selectedGroup) {
     return (
@@ -72,6 +80,10 @@ export function GroupContent({
           group={selectedGroup}
           members={members}
           onRefresh={onMembersChange}
+          onSourceChange={onRegistrationSourceChange}
+          registrationSource={registrationSource}
+          onModeChange={onRegistrationModeChange}
+          registrationMode={registrationMode}
         />
       )}
 

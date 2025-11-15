@@ -23,6 +23,10 @@ export function GroupPanel({
   onGroupsChanged,
   isEmbedded = false,
   triggerCreateGroup = 0,
+  onRegistrationSourceChange,
+  registrationSource,
+  onRegistrationModeChange,
+  registrationMode,
 }: GroupPanelProps) {
   const [activeSection, setActiveSection] = useState(
     initialSection ?? "overview",
@@ -156,6 +160,10 @@ export function GroupPanel({
             onDeleteGroup={handleDeleteGroup}
             onExportData={exportData}
             onCreateGroup={openCreateGroup}
+            onRegistrationSourceChange={onRegistrationSourceChange}
+            registrationSource={registrationSource}
+            onRegistrationModeChange={onRegistrationModeChange}
+            registrationMode={registrationMode}
           />
         </div>
 
@@ -246,6 +254,10 @@ export function GroupPanel({
           onDeleteGroup={handleDeleteGroup}
           onExportData={exportData}
           onCreateGroup={openCreateGroup}
+          onRegistrationSourceChange={onRegistrationSourceChange}
+          registrationSource={registrationSource}
+          onRegistrationModeChange={onRegistrationModeChange}
+          registrationMode={registrationMode}
         />
       </main>
 

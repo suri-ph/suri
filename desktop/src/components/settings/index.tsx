@@ -66,6 +66,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<AttendanceMember[]>([]);
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
+  const [registrationSource, setRegistrationSource] = useState<"upload" | "camera" | null>(null);
+  const [registrationMode, setRegistrationMode] = useState<"single" | "bulk" | "queue" | null>(null);
 
   const toggleQuickSetting = (key: keyof QuickSettings) => {
     const newSettings = { ...quickSettings, [key]: !quickSettings[key] };
@@ -100,12 +102,12 @@ export const Settings: React.FC<SettingsProps> = ({
     loadSystemData();
   }, [loadSystemData]);
 
-  // Fetch members when showing registration section
+  // Fetch members when showing registration or members section
   useEffect(() => {
     const fetchMembers = async () => {
       if (
         activeSection === "group" &&
-        groupInitialSection === "registration" &&
+        (groupInitialSection === "registration" || groupInitialSection === "members") &&
         currentGroup
       ) {
         try {
@@ -330,10 +332,41 @@ export const Settings: React.FC<SettingsProps> = ({
               )}
             </h2>
             {activeSection === "group" &&
-              groupInitialSection === "registration" && (
+              groupInitialSection === "members" && (
                 <div className="flex items-center">
                   <RegistrationStatus members={members} />
                 </div>
+              )}
+            {activeSection === "group" &&
+              groupInitialSection === "registration" &&
+              registrationSource && (
+                <button
+                  onClick={() => {
+                    if (registrationMode) {
+                      // If in a mode (Individual/Batch/Queue), go back to mode selection
+                      setRegistrationMode(null);
+                    } else {
+                      // If in mode selection, go back to source selection
+                      setRegistrationSource(null);
+                    }
+                  }}
+                  className="flex items-center gap-2 text-white/60 hover:text-white/80 transition-colors text-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  <span>Back</span>
+                </button>
               )}
           </div>
         </div>
@@ -347,14 +380,18 @@ export const Settings: React.FC<SettingsProps> = ({
                 initialSection={groupInitialSection}
                 initialGroup={currentGroup}
                 triggerCreateGroup={triggerCreateGroup}
+                onRegistrationSourceChange={setRegistrationSource}
+                registrationSource={registrationSource}
+                onRegistrationModeChange={setRegistrationMode}
+                registrationMode={registrationMode}
                 onGroupsChanged={async (newGroup?: AttendanceGroup) => {
                   await loadSystemData();
                   if (onGroupsChanged) onGroupsChanged();
                   // If a new group was created, automatically select it
                   if (newGroup && onGroupSelect) {
                     onGroupSelect(newGroup);
-                    // Refresh members if showing registration section with the new group
-                    if (groupInitialSection === "registration") {
+                    // Refresh members if showing registration or members section with the new group
+                    if (groupInitialSection === "registration" || groupInitialSection === "members") {
                       try {
                         const groupMembers = await attendanceManager.getGroupMembers(
                           newGroup.id,
@@ -365,10 +402,10 @@ export const Settings: React.FC<SettingsProps> = ({
                       }
                     }
                   } else if (
-                    groupInitialSection === "registration" &&
+                    (groupInitialSection === "registration" || groupInitialSection === "members") &&
                     currentGroup
                   ) {
-                    // Refresh members if showing registration section with current group
+                    // Refresh members if showing registration or members section with current group
                     try {
                       const groupMembers = await attendanceManager.getGroupMembers(
                         currentGroup.id,
