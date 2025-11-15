@@ -100,10 +100,22 @@ async def process_liveness_for_face_operation(
     if not (liveness_detector and enable_liveness_detection):
         return False, None
 
-    # Liveness detector supports list format directly - only bbox is required
+    # Convert bbox from list format [x, y, width, height] to dict format
+    # This matches the format used at commit 834a141 which was accurate for both live and spoof
+    temp_face = {
+        "bbox": {
+            "x": bbox[0],
+            "y": bbox[1],
+            "width": bbox[2],
+            "height": bbox[3],
+        },
+        "confidence": 1.0,
+        "track_id": -1,
+    }
+
     loop = asyncio.get_event_loop()
     liveness_results = await loop.run_in_executor(
-        None, liveness_detector.detect_faces, image, [{"bbox": bbox}]
+        None, liveness_detector.detect_faces, image, [temp_face]
     )
 
     if liveness_results and len(liveness_results) > 0:
