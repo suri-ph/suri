@@ -2,6 +2,7 @@
   "name": "suri",
   "private": true,
   "version": "0.0.0",
+  "author": "SURI",
   "type": "module",
   "main": "dist-electron/electron/main.js",
   "scripts": {

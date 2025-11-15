@@ -55,12 +55,11 @@ a = Analysis(
     binaries=[],
     datas=onnx_datas + [
         ('core/models', 'core/models'),  # Models moved to core/models
-        ('core/config.py', 'core'),  # Config moved to core/config.py
+        ('config', 'config'),  # Config package (includes settings.py)
         ('database', 'database'),  # Database managers (attendance.py, face.py)
-        ('schemas', 'schemas'),  # API schemas (attendance_models.py)
         ('utils', 'utils'),
-        ('routes', 'routes'),
         ('weights', 'weights'),  # Bundle model weights from server/weights
+        ('api', 'api'),  # API package (includes routes, schemas, endpoints)
     ],
     hiddenimports=hidden_imports,
     hookspath=['.'],
@@ -97,7 +96,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,  # Hide console window in production
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -270,10 +270,26 @@ export class BackendService {
 
       // Spawn the process
       this.process = spawn(command, args, {
-        stdio: "inherit", // logs go directly to terminal
+        stdio: "pipe", // Capture stdout/stderr to avoid showing console
         detached: false,
-        windowsHide: false,
+        windowsHide: true, // Hide console window on Windows
       });
+
+      // Optionally log backend output for debugging
+      if (this.process.stdout) {
+        this.process.stdout.on("data", (data) => {
+          // Only log in development mode
+          if (isDev()) {
+            console.log(`[Backend] ${data.toString().trim()}`);
+          }
+        });
+      }
+      if (this.process.stderr) {
+        this.process.stderr.on("data", (data) => {
+          // Always log errors
+          console.error(`[Backend Error] ${data.toString().trim()}`);
+        });
+      }
 
       // Set up process event handlers (for error and exit events only)
       this.setupProcessHandlers();

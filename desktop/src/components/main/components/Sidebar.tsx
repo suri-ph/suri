@@ -12,6 +12,17 @@ import { AttendancePanel } from "./AttendancePanel";
 import { CooldownList } from "./CooldownList";
 import { DetectionPanel } from "./DetectionPanel";
 
+// Get asset path that works in both dev and production (Electron)
+// In Electron with loadFile, we need to use paths relative to the HTML file
+// Vite's base is "./", so we use relative paths for both dev and production
+const getAssetPath = (assetName: string): string => {
+  // Use relative path from the HTML file (public folder assets are copied to root of dist-react)
+  return `./${assetName}`;
+};
+
+const sidebarCollapseIcon = getAssetPath("sidebar-collapse.svg");
+const sidebarExpandIcon = getAssetPath("sidebar-expand.svg");
+
 interface SidebarProps {
   // Detection props
   currentDetections: DetectionResult | null;
@@ -270,7 +281,7 @@ export const Sidebar = memo(function Sidebar({
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <img
-                src="/sidebar-collapse.svg"
+                src={sidebarCollapseIcon}
                 alt=""
                 className="w-5 h-5 transition-all duration-300 group-hover:opacity-100"
                 style={{ filter: "brightness(0) invert(1)", opacity: 0.7 }}
@@ -341,7 +352,7 @@ export const Sidebar = memo(function Sidebar({
               aria-label="Expand sidebar"
             >
               <img
-                src="/sidebar-expand.svg"
+                src={sidebarExpandIcon}
                 alt=""
                 className="w-5 h-5 transition-all group-hover:opacity-100"
                 style={{ filter: "brightness(0) invert(1)", opacity: 0.7 }}
