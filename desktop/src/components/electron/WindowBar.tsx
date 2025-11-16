@@ -50,7 +50,9 @@ export default function WindowBar() {
       }
     >
       <div className="flex items-center ml-3 space-x-2 flex-1">
-        <div className="text-white text-sm font-medium">SURI</div>
+        <div className="text-white text-sm font-medium">SURI
+          </div>
+          <span className="text-white/40 text-[10px] font-medium">AI-Powered Attendance System</span>
       </div>
 
       <div
