@@ -68,6 +68,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
   const [registrationSource, setRegistrationSource] = useState<"upload" | "camera" | null>(null);
   const [registrationMode, setRegistrationMode] = useState<"single" | "bulk" | "queue" | null>(null);
+  const [deselectMemberTrigger, setDeselectMemberTrigger] = useState(0);
+  const [hasSelectedMember, setHasSelectedMember] = useState(false);
 
   const toggleQuickSetting = (key: keyof QuickSettings) => {
     const newSettings = { ...quickSettings, [key]: !quickSettings[key] };
@@ -342,6 +344,11 @@ export const Settings: React.FC<SettingsProps> = ({
               registrationSource && (
                 <button
                   onClick={() => {
+                    // If in FaceCapture (single mode) and a member is selected, deselect member first
+                    if (registrationMode === "single" && hasSelectedMember) {
+                      setDeselectMemberTrigger(Date.now());
+                      return;
+                    }
                     if (registrationMode) {
                       // If in a mode (Individual/Batch/Queue), go back to mode selection
                       setRegistrationMode(null);
@@ -384,6 +391,8 @@ export const Settings: React.FC<SettingsProps> = ({
                 registrationSource={registrationSource}
                 onRegistrationModeChange={setRegistrationMode}
                 registrationMode={registrationMode}
+                deselectMemberTrigger={deselectMemberTrigger}
+                onHasSelectedMemberChange={setHasSelectedMember}
                 onGroupsChanged={async (newGroup?: AttendanceGroup) => {
                   await loadSystemData();
                   if (onGroupsChanged) onGroupsChanged();

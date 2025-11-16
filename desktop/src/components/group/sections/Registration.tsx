@@ -15,12 +15,14 @@ interface RegistrationProps {
   registrationSource?: "upload" | "camera" | null;
   onModeChange?: (mode: "single" | "bulk" | "queue" | null) => void;
   registrationMode?: "single" | "bulk" | "queue" | null;
+  deselectMemberTrigger?: number;
+  onHasSelectedMemberChange?: (hasSelectedMember: boolean) => void;
 }
 
 type SourceType = "upload" | "camera" | null;
 type RegistrationMode = "single" | "bulk" | "queue" | null;
 
-export function Registration({ group, members, onRefresh, onSourceChange, registrationSource, onModeChange, registrationMode }: RegistrationProps) {
+export function Registration({ group, members, onRefresh, onSourceChange, registrationSource, onModeChange, registrationMode, deselectMemberTrigger, onHasSelectedMemberChange }: RegistrationProps) {
   const [source, setSource] = useState<SourceType>(null);
   const [mode, setMode] = useState<RegistrationMode>(null);
 
@@ -94,6 +96,8 @@ export function Registration({ group, members, onRefresh, onSourceChange, regist
         members={members}
         onRefresh={onRefresh}
         initialSource={source === "camera" ? "live" : source}
+        deselectMemberTrigger={deselectMemberTrigger}
+        onSelectedMemberChange={onHasSelectedMemberChange}
       />
     );
   }

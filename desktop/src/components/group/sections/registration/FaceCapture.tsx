@@ -31,8 +31,9 @@ interface FaceCaptureProps {
   group: AttendanceGroup | null;
   members: AttendanceMember[];
   onRefresh?: () => Promise<void> | void;
-  onBack?: () => void;
   initialSource?: CaptureSource;
+  deselectMemberTrigger?: number; // When this changes, deselect the member
+  onSelectedMemberChange?: (hasSelectedMember: boolean) => void; // Notify parent when member selection changes
 }
 
 const REQUIRED_ANGLE = "Front";
@@ -215,12 +216,14 @@ export function FaceCapture({
   group,
   members,
   onRefresh,
-  onBack,
   initialSource,
+  deselectMemberTrigger,
+  onSelectedMemberChange,
 }: FaceCaptureProps) {
   const [source, setSource] = useState<CaptureSource>(initialSource ?? "upload");
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
+  const [registrationFilter, setRegistrationFilter] = useState<"all" | "registered" | "non-registered">("all");
   const [frames, setFrames] = useState<CapturedFrame[]>([]);
   const [activeAngle, setActiveAngle] = useState<string>(REQUIRED_ANGLE);
   const [memberStatus, setMemberStatus] = useState<Map<string, boolean>>(
@@ -242,15 +245,39 @@ export function FaceCapture({
   }, [members]);
 
   const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return membersWithDisplayNames;
-    const query = memberSearch.toLowerCase();
-    return membersWithDisplayNames.filter(
-      (member) =>
-        member.name.toLowerCase().includes(query) ||
-        member.displayName.toLowerCase().includes(query) ||
-        member.person_id.toLowerCase().includes(query),
-    );
-  }, [memberSearch, membersWithDisplayNames]);
+    let result = membersWithDisplayNames;
+
+    // Apply search filter
+    if (memberSearch.trim()) {
+      const query = memberSearch.toLowerCase();
+      result = result.filter(
+        (member) =>
+          member.name.toLowerCase().includes(query) ||
+          member.displayName.toLowerCase().includes(query) ||
+          member.person_id.toLowerCase().includes(query),
+      );
+    }
+
+    // Apply registration status filter
+    if (registrationFilter !== "all") {
+      result = result.filter((member) => {
+        const isRegistered = memberStatus.get(member.person_id) ?? false;
+        return registrationFilter === "registered" ? isRegistered : !isRegistered;
+      });
+    }
+
+    // Sort: registered first, then non-registered (within each group, maintain original order)
+    result = [...result].sort((a, b) => {
+      const aRegistered = memberStatus.get(a.person_id) ?? false;
+      const bRegistered = memberStatus.get(b.person_id) ?? false;
+      
+      if (aRegistered && !bRegistered) return -1; // Registered first
+      if (!aRegistered && bRegistered) return 1;  // Non-registered after
+      return 0; // Maintain original order within same status
+    });
+
+    return result;
+  }, [memberSearch, membersWithDisplayNames, registrationFilter, memberStatus]);
 
   const resetFrames = useCallback(() => {
     setFrames([]);
@@ -312,21 +339,58 @@ export function FaceCapture({
     loadMemberStatus();
   }, [loadMemberStatus]);
 
+  // Auto-dismiss success message after 5 seconds
   useEffect(() => {
-    if (group) {
-      // Keep selection if member still exists in the group
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // Notify parent when selected member changes
+  useEffect(() => {
+    if (onSelectedMemberChange) {
+      onSelectedMemberChange(!!selectedMemberId);
+    }
+  }, [selectedMemberId, onSelectedMemberChange]);
+
+  // Deselect member when trigger changes
+  const deselectedMemberTriggerRef = useRef(deselectMemberTrigger ?? 0);
+  useEffect(() => {
+    if (deselectMemberTrigger !== undefined && deselectedMemberTriggerRef.current !== deselectMemberTrigger) {
+      deselectedMemberTriggerRef.current = deselectMemberTrigger;
+      if (selectedMemberId) {
+        setSelectedMemberId("");
+        resetFrames();
+      }
+    }
+  }, [deselectMemberTrigger, selectedMemberId, resetFrames]);
+
+  // Only reset when group changes or selected member no longer exists
+  useEffect(() => {
+    if (!group) {
+      setSelectedMemberId("");
+      resetFrames();
+      setSuccessMessage(null);
+      setGlobalError(null);
+      return;
+    }
+
+    // Only clear selection if selected member no longer exists
+    if (selectedMemberId) {
       const memberExists = members.some(
         (m) => m.person_id === selectedMemberId,
       );
       if (!memberExists) {
         setSelectedMemberId("");
+        resetFrames();
+        setSuccessMessage(null);
+        setGlobalError(null);
       }
-    } else {
-      setSelectedMemberId("");
     }
-    resetFrames();
-    setSuccessMessage(null);
-    setGlobalError(null);
+    // Don't reset frames/messages when members list refreshes after successful registration
   }, [group, resetFrames, members, selectedMemberId]);
 
   useEffect(() => {
@@ -536,6 +600,9 @@ export function FaceCapture({
       return;
     }
 
+    const isAlreadyRegistered =
+      memberStatus.get(selectedMemberId) ?? false;
+
     if (!framesReady) {
       const frame = frames.find((f) => f.angle === REQUIRED_ANGLE);
       if (!frame) {
@@ -584,14 +651,22 @@ export function FaceCapture({
         status: "registered",
       }));
 
+      const memberName =
+        membersWithDisplayNames.find((m) => m.person_id === selectedMemberId)
+          ?.displayName || "Member";
+
       setSuccessMessage(
-        "Registration complete. Identity embedded successfully.",
+        isAlreadyRegistered
+          ? `${memberName} Re-registered successfully!`
+          : `${memberName} Registered successfully!`,
       );
 
       await loadMemberStatus();
       if (onRefresh) {
         await onRefresh();
       }
+
+      // Don't auto-reset - let user stay on the success message and manually go back
     } catch (error) {
       const message =
         error instanceof Error
@@ -610,6 +685,8 @@ export function FaceCapture({
     onRefresh,
     updateFrame,
     members,
+    memberStatus,
+    membersWithDisplayNames,
   ]);
 
   const handleRemoveFaceData = useCallback(
@@ -651,15 +728,14 @@ export function FaceCapture({
   }, [resetFrames]);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Alerts */}
-      {globalError && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-200 flex items-center gap-3 flex-shrink-0">
-          <div className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
-          <span className="flex-1">{globalError}</span>
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* Success Message - Positioned absolutely to not affect layout */}
+      {successMessage && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm px-4 py-3 text-sm text-emerald-200 flex items-center gap-3 min-w-[500px] max-w-[95%] transition-all duration-300 ease-out">
+          <span className="flex-1">{successMessage}</span>
           <button
-            onClick={() => setGlobalError(null)}
-            className="text-red-200/50 hover:text-red-100 transition-colors"
+            onClick={() => setSuccessMessage(null)}
+            className="text-emerald-200/50 hover:text-emerald-100 transition-colors flex-shrink-0"
           >
             <svg
               className="w-4 h-4"
@@ -678,13 +754,13 @@ export function FaceCapture({
         </div>
       )}
 
-      {successMessage && (
-        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-200 flex items-center gap-3 flex-shrink-0">
-          <div className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="flex-1">{successMessage}</span>
+      {/* Alerts */}
+      {globalError && (
+        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-200 flex items-center gap-3 flex-shrink-0">
+          <span className="flex-1">{globalError}</span>
           <button
-            onClick={() => setSuccessMessage(null)}
-            className="text-emerald-200/50 hover:text-emerald-100 transition-colors"
+            onClick={() => setGlobalError(null)}
+            className="text-red-200/50 hover:text-red-100 transition-colors"
           >
             <svg
               className="w-4 h-4"
@@ -732,29 +808,40 @@ export function FaceCapture({
                   className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
                 />
               </div>
+            </div>
 
-              {/* Back Button */}
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="group flex items-center gap-1.5 text-white/40 hover:text-white/80 transition-colors text-sm flex-shrink-0"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                  <span>Back</span>
-                </button>
-              )}
+            {/* Registration Status Filter Tabs */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setRegistrationFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  registrationFilter === "all"
+                    ? "bg-white/10 text-white border border-white/20"
+                    : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/8 hover:text-white/80"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setRegistrationFilter("non-registered")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  registrationFilter === "non-registered"
+                    ? "bg-amber-500/20 text-amber-200 border border-amber-500/30"
+                    : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/8 hover:text-white/80"
+                }`}
+              >
+                Needs Registration
+              </button>
+              <button
+                onClick={() => setRegistrationFilter("registered")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  registrationFilter === "registered"
+                    ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/30"
+                    : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/8 hover:text-white/80"
+                }`}
+              >
+                Registered
+              </button>
             </div>
 
             <div className="flex-1 space-y-1.5 overflow-y-auto custom-scroll overflow-x-hidden min-h-0 pr-2">
@@ -767,7 +854,27 @@ export function FaceCapture({
               {members.length > 0 && filteredMembers.length === 0 && (
                 <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-6 text-center">
                   <div className="text-xs text-white/40">
-                    No results for "{memberSearch}"
+                    {memberSearch.trim()
+                      ? `No results for "${memberSearch}"`
+                      : registrationFilter === "registered"
+                        ? "No registered members"
+                        : registrationFilter === "non-registered"
+                          ? "All members are registered"
+                          : "No members found"}
+                  </div>
+                </div>
+              )}
+
+              {/* Show filter count info */}
+              {members.length > 0 && filteredMembers.length > 0 && (
+                <div className="px-1 pb-1">
+                  <div className="text-xs text-white/30">
+                    Showing {filteredMembers.length} of {members.length} member{members.length !== 1 ? "s" : ""}
+                    {registrationFilter !== "all" && (
+                      <span className="ml-1">
+                        ({registrationFilter === "registered" ? "registered" : "needs registration"})
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -788,15 +895,37 @@ export function FaceCapture({
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <div
-                          className={`text-sm font-medium truncate transition-colors ${
-                            isSelected ? "text-cyan-100" : "text-white"
-                          }`}
-                        >
-                          {member.displayName}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`text-sm font-medium truncate transition-colors ${
+                              isSelected ? "text-cyan-100" : "text-white"
+                            }`}
+                          >
+                            {member.displayName}
+                          </div>
+                          {hasEmbeddings && (
+                            <span className="flex-shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30">
+                              <svg
+                                className="w-3 h-3 text-emerald-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              <span className="text-xs font-medium text-emerald-300">
+                                Registered
+                              </span>
+                            </span>
+                          )}
                         </div>
                         {member.role && (
-                          <div className="text-xs text-white/40 truncate">
+                          <div className="text-xs text-white/40 truncate mt-0.5">
                             {member.role}
                           </div>
                         )}
@@ -996,14 +1125,44 @@ export function FaceCapture({
               </button>
               <button
                 onClick={() => void handleRegister()}
-                disabled={!framesReady || !selectedMemberId || isRegistering}
-                className="flex-1 rounded-xl bg-emerald-500/20 border border-emerald-400/40 px-4 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/30 disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30 transition-all"
+                disabled={
+                  !framesReady || !selectedMemberId || isRegistering
+                }
+                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                  memberStatus.get(selectedMemberId)
+                    ? "bg-amber-500/20 border-amber-400/40 text-amber-100 hover:bg-amber-500/30"
+                    : "bg-emerald-500/20 border-emerald-400/40 text-emerald-100 hover:bg-emerald-500/30"
+                } disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30`}
+                title={
+                  memberStatus.get(selectedMemberId)
+                    ? "Override existing registration with new face data"
+                    : framesReady
+                      ? "Register this member"
+                      : "Capture a face image first"
+                }
               >
                 {isRegistering ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="h-3 w-3 rounded-full border-2 border-white/20 border-t-white animate-spin" />
                     <span>Processing...</span>
                   </div>
+                ) : memberStatus.get(selectedMemberId) ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Override Registration
+                  </span>
                 ) : (
                   "Register"
                 )}

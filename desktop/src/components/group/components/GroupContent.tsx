@@ -27,6 +27,8 @@ interface GroupContentProps {
   registrationSource?: "upload" | "camera" | null;
   onRegistrationModeChange?: (mode: "single" | "bulk" | "queue" | null) => void;
   registrationMode?: "single" | "bulk" | "queue" | null;
+  deselectMemberTrigger?: number;
+  onHasSelectedMemberChange?: (hasSelectedMember: boolean) => void;
 }
 
 export function GroupContent({
@@ -45,6 +47,8 @@ export function GroupContent({
   registrationSource,
   onRegistrationModeChange,
   registrationMode,
+  deselectMemberTrigger,
+  onHasSelectedMemberChange,
 }: GroupContentProps) {
   if (!selectedGroup) {
     return (
@@ -84,6 +88,8 @@ export function GroupContent({
           registrationSource={registrationSource}
           onModeChange={onRegistrationModeChange}
           registrationMode={registrationMode}
+          deselectMemberTrigger={deselectMemberTrigger}
+          onHasSelectedMemberChange={onHasSelectedMemberChange}
         />
       )}
 

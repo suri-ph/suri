@@ -27,6 +27,8 @@ export function GroupPanel({
   registrationSource,
   onRegistrationModeChange,
   registrationMode,
+  deselectMemberTrigger,
+  onHasSelectedMemberChange,
 }: GroupPanelProps) {
   const [activeSection, setActiveSection] = useState(
     initialSection ?? "overview",
@@ -164,6 +166,8 @@ export function GroupPanel({
             registrationSource={registrationSource}
             onRegistrationModeChange={onRegistrationModeChange}
             registrationMode={registrationMode}
+            deselectMemberTrigger={deselectMemberTrigger}
+            onHasSelectedMemberChange={onHasSelectedMemberChange}
           />
         </div>
 

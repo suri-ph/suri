@@ -18,4 +18,6 @@ export interface GroupPanelProps {
   registrationSource?: "upload" | "camera" | null; // Current registration source state
   onRegistrationModeChange?: (mode: "single" | "bulk" | "queue" | null) => void; // Callback when registration mode changes
   registrationMode?: "single" | "bulk" | "queue" | null; // Current registration mode state
+  deselectMemberTrigger?: number; // When this changes, deselect the member in FaceCapture
+  onHasSelectedMemberChange?: (hasSelectedMember: boolean) => void; // Callback when member selection changes
 }
