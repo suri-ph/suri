@@ -4,8 +4,6 @@ from typing import Dict
 
 def process_detection(
     face: np.ndarray,
-    orig_width: int,
-    orig_height: int,
     min_face_size: int,
     landmarks_5: np.ndarray,
 ) -> Dict:
@@ -13,8 +11,6 @@ def process_detection(
 
     Args:
         face: Raw detection array from FaceDetectorYN
-        orig_width: Original image width
-        orig_height: Original image height
         min_face_size: Minimum face size threshold
         landmarks_5: Landmarks array (not clipped - clipping handled in frontend)
 

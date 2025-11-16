@@ -50,13 +50,9 @@ def deduplicate_detections(face_detections: List[Dict]) -> List[Dict]:
 
 
 def process_prediction(
-    raw_pred: np.ndarray, confidence_threshold: float, track_id=None
+    raw_pred: np.ndarray, confidence_threshold: float
 ) -> Dict:
     """Process raw prediction into liveness result"""
-    if track_id is not None:
-        if isinstance(track_id, (np.integer, np.int32, np.int64)):
-            track_id = int(track_id)
-
     live_score = float(raw_pred[0])
     print_score = float(raw_pred[1])
     replay_score = float(raw_pred[2])
@@ -178,9 +174,8 @@ def assemble_liveness_results(
             results.append(detection)
             continue
 
-        track_id = detection.get("track_id", None)
         prediction = process_prediction(
-            raw_pred, confidence_threshold, track_id=track_id
+            raw_pred, confidence_threshold
         )
 
         detection["liveness"] = {

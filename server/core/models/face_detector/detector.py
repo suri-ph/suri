@@ -54,8 +54,6 @@ class FaceDetector:
             # Process detection (no clipping - handled in frontend for UI)
             detection = process_detection(
                 face,
-                orig_width,
-                orig_height,
                 self.min_face_size,
                 landmarks_5,
             )
