@@ -2063,6 +2063,7 @@ export default function Main() {
               quickSettings={quickSettings}
               detectionFps={detectionFps}
               isVideoLoading={isVideoLoading}
+              isStreaming={isStreaming}
               trackingMode={trackingMode}
               currentDetections={currentDetections}
               currentRecognitionResults={currentRecognitionResults}

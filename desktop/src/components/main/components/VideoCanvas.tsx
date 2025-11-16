@@ -13,6 +13,7 @@ interface VideoCanvasProps {
   quickSettings: QuickSettings;
   detectionFps: number;
   isVideoLoading: boolean;
+  isStreaming: boolean;
   // Manual mode props
   trackingMode: "auto" | "manual";
   currentDetections: DetectionResult | null;
@@ -41,6 +42,7 @@ export const VideoCanvas = memo(function VideoCanvas({
   quickSettings,
   detectionFps,
   isVideoLoading,
+  isStreaming,
   trackingMode,
   currentDetections,
   currentRecognitionResults,
@@ -111,7 +113,7 @@ export const VideoCanvas = memo(function VideoCanvas({
   ]);
 
   return (
-    <div className="relative w-full h-full min-h-[260px] overflow-hidden rounded-lg glass-card">
+    <div className="relative w-full h-full min-h-[260px] overflow-hidden rounded-lg bg-black border border-white/[0.08]">
       <video
         ref={videoRef}
         className={`absolute inset-0 w-full h-full object-contain ${quickSettings.cameraMirrored ? "scale-x-[-1]" : ""}`}
@@ -162,6 +164,29 @@ export const VideoCanvas = memo(function VideoCanvas({
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-15">
           <div className="flex flex-col items-center">
             <div className="w-20 h-20 border-2 border-white/20 border-t-white/60 rounded-full animate-spin"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Icon - Show when not streaming (before Start Tracking) */}
+      {!isStreaming && !isVideoLoading && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-15">
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative">
+              <svg 
+                className="w-16 h-16 text-white/30 animate-pulse" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={1.5} 
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
+                />
+              </svg>
+            </div>
           </div>
         </div>
       )}

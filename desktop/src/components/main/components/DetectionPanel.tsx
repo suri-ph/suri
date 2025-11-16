@@ -82,20 +82,21 @@ const DetectionCard = memo(
       <div
         key={index}
         className={`
-        glass-card rounded-lg p-2 border-l-4 min-h-[32px]
+        bg-black rounded-lg p-3 border-l-4 min-h-[40px] transition-all
         ${statusStyles.borderColor}
         ${statusStyles.bgColor}
         ${trackedFace?.isLocked ? "border-cyan-500/50 bg-gradient-to-br from-cyan-500/10 to-transparent" : ""}
         ${isSpoof ? "ring-1 ring-red-500/20" : ""}
+        ${hasName ? "shadow-md" : ""}
       `}
       >
         {/* Single-line compact layout */}
         <div className="flex items-center justify-between gap-2">
           {/* Left: Name */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {hasName ? (
               <span
-                className={`font-medium text-sm truncate ${
+                className={`font-semibold text-sm truncate ${
                   isSpoof ? "text-red-200" : "text-white"
                 }`}
               >
@@ -181,8 +182,25 @@ export function DetectionPanel({
     <>
       {!hasDetections ? (
         <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="text-white/40 text-xs text-center">
-            NO DETECTION
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="relative">
+              <svg 
+                className="w-8 h-8 text-white/30 animate-pulse" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={1.5} 
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
+                />
+              </svg>
+            </div>
+            <div className="text-white/50 text-sm font-medium">
+              Waiting for faces...
+            </div>
           </div>
         </div>
       ) : (

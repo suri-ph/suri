@@ -249,13 +249,13 @@ export function FaceCapture({
 
     // Apply search filter
     if (memberSearch.trim()) {
-      const query = memberSearch.toLowerCase();
+    const query = memberSearch.toLowerCase();
       result = result.filter(
-        (member) =>
-          member.name.toLowerCase().includes(query) ||
-          member.displayName.toLowerCase().includes(query) ||
-          member.person_id.toLowerCase().includes(query),
-      );
+      (member) =>
+        member.name.toLowerCase().includes(query) ||
+        member.displayName.toLowerCase().includes(query) ||
+        member.person_id.toLowerCase().includes(query),
+    );
     }
 
     // Apply registration status filter
@@ -385,9 +385,9 @@ export function FaceCapture({
       );
       if (!memberExists) {
         setSelectedMemberId("");
-        resetFrames();
-        setSuccessMessage(null);
-        setGlobalError(null);
+    resetFrames();
+    setSuccessMessage(null);
+    setGlobalError(null);
       }
     }
     // Don't reset frames/messages when members list refreshes after successful registration
@@ -808,11 +808,11 @@ export function FaceCapture({
                   className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
                 />
               </div>
-            </div>
+              </div>
 
             {/* Registration Status Filter Tabs */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button
+                <button
                 onClick={() => setRegistrationFilter("all")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   registrationFilter === "all"
@@ -831,7 +831,7 @@ export function FaceCapture({
                 }`}
               >
                 Needs Registration
-              </button>
+                </button>
               <button
                 onClick={() => setRegistrationFilter("registered")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -896,12 +896,12 @@ export function FaceCapture({
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <div
-                            className={`text-sm font-medium truncate transition-colors ${
-                              isSelected ? "text-cyan-100" : "text-white"
-                            }`}
-                          >
-                            {member.displayName}
+                        <div
+                          className={`text-sm font-medium truncate transition-colors ${
+                            isSelected ? "text-cyan-100" : "text-white"
+                          }`}
+                        >
+                          {member.displayName}
                           </div>
                         </div>
                         {member.role && (
@@ -931,9 +931,9 @@ export function FaceCapture({
                             </span>
                           </span>
                         )}
-                        {isSelected && (
+                      {isSelected && (
                           <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                        )}
+                      )}
                       </div>
                     </div>
                     {hasEmbeddings && isSelected && (

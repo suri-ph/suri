@@ -50,11 +50,13 @@ export function ControlBar({
         {/* Start/Stop Button */}
         <button
           onClick={isStreaming ? stopCamera : startCamera}
-          className={`px-4 rounded-lg font-medium text-sm transition-all duration-200 ease-in-out ${
-            isStreaming ? "btn-error" : "btn-success"
+          className={`min-w-[140px] px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 ${
+            isStreaming 
+              ? "bg-red-500/20 border border-red-400/40 text-red-200 hover:bg-red-500/30" 
+              : "bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 shadow-lg shadow-cyan-500/10"
           }`}
         >
-          {isStreaming ? "Stop Scan" : "Start Scan"}
+          {isStreaming ? "Stop Tracking" : "Start Tracking"}
         </button>
       </div>
     </div>
