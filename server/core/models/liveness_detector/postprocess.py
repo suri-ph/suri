@@ -134,7 +134,7 @@ def run_batch_inference(
         return [None] * len(face_crops)
 
     # Process each face individually since model expects batch size 1
-    for i, face_crop in enumerate(face_crops):
+    for face_crop in face_crops:
         try:
             # Preprocess single face crop: [1, C, H, W]
             single_input = preprocess_fn(face_crop)  # Shape: [1, 3, 128, 128]
