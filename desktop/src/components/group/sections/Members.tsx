@@ -115,7 +115,7 @@ export function Members({
                 : session?.status === "present" && session?.is_late
                   ? "bg-amber-500/20 text-amber-200 border border-amber-400/40"
                   : session?.status === "present"
-                    ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/40"
+                    ? "bg-cyan-500/20 text-cyan-200 border border-cyan-400/40"
                     : "bg-rose-500/20 text-rose-200 border border-rose-400/40";
 
               return (

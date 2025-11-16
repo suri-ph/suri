@@ -8,7 +8,7 @@ interface StatsCardProps {
 export function StatsCard({ type, value, total, label }: StatsCardProps) {
   const config = {
     present: {
-      accent: "bg-emerald-400/70",
+      accent: "bg-cyan-400/70",
       label: label || "Present Today",
       sublabel: total ? `out of ${total} members` : undefined,
       border: "border-white/10",
@@ -38,7 +38,7 @@ export function StatsCard({ type, value, total, label }: StatsCardProps) {
       subColor: "text-white/40",
     },
     active: {
-      accent: "bg-sky-400/80",
+      accent: "bg-cyan-400/80",
       label: label || "Active Now",
       sublabel: undefined,
       border: "border-white/10",

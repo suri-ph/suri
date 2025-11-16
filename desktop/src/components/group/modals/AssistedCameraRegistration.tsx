@@ -374,7 +374,7 @@ export function AssistedCameraRegistration({
         )}
 
         {successMessage && (
-          <div className="mx-6 mt-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          <div className="mx-6 mt-4 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200">
             {successMessage}
           </div>
         )}
@@ -501,7 +501,7 @@ export function AssistedCameraRegistration({
                     Live Camera Feed
                   </h3>
                   <span
-                    className={`text-xs uppercase ${cameraReady ? "text-emerald-300" : "text-yellow-200"}`}
+                    className={`text-xs uppercase ${cameraReady ? "text-cyan-300" : "text-yellow-200"}`}
                   >
                     {cameraReady ? "● Ready" : "○ Loading"}
                   </span>
@@ -599,7 +599,7 @@ export function AssistedCameraRegistration({
                     const isCurrent = idx === currentIndex;
                     const statusColor =
                       member.status === "completed"
-                        ? "border-emerald-400/60 bg-emerald-500/10"
+                        ? "border-cyan-400/60 bg-cyan-500/10"
                         : member.status === "error"
                           ? "border-red-400/60 bg-red-500/10"
                           : isCurrent
@@ -628,7 +628,7 @@ export function AssistedCameraRegistration({
                           <span
                             className={`text-xs px-2 py-0.5 rounded ${
                               member.status === "completed"
-                                ? "bg-emerald-500/20 text-emerald-200"
+                                ? "bg-cyan-500/20 text-cyan-200"
                                 : member.status === "error"
                                   ? "bg-red-500/20 text-red-200"
                                   : member.status === "processing"
@@ -680,7 +680,7 @@ export function AssistedCameraRegistration({
                   </div>
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
+                      className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>

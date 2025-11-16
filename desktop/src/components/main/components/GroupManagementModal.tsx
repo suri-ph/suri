@@ -50,7 +50,7 @@ export function GroupManagementModal({
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 placeholder="Enter group name"
-                focusColor="border-emerald-500/60"
+                focusColor="border-cyan-500/60"
               />
             </div>
             <button

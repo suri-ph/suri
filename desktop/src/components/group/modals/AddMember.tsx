@@ -230,7 +230,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               <div
                 className={`rounded-xl border p-3 ${
                   bulkResults.failed === 0
-                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    ? "border-cyan-500/40 bg-cyan-500/10"
                     : "border-yellow-500/40 bg-yellow-500/10"
                 }`}
               >
@@ -276,7 +276,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
             <button
               onClick={handleAddMember}
               disabled={!newMemberName.trim() || loading}
-              className="px-4 py-2 rounded-xl bg-green-500/20 border border-green-400/40 text-green-100 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm disabled:opacity-50"
             >
               {loading ? "Adding…" : "Add Member"}
             </button>
@@ -284,7 +284,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
             <button
               onClick={() => void handleBulkAddMembers()}
               disabled={!bulkMembersText.trim() || isProcessingBulk}
-              className="px-4 py-2 rounded-xl bg-green-500/20 border border-green-400/40 text-green-100 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm disabled:opacity-50"
             >
               {isProcessingBulk ? "Processing…" : `Add Members`}
             </button>

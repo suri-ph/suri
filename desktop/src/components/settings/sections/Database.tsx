@@ -350,7 +350,7 @@ export function Database({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search members by name, email, or role..."
-          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
         />
         {searchQuery && (
           <button
@@ -408,12 +408,12 @@ export function Database({
                           }
                           autoFocus
                           disabled={savingGroup === group.id}
-                          className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-sm font-semibold text-white focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+                          className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-sm font-semibold text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
                         />
                       ) : (
                         <div
                           onClick={() => startEditingGroup(group, "name")}
-                          className="text-sm font-semibold text-white cursor-pointer hover:text-emerald-300 transition-colors truncate"
+                          className="text-sm font-semibold text-white cursor-pointer hover:text-cyan-300 transition-colors truncate"
                           title="Click to edit name"
                         >
                           {group.name}
@@ -438,7 +438,7 @@ export function Database({
                           autoFocus
                           disabled={savingGroup === group.id}
                           placeholder="Description (optional)"
-                          className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+                          className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
                         />
                       ) : (
                         <div
@@ -463,7 +463,7 @@ export function Database({
                     </div>
                     {group.members.filter((m) => m.has_face_data).length >
                       0 && (
-                      <div className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <div className="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                         {group.members.filter((m) => m.has_face_data).length}{" "}
                         registered
                       </div>
@@ -530,14 +530,14 @@ export function Database({
                                       disabled={
                                         savingMember === member.person_id
                                       }
-                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-white focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
                                     />
                                   ) : (
                                     <div
                                       onClick={() =>
                                         startEditing(member, "name")
                                       }
-                                      className="text-sm font-semibold text-white cursor-pointer hover:text-emerald-300 transition-colors"
+                                      className="text-sm font-semibold text-white cursor-pointer hover:text-cyan-300 transition-colors"
                                       title="Click to edit"
                                     >
                                       {member.name}
@@ -571,7 +571,7 @@ export function Database({
                                         savingMember === member.person_id
                                       }
                                       placeholder="Role (optional)"
-                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
                                     />
                                   ) : (
                                     <div
@@ -616,7 +616,7 @@ export function Database({
                                         savingMember === member.person_id
                                       }
                                       placeholder="Email (optional)"
-                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/20 transition-colors"
+                                      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20 transition-colors"
                                     />
                                   ) : (
                                     <div
@@ -640,7 +640,7 @@ export function Database({
                               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                                 <div className="flex items-center gap-2">
                                   {member.has_face_data && (
-                                    <div className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    <div className="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                                       Face
                                     </div>
                                   )}

@@ -731,11 +731,11 @@ export function FaceCapture({
     <div className="h-full flex flex-col overflow-hidden relative">
       {/* Success Message - Positioned absolutely to not affect layout */}
       {successMessage && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm px-4 py-3 text-sm text-emerald-200 flex items-center gap-3 min-w-[500px] max-w-[95%] transition-all duration-300 ease-out">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-cyan-500/30 bg-cyan-500/10 backdrop-blur-sm px-4 py-3 text-sm text-cyan-200 flex items-center gap-3 min-w-[500px] max-w-[95%] transition-all duration-300 ease-out">
           <span className="flex-1">{successMessage}</span>
           <button
             onClick={() => setSuccessMessage(null)}
-            className="text-emerald-200/50 hover:text-emerald-100 transition-colors flex-shrink-0"
+            className="text-cyan-200/50 hover:text-cyan-100 transition-colors flex-shrink-0"
           >
             <svg
               className="w-4 h-4"
@@ -836,7 +836,7 @@ export function FaceCapture({
                 onClick={() => setRegistrationFilter("registered")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   registrationFilter === "registered"
-                    ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/30"
+                    ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/30"
                     : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/8 hover:text-white/80"
                 }`}
               >
@@ -912,9 +912,9 @@ export function FaceCapture({
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {hasEmbeddings && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-500/30">
                             <svg
-                              className="w-3 h-3 text-emerald-400"
+                              className="w-3 h-3 text-cyan-400"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -926,7 +926,7 @@ export function FaceCapture({
                                 d="M5 13l4 4L19 7"
                               />
                             </svg>
-                            <span className="text-xs font-medium text-emerald-300">
+                            <span className="text-xs font-medium text-cyan-300">
                               Registered
                             </span>
                           </span>
@@ -999,7 +999,7 @@ export function FaceCapture({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-2 w-2 rounded-full ${cameraReady ? "bg-emerald-400 animate-pulse" : "bg-yellow-400"}`}
+                                className={`h-2 w-2 rounded-full ${cameraReady ? "bg-cyan-400 animate-pulse" : "bg-yellow-400"}`}
                               />
                               <span className="text-xs text-white/60">
                                 {cameraReady ? "Ready" : "Initializing..."}
@@ -1131,7 +1131,7 @@ export function FaceCapture({
                 className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                   memberStatus.get(selectedMemberId)
                     ? "bg-amber-500/20 border-amber-400/40 text-amber-100 hover:bg-amber-500/30"
-                    : "bg-emerald-500/20 border-emerald-400/40 text-emerald-100 hover:bg-emerald-500/30"
+                    : "bg-cyan-500/20 border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30"
                 } disabled:bg-white/5 disabled:border-white/10 disabled:text-white/30`}
                 title={
                   memberStatus.get(selectedMemberId)

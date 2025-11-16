@@ -475,7 +475,7 @@ export function BulkFaceRegistration({
                       key={face.faceId}
                       className={`group rounded-xl border overflow-hidden transition-all ${
                         face.assignedPersonId
-                          ? "border-emerald-400/40 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5"
+                          ? "border-cyan-400/40 bg-gradient-to-br from-cyan-500/10 to-cyan-600/5"
                           : face.isAcceptable
                             ? "border-white/10 bg-white/[0.02] hover:border-white/20"
                             : "border-amber-400/30 bg-amber-500/5"
@@ -490,7 +490,7 @@ export function BulkFaceRegistration({
                         />
                         <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/80">
                           <div
-                            className={`h-1 w-1 rounded-full ${face.confidence > 0.8 ? "bg-emerald-400" : "bg-yellow-400"}`}
+                            className={`h-1 w-1 rounded-full ${face.confidence > 0.8 ? "bg-cyan-400" : "bg-yellow-400"}`}
                           />
                           <span className="text-xs text-white">
                             {Math.round(face.confidence * 100)}%
@@ -511,12 +511,12 @@ export function BulkFaceRegistration({
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${face.qualityScore >= 60 ? "bg-gradient-to-r from-emerald-400 to-cyan-400" : "bg-gradient-to-r from-yellow-400 to-orange-400"}`}
+                              className={`h-full ${face.qualityScore >= 60 ? "bg-gradient-to-r from-cyan-400 to-cyan-500" : "bg-gradient-to-r from-yellow-400 to-orange-400"}`}
                               style={{ width: `${face.qualityScore}%` }}
                             />
                           </div>
                           <span
-                            className={`text-[10px] ${face.qualityScore >= 60 ? "text-emerald-300" : "text-yellow-300"}`}
+                            className={`text-[10px] ${face.qualityScore >= 60 ? "text-cyan-300" : "text-yellow-300"}`}
                           >
                             {Math.round(face.qualityScore)}
                           </span>
@@ -565,8 +565,8 @@ export function BulkFaceRegistration({
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-400/20">
-                            <div className="flex-1 truncate text-xs text-emerald-200 font-medium">
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-400/20">
+                            <div className="flex-1 truncate text-xs text-cyan-200 font-medium">
                               {assignedMember?.name}
                             </div>
                             <button
@@ -599,7 +599,7 @@ export function BulkFaceRegistration({
                 <button
                   onClick={() => void handleBulkRegister()}
                   disabled={isRegistering}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border border-emerald-400/40 px-4 py-4 text-sm font-medium text-emerald-100 hover:from-emerald-500/30 hover:to-emerald-600/30 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all shadow-lg shadow-emerald-500/10"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 border border-cyan-400/40 px-4 py-4 text-sm font-medium text-cyan-100 hover:from-cyan-500/30 hover:to-cyan-600/30 disabled:from-white/5 disabled:to-white/5 disabled:border-white/10 disabled:text-white/30 transition-all shadow-lg shadow-cyan-500/10"
                 >
                   {isRegistering ? (
                     <>
@@ -625,11 +625,11 @@ export function BulkFaceRegistration({
             <div className="space-y-6">
               {/* Summary */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-6">
-                  <div className="text-3xl font-light text-emerald-200 mb-1">
+                <div className="rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 p-6">
+                  <div className="text-3xl font-light text-cyan-200 mb-1">
                     {successCount}
                   </div>
-                  <div className="text-xs text-emerald-300/70 uppercase tracking-wide">
+                  <div className="text-xs text-cyan-300/70 uppercase tracking-wide">
                     Registered
                   </div>
                 </div>
@@ -651,20 +651,20 @@ export function BulkFaceRegistration({
                       key={idx}
                       className={`rounded-xl border p-3 flex items-start gap-3 ${
                         result.success
-                          ? "border-emerald-400/20 bg-emerald-500/5"
+                          ? "border-cyan-400/20 bg-cyan-500/5"
                           : "border-red-400/20 bg-red-500/5"
                       }`}
                     >
                       <div
                         className={`h-6 w-6 rounded-lg flex items-center justify-center text-sm ${
-                          result.success ? "bg-emerald-500/20" : "bg-red-500/20"
+                          result.success ? "bg-cyan-500/20" : "bg-red-500/20"
                         }`}
                       >
                         {result.success ? "✓" : "✕"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div
-                          className={`text-sm font-medium ${result.success ? "text-emerald-200" : "text-red-200"}`}
+                          className={`text-sm font-medium ${result.success ? "text-cyan-200" : "text-red-200"}`}
                         >
                           {result.memberName || result.personId}
                         </div>

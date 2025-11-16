@@ -44,7 +44,7 @@ export function Attendance({
           }
           className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ml-auto ${
             attendanceSettings.trackingMode === "manual"
-              ? "bg-emerald-500/30"
+              ? "bg-cyan-500/30"
               : "bg-white/10"
           }`}
         >
@@ -78,7 +78,7 @@ export function Attendance({
           disabled={isStreaming}
           className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ml-auto ${
             attendanceSettings.enableSpoofDetection
-              ? "bg-emerald-500/30"
+              ? "bg-cyan-500/30"
               : "bg-white/10"
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
@@ -139,7 +139,7 @@ export function Attendance({
             disabled={isStreaming}
             className={`relative w-11 h-6 rounded-full focus:outline-none transition-colors duration-150 flex-shrink-0 flex items-center ml-auto ${
               attendanceSettings.lateThresholdEnabled
-                ? "bg-emerald-500/30"
+                ? "bg-cyan-500/30"
                 : "bg-white/10"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >

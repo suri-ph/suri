@@ -45,10 +45,10 @@ const DetectionCard = memo(
       switch (status) {
         case "live":
           return {
-            borderColor: "border-green-500/60",
+            borderColor: "border-cyan-500/60",
             bgColor: "",
             statusText: "LIVE",
-            statusColor: "text-green-400",
+            statusColor: "text-cyan-400",
           };
         case "spoof":
           return {

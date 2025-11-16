@@ -36,7 +36,7 @@ export function EmptyState({ onCreateGroup, hasGroups }: EmptyStateProps) {
         </div>
         <button
           onClick={onCreateGroup}
-          className="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-100 hover:bg-emerald-500/30 transition-colors text-sm flex items-center gap-2 mx-auto"
+          className="px-4 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm flex items-center gap-2 mx-auto"
         >
           <svg
             className="w-4 h-4"

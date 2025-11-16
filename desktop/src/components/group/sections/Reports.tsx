@@ -675,7 +675,7 @@ export function Reports({ group }: ReportsProps) {
                                     r.status === "present" && r.is_late
                                       ? "bg-amber-500/15 text-amber-200 border-amber-400/30"
                                       : r.status === "present"
-                                        ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/30"
+                                        ? "bg-cyan-500/15 text-cyan-200 border-cyan-400/30"
                                         : "bg-rose-500/15 text-rose-200 border-rose-400/30"
                                   }`}
                                 >

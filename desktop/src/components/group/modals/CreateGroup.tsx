@@ -54,7 +54,7 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="e.g. CS101 Section A, Engineering Team"
-              focusColor="border-emerald-500/60"
+              focusColor="border-cyan-500/60"
             />
           </label>
 
@@ -66,7 +66,7 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Brief description of this group..."
-              focusColor="border-emerald-500/60"
+              focusColor="border-cyan-500/60"
             />
           </label>
         </div>
