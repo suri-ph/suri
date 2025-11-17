@@ -29,6 +29,11 @@ interface GroupContentProps {
   registrationMode?: "single" | "bulk" | "queue" | null;
   deselectMemberTrigger?: number;
   onHasSelectedMemberChange?: (hasSelectedMember: boolean) => void;
+  onDaysTrackedChange?: (daysTracked: number, loading: boolean) => void;
+  onExportHandlersReady?: (handlers: {
+    exportCSV: () => void;
+    print: () => void;
+  }) => void;
 }
 
 export function GroupContent({
@@ -49,6 +54,8 @@ export function GroupContent({
   registrationMode,
   deselectMemberTrigger,
   onHasSelectedMemberChange,
+  onDaysTrackedChange,
+  onExportHandlersReady,
 }: GroupContentProps) {
   if (!selectedGroup) {
     return (
@@ -67,7 +74,13 @@ export function GroupContent({
         <Overview group={selectedGroup} members={members} />
       )}
 
-      {activeSection === "reports" && <Reports group={selectedGroup} />}
+      {activeSection === "reports" && (
+        <Reports
+          group={selectedGroup}
+          onDaysTrackedChange={onDaysTrackedChange}
+          onExportHandlersReady={onExportHandlersReady}
+        />
+      )}
 
       {activeSection === "members" && (
         <Members

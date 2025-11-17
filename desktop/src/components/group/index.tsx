@@ -29,6 +29,9 @@ export function GroupPanel({
   registrationMode,
   deselectMemberTrigger,
   onHasSelectedMemberChange,
+  onDaysTrackedChange,
+  onExportHandlersReady,
+  onAddMemberHandlerReady,
 }: GroupPanelProps) {
   const [activeSection, setActiveSection] = useState(
     initialSection ?? "overview",
@@ -120,6 +123,13 @@ export function GroupPanel({
     }
   }, [triggerCreateGroup, openCreateGroup]);
 
+  // Expose add member handler to parent
+  useEffect(() => {
+    if (onAddMemberHandlerReady) {
+      onAddMemberHandlerReady(openAddMember);
+    }
+  }, [onAddMemberHandlerReady, openAddMember]);
+
   // Restore sidebar state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("suri_group_sidebar_collapsed");
@@ -168,6 +178,8 @@ export function GroupPanel({
             registrationMode={registrationMode}
             deselectMemberTrigger={deselectMemberTrigger}
             onHasSelectedMemberChange={onHasSelectedMemberChange}
+            onDaysTrackedChange={onDaysTrackedChange}
+            onExportHandlersReady={onExportHandlersReady}
           />
         </div>
 
@@ -262,6 +274,8 @@ export function GroupPanel({
           registrationSource={registrationSource}
           onRegistrationModeChange={onRegistrationModeChange}
           registrationMode={registrationMode}
+          onDaysTrackedChange={onDaysTrackedChange}
+          onExportHandlersReady={onExportHandlersReady}
         />
       </main>
 

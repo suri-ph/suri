@@ -11,9 +11,14 @@ import type {
 
 interface ReportsProps {
   group: AttendanceGroup;
+  onDaysTrackedChange?: (daysTracked: number, loading: boolean) => void;
+  onExportHandlersReady?: (handlers: {
+    exportCSV: () => void;
+    print: () => void;
+  }) => void;
 }
 
-export function Reports({ group }: ReportsProps) {
+export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: ReportsProps) {
   const [report, setReport] = useState<AttendanceReport | null>(null);
   const [reportStartDate, setReportStartDate] =
     useState<string>(getLocalDateString());
@@ -35,7 +40,7 @@ export function Reports({ group }: ReportsProps) {
     key: ColumnKey;
     label: string;
     align?: "left" | "center";
-  }> = [
+  }> = useMemo(() => [
     { key: "name", label: "Name", align: "left" },
     { key: "date", label: "Date", align: "left" },
     { key: "check_in_time", label: "Time In", align: "center" },
@@ -43,7 +48,7 @@ export function Reports({ group }: ReportsProps) {
     { key: "is_late", label: "Late", align: "center" },
     { key: "late_minutes", label: "Minutes Late", align: "center" },
     { key: "notes", label: "Notes", align: "left" },
-  ];
+  ], []);
 
   type GroupByKey = "none" | "person" | "date";
 
@@ -337,6 +342,13 @@ export function Reports({ group }: ReportsProps) {
     return diffDays;
   }, [report, reportStartDate, reportEndDate]);
 
+  // Notify parent of daysTracked changes
+  useEffect(() => {
+    if (onDaysTrackedChange) {
+      onDaysTrackedChange(daysTracked, loading);
+    }
+  }, [daysTracked, loading, onDaysTrackedChange]);
+
   type RowData = {
     person_id: string;
     name: string;
@@ -347,6 +359,67 @@ export function Reports({ group }: ReportsProps) {
     late_minutes: number;
     notes: string;
   };
+
+  // Export CSV handler
+  const handleExportCSV = useCallback(() => {
+    try {
+      const cols = allColumns.filter((c) =>
+        visibleColumns.includes(c.key),
+      );
+      const header = cols.map((c) => c.label);
+      const rows: string[][] = [];
+      Object.values(groupedRows).forEach((groupArr) => {
+        groupArr.forEach((r) => {
+          const row = cols.map((c) => {
+            const v = (r as RowData)[c.key];
+            if (typeof v === "boolean") return v ? "true" : "false";
+            if (typeof v === "number") return String(v);
+            if (v instanceof Date) return v.toISOString();
+            return v ?? "";
+          });
+          rows.push(row);
+        });
+      });
+
+      const csvContent = [header, ...rows]
+        .map((row) =>
+          row
+            .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+            .join(","),
+        )
+        .join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `attendance-view-${group.name}-${reportStartDate}-to-${reportEndDate}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error exporting view:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to export view",
+      );
+    }
+  }, [allColumns, visibleColumns, groupedRows, group.name, reportStartDate, reportEndDate]);
+
+  // Print handler
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
+  // Expose export handlers to parent
+  useEffect(() => {
+    if (onExportHandlersReady) {
+      onExportHandlersReady({
+        exportCSV: handleExportCSV,
+        print: handlePrint,
+      });
+    }
+  }, [onExportHandlersReady, handleExportCSV, handlePrint]);
 
   return (
     <section className="h-full flex flex-col overflow-hidden space-y-4 p-6">
@@ -370,69 +443,15 @@ export function Reports({ group }: ReportsProps) {
               className="bg-transparent focus:outline-none w-36 text-white/90"
             />
           </label>
-          {/* Dynamic Days Tracked indicator */}
-          {!loading && (
-            <div className="text-xs text-white/60 ml-2 whitespace-nowrap">
-              Days tracked:{" "}
-              <span className="text-white/90 font-semibold">{daysTracked}</span>
-            </div>
-          )}
-          <button
-            onClick={() => {
-              try {
-                const cols = allColumns.filter((c) =>
-                  visibleColumns.includes(c.key),
-                );
-                const header = cols.map((c) => c.label);
-                const rows: string[][] = [];
-                Object.values(groupedRows).forEach((groupArr) => {
-                  groupArr.forEach((r) => {
-                    const row = cols.map((c) => {
-                      const v = (r as RowData)[c.key];
-                      if (typeof v === "boolean") return v ? "true" : "false";
-                      if (typeof v === "number") return String(v);
-                      if (v instanceof Date) return v.toISOString();
-                      return v ?? "";
-                    });
-                    rows.push(row);
-                  });
-                });
-
-                const csvContent = [header, ...rows]
-                  .map((row) =>
-                    row
-                      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-                      .join(","),
-                  )
-                  .join("\n");
-
-                const blob = new Blob([csvContent], { type: "text/csv" });
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = `attendance-view-${group.name}-${reportStartDate}-to-${reportEndDate}.csv`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                URL.revokeObjectURL(url);
-              } catch (err) {
-                console.error("Error exporting view:", err);
-                setError(
-                  err instanceof Error ? err.message : "Failed to export view",
-                );
-              }
-            }}
-            className="btn-success text-xs px-2 py-1 disabled:opacity-50"
-          >
-            Export CSV (current view)
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="text-xs px-2 py-1 border border-white/20 rounded hover:bg-white/10"
-          >
-            Print
-          </button>
         </div>
+        {!loading && (
+          <div className="flex items-center text-xs text-white/60 whitespace-nowrap">
+            Days Tracked:{" "}
+            <span className="text-white/90 font-semibold ml-1">
+              {daysTracked}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0 pr-2">

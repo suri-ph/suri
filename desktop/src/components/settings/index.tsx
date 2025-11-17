@@ -6,7 +6,6 @@ import { Database } from "./sections/Database";
 import { Attendance } from "./sections/Attendance";
 import { GroupPanel, type GroupSection } from "../group";
 import { Dropdown } from "../shared/Dropdown";
-import { RegistrationStatus } from "../shared/RegistrationStatus";
 import type {
   QuickSettings,
   AttendanceSettings,
@@ -70,6 +69,11 @@ export const Settings: React.FC<SettingsProps> = ({
   const [registrationMode, setRegistrationMode] = useState<"single" | "bulk" | "queue" | null>(null);
   const [deselectMemberTrigger, setDeselectMemberTrigger] = useState(0);
   const [hasSelectedMember, setHasSelectedMember] = useState(false);
+  const [reportsExportHandlers, setReportsExportHandlers] = useState<{
+    exportCSV: () => void;
+    print: () => void;
+  } | null>(null);
+  const [addMemberHandler, setAddMemberHandler] = useState<(() => void) | null>(null);
 
   const toggleQuickSetting = (key: keyof QuickSettings) => {
     const newSettings = { ...quickSettings, [key]: !quickSettings[key] };
@@ -128,6 +132,20 @@ export const Settings: React.FC<SettingsProps> = ({
 
     fetchMembers();
   }, [activeSection, groupInitialSection, currentGroup]);
+
+  // Reset reports state when switching away from reports section
+  useEffect(() => {
+    if (activeSection !== "group" || groupInitialSection !== "reports") {
+      setReportsExportHandlers(null);
+    }
+  }, [activeSection, groupInitialSection]);
+
+  // Reset add member handler when switching away from members section
+  useEffect(() => {
+    if (activeSection !== "group" || groupInitialSection !== "members") {
+      setAddMemberHandler(null);
+    }
+  }, [activeSection, groupInitialSection]);
 
   const handleClearDatabase = async () => {
     if (
@@ -336,9 +354,33 @@ export const Settings: React.FC<SettingsProps> = ({
             </h2>
             {activeSection === "group" &&
               groupInitialSection === "members" &&
-              currentGroup && (
-                <div className="flex items-center">
-                  <RegistrationStatus members={members} />
+              currentGroup &&
+              addMemberHandler &&
+              members.length > 0 && (
+                <button
+                  onClick={addMemberHandler}
+                  className="px-4 py-2 text-xs bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] rounded text-white/70 hover:text-white/90 transition-colors flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-user-plus text-xs"></i>
+                  Add Member
+                </button>
+              )}
+            {activeSection === "group" &&
+              groupInitialSection === "reports" &&
+              reportsExportHandlers && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={reportsExportHandlers.exportCSV}
+                    className="btn-success text-xs px-2 py-1 disabled:opacity-50"
+                  >
+                    Export CSV (current view)
+                  </button>
+                  <button
+                    onClick={reportsExportHandlers.print}
+                    className="text-xs px-2 py-1 border border-white/20 rounded hover:bg-white/10"
+                  >
+                    Print
+                  </button>
                 </div>
               )}
             {activeSection === "group" &&
@@ -395,6 +437,12 @@ export const Settings: React.FC<SettingsProps> = ({
                 registrationMode={registrationMode}
                 deselectMemberTrigger={deselectMemberTrigger}
                 onHasSelectedMemberChange={setHasSelectedMember}
+                onExportHandlersReady={(handlers) => {
+                  setReportsExportHandlers(handlers);
+                }}
+                onAddMemberHandlerReady={(handler) => {
+                  setAddMemberHandler(() => handler);
+                }}
                 onGroupsChanged={async (newGroup?: AttendanceGroup) => {
                   await loadSystemData();
                   if (onGroupsChanged) onGroupsChanged();
