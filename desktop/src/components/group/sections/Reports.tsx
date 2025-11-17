@@ -337,7 +337,11 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const isFutureEnrollment = memberJoinedAt && memberJoinedAt > today;
-        const shouldShowNoRecords = isBeforeJoined || isFutureEnrollment;
+        
+        // Edge case: If the date itself is in the future, show "no_records" (can't have attendance for dates that haven't happened yet)
+        const isFutureDate = dateObj > today;
+        
+        const shouldShowNoRecords = isBeforeJoined || isFutureEnrollment || isFutureDate;
         
         // Look up session for this person_id and date
         const sessionKey = `${member.person_id}_${date}`;
@@ -362,13 +366,14 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
         
         // Determine status: 
         // - If date < joined_at: "no_records" (not enrolled yet)
-        // - If date >= joined_at and no session: "absent" (enrolled but didn't track)
+        // - If date > today: "no_records" (future date, hasn't happened yet)
+        // - If date >= joined_at and date <= today and no session: "absent" (enrolled but didn't track)
         // - If date >= joined_at and has session: use session status
         let status: "present" | "absent" | "no_records";
         if (shouldShowNoRecords) {
           status = "no_records";
         } else if (!finalSession) {
-          // Date is after joined_at but no session exists - should be "Absent"
+          // Date is after joined_at, not in future, but no session exists - should be "Absent"
           status = "absent";
         } else {
           status = finalSession.status;
