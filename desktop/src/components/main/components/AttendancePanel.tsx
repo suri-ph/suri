@@ -75,13 +75,14 @@ export const AttendancePanel = memo(function AttendancePanel({
   );
 
   const handleSortFieldChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const field = e.target.value as SortField;
-      setSortField(field);
-      if (field === "time") {
-        setSortOrder("desc");
-      } else if (field === "name") {
-        setSortOrder("asc");
+    (field: SortField | null) => {
+      if (field) {
+        setSortField(field);
+        if (field === "time") {
+          setSortOrder("desc");
+        } else if (field === "name") {
+          setSortOrder("asc");
+        }
       }
     },
     [],
@@ -228,26 +229,30 @@ export const AttendancePanel = memo(function AttendancePanel({
           <div className="flex items-center gap-3 text-[8px]">
             <input
               type="text"
-              placeholder="Search by name..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="flex-1 bg-white/[0.05] text-white text-xs border border-white/[0.1] rounded px-3 py-1.5 placeholder:text-white/30 focus:border-blue-500 focus:outline-none"
+              className="flex-1 bg-white/[0.05] text-white text-xs border border-white/[0.1] rounded px-3 py-1.5 min-w-0 placeholder:text-white/30 focus:border-blue-500 focus:outline-none"
             />
 
             <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1">
-                <select
+              <div className="flex-1">
+                <Dropdown
+                  options={[
+                    { value: "time", label: "Time (Newest)" },
+                    { value: "name", label: "Name (A-Z)" },
+                  ]}
                   value={sortField}
                   onChange={handleSortFieldChange}
-                  className="bg-white/[0.05] text-white text-[8px] border border-white/[0.1] rounded px-2 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="time" className="bg-black text-white">
-                    Time (Newest)
-                  </option>
-                  <option value="name" className="bg-black text-white">
-                    Name (A-Z)
-                  </option>
-                </select>
+                  placeholder="Sort by..."
+                  emptyMessage="No options available"
+                  maxHeight={256}
+                  buttonClassName="text-[8px] py-1.5"
+                  optionClassName="text-[8px]"
+                  iconClassName="text-[8px]"
+                  allowClear={false}
+                  showPlaceholderOption={false}
+                />
               </div>
             </div>
           </div>

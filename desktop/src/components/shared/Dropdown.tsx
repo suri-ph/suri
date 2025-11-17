@@ -14,6 +14,8 @@ interface DropdownProps<T = string> {
   emptyMessage?: string;
   className?: string;
   buttonClassName?: string;
+  optionClassName?: string;
+  iconClassName?: string;
   disabled?: boolean;
   maxHeight?: number; // in pixels
   showPlaceholderOption?: boolean;
@@ -28,6 +30,8 @@ export function Dropdown<T extends string | number = string>({
   emptyMessage = "No options available",
   className = "",
   buttonClassName = "",
+  optionClassName = "",
+  iconClassName = "",
   disabled = false,
   maxHeight = 256, // 64 * 4 = 256px default
   showPlaceholderOption = true,
@@ -118,7 +122,7 @@ export function Dropdown<T extends string | number = string>({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white
+          w-full bg-white/5 border border-white/10 rounded-md pl-3 pr-2 py-2 text-sm text-white
           focus:outline-none focus:border-white/20 transition-all cursor-pointer text-left
           flex items-center justify-between hover:bg-white/8
           disabled:opacity-50 disabled:cursor-not-allowed
@@ -130,7 +134,7 @@ export function Dropdown<T extends string | number = string>({
         <i
           className={`fa-solid fa-chevron-down text-white/50 text-xs flex-shrink-0 ml-2 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
-          }`}
+          } ${iconClassName}`}
         ></i>
       </button>
 
@@ -176,7 +180,7 @@ export function Dropdown<T extends string | number = string>({
                           !value
                             ? "bg-white/10 text-white"
                             : "text-white/70 hover:bg-white/5 hover:text-white"
-                        }`}
+                        } ${optionClassName}`}
                       >
                         {placeholder}
                       </button>
@@ -198,7 +202,7 @@ export function Dropdown<T extends string | number = string>({
                           : option.disabled
                             ? "text-white/30 cursor-not-allowed"
                             : "text-white/70 hover:bg-white/5 hover:text-white"
-                      }`}
+                      } ${optionClassName}`}
                       title={option.label}
                     >
                       {option.label}
