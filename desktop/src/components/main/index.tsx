@@ -183,7 +183,7 @@ export default function Main() {
     showPreprocessing: false,
     showBoundingBoxes: true,
     showRecognitionNames: true,
-    showLandmarks: false,
+    showLandmarks: true,
   });
 
   const attendanceEnabled = true;
