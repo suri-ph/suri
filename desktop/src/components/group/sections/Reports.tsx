@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { attendanceManager } from "../../../services/AttendanceManager.js";
-import { getLocalDateString } from "../../../utils/dateUtils.js";
+import { getLocalDateString, generateDateRange } from "../../../utils/dateUtils.js";
 import { createDisplayNameMap } from "../../../utils/displayNameUtils.js";
 import type {
   AttendanceGroup,
@@ -43,8 +43,8 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
   }> = useMemo(() => [
     { key: "name", label: "Name", align: "left" },
     { key: "date", label: "Date", align: "left" },
-    { key: "check_in_time", label: "Time In", align: "center" },
     { key: "status", label: "Status", align: "center" },
+    { key: "check_in_time", label: "Time In", align: "center" },
     { key: "is_late", label: "Late", align: "center" },
     { key: "late_minutes", label: "Minutes Late", align: "center" },
     { key: "notes", label: "Notes", align: "left" },
@@ -56,19 +56,19 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
     name: string;
     columns: ColumnKey[];
     groupBy: GroupByKey;
-    statusFilter: "all" | "present" | "absent";
+    statusFilter: "all" | "present" | "absent" | "no_records";
     search: string;
   }
 
   const defaultColumns: ColumnKey[] = useMemo(
-    () => ["name", "date", "check_in_time", "status", "is_late"],
+    () => ["name", "date", "status", "check_in_time", "is_late"],
     [],
   );
   const [visibleColumns, setVisibleColumns] =
     useState<ColumnKey[]>(defaultColumns);
   const [groupBy, setGroupBy] = useState<GroupByKey>("none");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "present" | "absent"
+    "all" | "present" | "absent" | "no_records"
   >("all");
   const [search, setSearch] = useState<string>("");
 
@@ -166,7 +166,7 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
         const filterValue = Array.isArray(v.statusFilter)
           ? v.statusFilter.length === 0
             ? "all"
-            : (v.statusFilter[0] as "present" | "absent")
+            : (v.statusFilter[0] as "present" | "absent" | "no_records")
           : v.statusFilter;
         setStatusFilter(filterValue);
         setSearch(v.search);
@@ -293,21 +293,108 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
     return createDisplayNameMap(members);
   }, [members]);
 
-  const filteredRows = useMemo(() => {
-    const rows = sessions.map((s) => ({
-      person_id: s.person_id,
-      name: displayNameMap.get(s.person_id) || "Unknown",
-      date: s.date,
-      check_in_time: s.check_in_time,
-      status: s.status,
-      is_late: s.is_late,
-      late_minutes: s.late_minutes ?? 0,
-      notes: s.notes || "",
-    }));
+  // Create a map of sessions by person_id and date for quick lookup
+  const sessionsMap = useMemo(() => {
+    const map = new Map<string, AttendanceSession>();
+    sessions.forEach((s) => {
+      const key = `${s.person_id}_${s.date}`;
+      map.set(key, s);
+    });
+    return map;
+  }, [sessions]);
 
-    // Backend already filters by date range, so we only filter by status and search
+  const filteredRows = useMemo(() => {
+    // Generate all dates in the report range
+    const allDates = generateDateRange(reportStartDate, reportEndDate);
+    
+    // Generate rows for ALL date-member combinations
+    const rows: RowData[] = [];
+    
+    for (const member of members) {
+      // Handle joined_at date for this member
+      let memberJoinedAt: Date | null = null;
+      if (member.joined_at instanceof Date) {
+        memberJoinedAt = member.joined_at;
+      } else if (member.joined_at) {
+        memberJoinedAt = new Date(member.joined_at);
+        if (Number.isNaN(memberJoinedAt.getTime())) {
+          memberJoinedAt = null;
+        }
+      }
+      
+      // Normalize joined_at to date-only for comparison
+      if (memberJoinedAt) {
+        memberJoinedAt.setHours(0, 0, 0, 0);
+      }
+      
+      for (const date of allDates) {
+        // Check if this date is before member joined
+        const dateObj = new Date(date);
+        dateObj.setHours(0, 0, 0, 0);
+        const isBeforeJoined = memberJoinedAt && dateObj < memberJoinedAt;
+        
+        // Edge case: If joined_at is in the future, treat all dates as before joined
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const isFutureEnrollment = memberJoinedAt && memberJoinedAt > today;
+        const shouldShowNoRecords = isBeforeJoined || isFutureEnrollment;
+        
+        // Look up session for this person_id and date
+        const sessionKey = `${member.person_id}_${date}`;
+        const session = sessionsMap.get(sessionKey) || null;
+        
+        // If date is before joined_at OR joined_at is in future, session should be null (will show "No records")
+        // Also filter out old sessions that exist for dates before joined_at (data cleanup)
+        let finalSession: AttendanceSession | null = null;
+        if (shouldShowNoRecords) {
+          // Date is before enrollment - always show "No records" even if old session exists
+          finalSession = null;
+        } else if (session) {
+          // Session exists and date is valid - use it
+          finalSession = session;
+        } else {
+          // No session exists but date is after joined_at - should show "Absent"
+          // We'll create a virtual "absent" session for display
+          // Note: This is handled by the status logic - if session is null but date >= joined_at,
+          // we should show "Absent" not "No records"
+          finalSession = null; // Will be handled by status display logic
+        }
+        
+        // Determine status: 
+        // - If date < joined_at: "no_records" (not enrolled yet)
+        // - If date >= joined_at and no session: "absent" (enrolled but didn't track)
+        // - If date >= joined_at and has session: use session status
+        let status: "present" | "absent" | "no_records";
+        if (shouldShowNoRecords) {
+          status = "no_records";
+        } else if (!finalSession) {
+          // Date is after joined_at but no session exists - should be "Absent"
+          status = "absent";
+        } else {
+          status = finalSession.status;
+        }
+        
+        rows.push({
+          person_id: member.person_id,
+          name: displayNameMap.get(member.person_id) || "Unknown",
+          date: date,
+          check_in_time: finalSession?.check_in_time,
+          status: status,
+          is_late: finalSession?.is_late || false,
+          late_minutes: finalSession?.late_minutes ?? 0,
+          notes: finalSession?.notes || "",
+          session: finalSession, // null for "No records" or "Absent" (when no session exists after joined_at)
+        });
+      }
+    }
+
+    // Filter by status and search
     return rows.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      // For status filter - use the explicit status field we set
+      if (statusFilter !== "all") {
+        if (r.status !== statusFilter) return false;
+      }
+      
       if (search) {
         const q = search.toLowerCase();
         const hay = `${r.name} ${r.status} ${r.notes}`.toLowerCase();
@@ -315,7 +402,7 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
       }
       return true;
     });
-  }, [sessions, displayNameMap, statusFilter, search]);
+  }, [sessionsMap, members, displayNameMap, statusFilter, search, reportStartDate, reportEndDate]);
 
   const groupedRows = useMemo(() => {
     if (groupBy === "none")
@@ -354,10 +441,11 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
     name: string;
     date: string;
     check_in_time?: Date;
-    status: "present" | "absent";
+    status: "present" | "absent" | "no_records";
     is_late: boolean;
     late_minutes: number;
     notes: string;
+    session: AttendanceSession | null; // null for "No records" status (dates before joined_at)
   };
 
   // Export CSV handler
@@ -581,7 +669,7 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-white/50">Status</span>
-                    {(["all", "present", "absent"] as const).map((st) => {
+                    {(["all", "present", "absent", "no_records"] as const).map((st) => {
                       const active = statusFilter === st;
                       return (
                         <label
@@ -595,7 +683,9 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
                             onChange={() => setStatusFilter(st)}
                             className="cursor-pointer"
                           />
-                          <span className="capitalize">{st}</span>
+                          <span className="capitalize">
+                            {st === "no_records" ? "No records" : st}
+                          </span>
                         </label>
                       );
                     })}
@@ -675,6 +765,27 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
                                 {r.date}
                               </td>
                             )}
+                            {visibleColumns.includes("status") && (
+                              <td className="px-4 py-3 text-sm text-center">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                                    r.status === "no_records"
+                                      ? "bg-white/5 text-white/40 border border-white/10"
+                                      : r.status === "absent"
+                                        ? "bg-rose-500/15 text-rose-200 border border-rose-400/30"
+                                        : r.status === "present" && r.is_late
+                                          ? "bg-amber-500/15 text-amber-200 border border-amber-400/30"
+                                          : "bg-cyan-500/15 text-cyan-200 border border-cyan-400/30"
+                                  }`}
+                                >
+                                  {r.status === "no_records"
+                                    ? "No records"
+                                    : r.status === "present" && r.is_late
+                                      ? "late"
+                                      : r.status}
+                                </span>
+                              </td>
+                            )}
                             {visibleColumns.includes("check_in_time") && (
                               <td className="px-4 py-3 text-sm text-white/80 text-center">
                                 {r.check_in_time
@@ -685,23 +796,6 @@ export function Reports({ group, onDaysTrackedChange, onExportHandlersReady }: R
                                       minute: "2-digit",
                                     })
                                   : "-"}
-                              </td>
-                            )}
-                            {visibleColumns.includes("status") && (
-                              <td className="px-4 py-3 text-sm text-center">
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                                    r.status === "present" && r.is_late
-                                      ? "bg-amber-500/15 text-amber-200 border-amber-400/30"
-                                      : r.status === "present"
-                                        ? "bg-cyan-500/15 text-cyan-200 border-cyan-400/30"
-                                        : "bg-rose-500/15 text-rose-200 border-rose-400/30"
-                                  }`}
-                                >
-                                  {r.status === "present" && r.is_late
-                                    ? "late"
-                                    : r.status}
-                                </span>
                               </td>
                             )}
                             {visibleColumns.includes("is_late") && (

@@ -3,6 +3,7 @@ import { attendanceManager } from "../../../services/AttendanceManager.js";
 import { getLocalDateString } from "../../../utils/dateUtils.js";
 import { generateDisplayNames } from "../../../utils/displayNameUtils.js";
 import { RegistrationStatus } from "../../shared/RegistrationStatus.js";
+import { getStatusLabel, getStatusClassName } from "../../../utils/attendanceStatusUtils.js";
 import type {
   AttendanceGroup,
   AttendanceMember,
@@ -91,19 +92,11 @@ export function Members({
                 ? "..."
                 : session?.status === "present" && session?.is_late
                   ? `Late (${session.late_minutes ?? 0}m)`
-                  : session?.status === "present"
-                    ? "Present"
-                    : session?.status === "absent"
-                      ? "Absent"
-                      : "No record";
+                  : getStatusLabel(session);
 
               const statusClass = isLoadingSessions
                 ? "bg-white/5 text-white/30 border border-white/10"
-                : session?.status === "present" && session?.is_late
-                  ? "bg-amber-500/20 text-amber-200 border border-amber-400/40"
-                  : session?.status === "present"
-                    ? "bg-cyan-500/20 text-cyan-200 border border-cyan-400/40"
-                    : "bg-rose-500/20 text-rose-200 border border-rose-400/40";
+                : getStatusClassName(session);
 
               return (
                 <div

@@ -31,3 +31,31 @@ export const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split("-").map(Number);
   return new Date(year, month - 1, day);
 };
+
+/**
+ * Generate all dates in a range (inclusive)
+ *
+ * @param startDate - Start date (Date object or YYYY-MM-DD string)
+ * @param endDate - End date (Date object or YYYY-MM-DD string)
+ * @returns Array of date strings in YYYY-MM-DD format
+ */
+export const generateDateRange = (
+  startDate: Date | string,
+  endDate: Date | string,
+): string[] => {
+  const start = typeof startDate === "string" ? parseLocalDate(startDate) : startDate;
+  const end = typeof endDate === "string" ? parseLocalDate(endDate) : endDate;
+  
+  const dates: string[] = [];
+  const current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endDateObj = new Date(end);
+  endDateObj.setHours(0, 0, 0, 0);
+  
+  while (current <= endDateObj) {
+    dates.push(getLocalDateString(current));
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+};
