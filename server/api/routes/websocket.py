@@ -46,10 +46,12 @@ async def handle_websocket_detect(websocket: WebSocket, client_id: str):
     if face_detector:
         default_min_size = FACE_DETECTOR_CONFIG["min_face_size"]
         face_detector.set_min_face_size(default_min_size)
-    
-   # Reset face tracker on new WebSocket connection
+
+    # Reset face tracker on new WebSocket connection
     if face_tracker:
-        logger.info(f"[WebSocket] Resetting face tracker for client {client_id} (fresh tracking state)")
+        logger.info(
+            f"[WebSocket] Resetting face tracker for client {client_id} (fresh tracking state)"
+        )
         face_tracker.reset()
 
     try:

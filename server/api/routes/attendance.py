@@ -1192,7 +1192,7 @@ def _compute_sessions_from_records(
 
     for member in members:
         person_id = member["person_id"]
-        
+
         # Check if member was enrolled on or before target_date
         # Skip creating session if target_date is before member joined
         if target_date_obj is not None and member.get("joined_at"):
@@ -1202,21 +1202,25 @@ def _compute_sessions_from_records(
                 if isinstance(joined_at, str):
                     # Try parsing as datetime first, then date
                     try:
-                        joined_at_obj = datetime.fromisoformat(joined_at.replace("Z", "+00:00")).date()
+                        joined_at_obj = datetime.fromisoformat(
+                            joined_at.replace("Z", "+00:00")
+                        ).date()
                     except (ValueError, AttributeError):
-                        joined_at_obj = datetime.strptime(joined_at.split()[0], "%Y-%m-%d").date()
+                        joined_at_obj = datetime.strptime(
+                            joined_at.split()[0], "%Y-%m-%d"
+                        ).date()
                 elif isinstance(joined_at, datetime):
                     joined_at_obj = joined_at.date()
                 elif hasattr(joined_at, "date"):
                     joined_at_obj = joined_at.date()
                 else:
                     joined_at_obj = None
-                
+
                 # Skip creating session if target_date is before member joined
                 # Note: date == joined_at is included (member is enrolled on that date)
                 if joined_at_obj and target_date_obj < joined_at_obj:
                     continue  # Don't create session for dates before enrollment
-                
+
                 # Edge case: If joined_at is in the future, skip (member not yet enrolled)
                 today = datetime.now().date()
                 if joined_at_obj and joined_at_obj > today:
@@ -1225,7 +1229,7 @@ def _compute_sessions_from_records(
                 # If date comparison fails, log and continue (don't block session creation)
                 logger.debug(f"Error comparing dates for member {person_id}: {e}")
                 # Continue to create session as fallback
-        
+
         person_records = records_by_person.get(person_id, [])
 
         if not person_records:
