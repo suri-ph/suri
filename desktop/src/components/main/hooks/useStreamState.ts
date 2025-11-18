@@ -17,20 +17,20 @@ export function useStreamState(options: UseStreamStateOptions) {
   const { setIsStreaming } = useCameraStore();
 
   const emergencyRecovery = useCallback(() => {
-    (isStartingRef as React.MutableRefObject<boolean>).current = false;
-    (isStoppingRef as React.MutableRefObject<boolean>).current = false;
-    (isProcessingRef as React.MutableRefObject<boolean>).current = false;
-    (lastStartTimeRef as React.MutableRefObject<number>).current = 0;
-    (lastStopTimeRef as React.MutableRefObject<number>).current = 0;
+    (isStartingRef as React.RefObject<boolean>).current = false;
+    (isStoppingRef as React.RefObject<boolean>).current = false;
+    (isProcessingRef as React.RefObject<boolean>).current = false;
+    (lastStartTimeRef as React.RefObject<number>).current = 0;
+    (lastStopTimeRef as React.RefObject<number>).current = 0;
     if (isStreamingRef.current) {
-      (isStreamingRef as React.MutableRefObject<boolean>).current = false;
-      (isScanningRef as React.MutableRefObject<boolean>).current = false;
+      (isStreamingRef as React.RefObject<boolean>).current = false;
+      (isScanningRef as React.RefObject<boolean>).current = false;
       setIsStreaming(false);
     }
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
-      (animationFrameRef as React.MutableRefObject<number | undefined>).current = undefined;
+      (animationFrameRef as React.RefObject<number | undefined>).current = undefined;
     }
   }, [setIsStreaming, isProcessingRef, animationFrameRef, isScanningRef, isStreamingRef, isStartingRef, isStoppingRef, lastStartTimeRef, lastStopTimeRef]);
 

@@ -161,7 +161,7 @@ export function useBackendService(options: UseBackendServiceOptions) {
           return;
         }
 
-        (lastFrameTimestampRef as React.MutableRefObject<number>).current = responseFrameTimestamp;
+        (lastFrameTimestampRef as React.RefObject<number>).current = responseFrameTimestamp;
 
         const now = Date.now();
         const fpsTracking = fpsTrackingRef.current;
@@ -191,7 +191,7 @@ export function useBackendService(options: UseBackendServiceOptions) {
 
         if (data.faces && Array.isArray(data.faces)) {
           if (data.suggested_skip !== undefined) {
-            (skipFramesRef as React.MutableRefObject<number>).current = data.suggested_skip;
+            (skipFramesRef as React.RefObject<number>).current = data.suggested_skip;
           }
 
           if (!data.model_used) {
@@ -246,7 +246,7 @@ export function useBackendService(options: UseBackendServiceOptions) {
           };
 
           setCurrentDetections(detectionResult);
-          (lastDetectionRef as React.MutableRefObject<DetectionResult | null>).current = detectionResult;
+          (lastDetectionRef as React.RefObject<DetectionResult | null>).current = detectionResult;
 
           if (
             recognitionEnabled &&
@@ -275,7 +275,7 @@ export function useBackendService(options: UseBackendServiceOptions) {
       "connection",
       (data: WebSocketConnectionMessage) => {
         if (data.status === "connected") {
-          (backendServiceReadyRef as React.MutableRefObject<boolean>).current = true;
+          (backendServiceReadyRef as React.RefObject<boolean>).current = true;
           setWebsocketStatus("connected");
         } else if (data.status === "disconnected") {
           setWebsocketStatus("disconnected");
@@ -389,9 +389,9 @@ export function useBackendService(options: UseBackendServiceOptions) {
   ]);
 
   useEffect(() => {
-    (isStreamingRef as React.MutableRefObject<boolean>).current = false;
-    (isScanningRef as React.MutableRefObject<boolean>).current = false;
-    (backendServiceReadyRef as React.MutableRefObject<boolean>).current = false;
+    (isStreamingRef as React.RefObject<boolean>).current = false;
+    (isScanningRef as React.RefObject<boolean>).current = false;
+    (backendServiceReadyRef as React.RefObject<boolean>).current = false;
     setError(null);
     setIsStreaming(false);
     setIsVideoLoading(false);
@@ -459,7 +459,7 @@ export function useBackendService(options: UseBackendServiceOptions) {
           }
         } else if (currentAnimationFrame) {
           cancelAnimationFrame(currentAnimationFrame);
-          (animationFrameRef as React.MutableRefObject<number | undefined>).current = undefined;
+          (animationFrameRef as React.RefObject<number | undefined>).current = undefined;
         }
 
         const initRef = initializationRef;

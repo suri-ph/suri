@@ -55,8 +55,8 @@ export function useOverlayRendering(options: UseOverlayRenderingOptions) {
 
     const now = Date.now();
     if (!videoRectRef.current || now - (lastVideoRectUpdateRef.current ?? 0) > 200) {
-      (videoRectRef as React.MutableRefObject<DOMRect | null>).current = video.getBoundingClientRect();
-      (lastVideoRectUpdateRef as React.MutableRefObject<number>).current = now;
+      (videoRectRef as React.RefObject<DOMRect | null>).current = video.getBoundingClientRect();
+      (lastVideoRectUpdateRef as React.RefObject<number>).current = now;
     }
 
     return videoRectRef.current;
@@ -157,7 +157,7 @@ export function useOverlayRendering(options: UseOverlayRenderingOptions) {
         }
       }
       if (isStreaming) {
-        (animationFrameRef as React.MutableRefObject<number | undefined>).current = requestAnimationFrame(animate);
+        (animationFrameRef as React.RefObject<number | undefined>).current = requestAnimationFrame(animate);
       }
       return;
     }
@@ -169,7 +169,7 @@ export function useOverlayRendering(options: UseOverlayRenderingOptions) {
       }
       lastDetectionHashRef.current = "";
       if (isStreaming) {
-        (animationFrameRef as React.MutableRefObject<number | undefined>).current = requestAnimationFrame(animate);
+        (animationFrameRef as React.RefObject<number | undefined>).current = requestAnimationFrame(animate);
       }
       return;
     }
@@ -231,7 +231,7 @@ export function useOverlayRendering(options: UseOverlayRenderingOptions) {
     }
 
     if (isStreaming) {
-      (animationFrameRef as React.MutableRefObject<number | undefined>).current = requestAnimationFrame(animate);
+      (animationFrameRef as React.RefObject<number | undefined>).current = requestAnimationFrame(animate);
     }
   }, [
     isStreaming,

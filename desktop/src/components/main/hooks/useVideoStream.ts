@@ -39,7 +39,7 @@ export function useVideoStream(options: UseVideoStreamOptions) {
         setCameraActive((prevActive: boolean) => {
           if (prevActive !== shouldBeActive) {
             if (shouldBeActive && !isStreamingRef.current) {
-              (isStreamingRef as React.MutableRefObject<boolean>).current = true;
+              (isStreamingRef as React.RefObject<boolean>).current = true;
               setIsStreaming(true);
             } else if (!shouldBeActive && isStreamingRef.current) {
               // Don't stop if we're in the middle of starting (matches original behavior)
@@ -47,9 +47,9 @@ export function useVideoStream(options: UseVideoStreamOptions) {
               if (isStartingRef.current) {
                 return prevActive;
               }
-              (isStreamingRef as React.MutableRefObject<boolean>).current = false;
+              (isStreamingRef as React.RefObject<boolean>).current = false;
               setIsStreaming(false);
-              (isScanningRef as React.MutableRefObject<boolean>).current = false;
+              (isScanningRef as React.RefObject<boolean>).current = false;
             }
             return shouldBeActive;
           }
@@ -67,8 +67,8 @@ export function useVideoStream(options: UseVideoStreamOptions) {
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
         if (video && videoRectRef.current) {
-          (videoRectRef as React.MutableRefObject<DOMRect | null>).current = video.getBoundingClientRect();
-          (lastVideoRectUpdateRef as React.MutableRefObject<number>).current = Date.now();
+          (videoRectRef as React.RefObject<DOMRect | null>).current = video.getBoundingClientRect();
+          (lastVideoRectUpdateRef as React.RefObject<number>).current = Date.now();
         }
       });
     });

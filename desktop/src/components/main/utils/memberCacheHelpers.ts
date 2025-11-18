@@ -20,7 +20,7 @@ export async function getMemberFromCache(
     let member = memberCacheRef.current.get(personId);
     if (!member && member !== null) {
       member = await attendanceManager.getMember(personId);
-      (memberCacheRef as React.MutableRefObject<Map<string, AttendanceMember | null>>).current.set(personId, member || null);
+      (memberCacheRef as React.RefObject<Map<string, AttendanceMember | null>>).current.set(personId, member || null);
     }
 
     // If we have a current group, validate that the member exists and belongs to it
@@ -42,7 +42,7 @@ export async function getMemberFromCache(
     }
   } catch {
     if (memberCacheRef.current) {
-      (memberCacheRef as React.MutableRefObject<Map<string, AttendanceMember | null>>).current.set(personId, null);
+      (memberCacheRef as React.RefObject<Map<string, AttendanceMember | null>>).current.set(personId, null);
     }
     // In original, when no group, catch doesn't return null - it just sets cache to null
     // But since we're in a try-catch, we need to return something

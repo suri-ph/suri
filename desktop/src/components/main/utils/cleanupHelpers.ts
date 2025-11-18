@@ -17,7 +17,7 @@ export function cleanupStream(
         // Ignore cleanup errors
       }
     });
-    (streamRef as React.MutableRefObject<MediaStream | null>).current = null;
+    (streamRef as React.RefObject<MediaStream | null>).current = null;
   }
 }
 
@@ -49,7 +49,7 @@ export function cleanupAnimationFrame(
   if (animationFrameRef.current) {
     try {
       cancelAnimationFrame(animationFrameRef.current);
-      (animationFrameRef as React.MutableRefObject<number | undefined>).current = undefined;
+      (animationFrameRef as React.RefObject<number | undefined>).current = undefined;
     } catch {
       // Ignore cleanup errors
     }

@@ -218,7 +218,7 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                                 ...existing,
                                 lastKnownBbox: face.bbox,
                               });
-                              (persistentCooldownsRef as React.MutableRefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
+                              (persistentCooldownsRef as React.RefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
                               return newPersistent;
                             }
                             return prev;
@@ -256,7 +256,7 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                                 attendanceCooldownSeconds,
                             };
                             newPersistent.set(cooldownKey, cooldownData);
-                            (persistentCooldownsRef as React.MutableRefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
+                            (persistentCooldownsRef as React.RefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
                             return newPersistent;
                           });
                         });
@@ -271,7 +271,7 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                                 memberName: memberName,
                                 lastKnownBbox: face.bbox,
                               });
-                              (persistentCooldownsRef as React.MutableRefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
+                              (persistentCooldownsRef as React.RefObject<Map<string, import("../types").CooldownInfo>>).current = newPersistent;
                             }
                             return newPersistent;
                           });

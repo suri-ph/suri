@@ -36,7 +36,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions) {
       return;
     }
 
-    (frameCounterRef as React.MutableRefObject<number>).current += 1;
+    (frameCounterRef as React.RefObject<number>).current += 1;
 
     if ((frameCounterRef.current ?? 0) % ((skipFramesRef.current ?? 0) + 1) !== 0) {
       requestAnimationFrame(() => processCurrentFrameRef.current?.());
@@ -50,7 +50,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions) {
         return;
       }
 
-      (lastDetectionFrameRef as React.MutableRefObject<ArrayBuffer | null>).current = frameData;
+      (lastDetectionFrameRef as React.RefObject<ArrayBuffer | null>).current = frameData;
 
       backendServiceRef.current
         .sendDetectionRequest(frameData)
@@ -65,7 +65,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions) {
   }, [captureFrame, backendServiceRef, isScanningRef, isStreamingRef, frameCounterRef, lastDetectionFrameRef, processCurrentFrameRef, skipFramesRef]);
 
   useEffect(() => {
-    (processCurrentFrameRef as React.MutableRefObject<() => Promise<void>>).current = processCurrentFrame;
+    (processCurrentFrameRef as React.RefObject<() => Promise<void>>).current = processCurrentFrame;
   }, [processCurrentFrame, processCurrentFrameRef]);
 
   return {
