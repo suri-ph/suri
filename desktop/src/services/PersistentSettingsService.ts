@@ -1,5 +1,5 @@
 import type { QuickSettings } from "../components/settings/types.js";
-import { defaultSettings } from "../electron/persistentStore.js";
+import { defaultSettings } from "./persistentSettingsDefaults.js";
 
 class PersistentSettingsService {
   /**
