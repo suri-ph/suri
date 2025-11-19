@@ -213,7 +213,10 @@ export const Settings: React.FC<SettingsProps> = ({
   const storeGroups = useGroupStore((state) => state.groups);
   const storeSelectedGroup = useGroupStore((state) => state.selectedGroup);
   const fetchGroups = useGroupStore((state) => state.fetchGroups);
-  const storeGroupsIds = useMemo(() => new Set(storeGroups.map((g) => g.id)), [storeGroups]);
+  const storeGroupsIds = useMemo(
+    () => new Set(storeGroups.map((g) => g.id)),
+    [storeGroups],
+  );
 
   // Track if store groups have been loaded at least once
   const [storeGroupsLoaded, setStoreGroupsLoaded] = useState(false);
@@ -241,7 +244,7 @@ export const Settings: React.FC<SettingsProps> = ({
     // Only pass currentGroup if it exists in the groups list
     // This prevents passing deleted groups even if parent hasn't updated yet
     if (!currentGroup) return null;
-    
+
     // If store groups have been loaded, use them as the source of truth
     if (storeGroupsLoaded) {
       // If store has no groups, currentGroup must be deleted - return null
@@ -255,16 +258,22 @@ export const Settings: React.FC<SettingsProps> = ({
       // Group doesn't exist in store (was deleted), return null
       return null;
     }
-    
+
     // Store not loaded yet - fallback to local groups during initial load
     const existsInLocal = groups.some((g) => g.id === currentGroup.id);
     if (existsInLocal) {
       return currentGroup;
     }
-    
+
     // Group doesn't exist in local groups either, return null
     return null;
-  }, [currentGroup, storeGroupsIds, storeGroups.length, storeGroupsLoaded, groups]);
+  }, [
+    currentGroup,
+    storeGroupsIds,
+    storeGroups.length,
+    storeGroupsLoaded,
+    groups,
+  ]);
 
   // Track last synced state to prevent unnecessary updates
   const lastSyncedStateRef = useRef<{
@@ -278,7 +287,7 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => {
     const validInitialGroupId = validInitialGroup?.id ?? null;
     const storeSelectedGroupId = storeSelectedGroup?.id ?? null;
-    
+
     // Skip if we've already processed this exact state
     if (
       lastSyncedStateRef.current &&
@@ -287,27 +296,34 @@ export const Settings: React.FC<SettingsProps> = ({
     ) {
       return;
     }
-    
+
     // Get fresh groups from store to ensure we're working with current data
     const groupStore = useGroupStore.getState();
     const currentGroups = groupStore.groups;
-    
+
     // Only sync if validInitialGroup exists and is different from store's selectedGroup
     if (validInitialGroup) {
       // Double-check that the group still exists in the current groups list
-      const stillExists = currentGroups.some((g) => g.id === validInitialGroup.id);
-      if (stillExists && (!storeSelectedGroup || storeSelectedGroup.id !== validInitialGroup.id)) {
+      const stillExists = currentGroups.some(
+        (g) => g.id === validInitialGroup.id,
+      );
+      if (
+        stillExists &&
+        (!storeSelectedGroup || storeSelectedGroup.id !== validInitialGroup.id)
+      ) {
         groupStore.setSelectedGroup(validInitialGroup);
       }
     } else if (storeSelectedGroup && storeGroupsLoaded) {
       // If validInitialGroup is null (group was deleted) but store still has a selection, clear it
       // But only if the selectedGroup doesn't exist in the current groups list
-      const existsInStore = currentGroups.length > 0 && currentGroups.some((g) => g.id === storeSelectedGroup.id);
+      const existsInStore =
+        currentGroups.length > 0 &&
+        currentGroups.some((g) => g.id === storeSelectedGroup.id);
       if (!existsInStore) {
         groupStore.setSelectedGroup(null);
       }
     }
-    
+
     // Update ref after processing to prevent re-running
     lastSyncedStateRef.current = { validInitialGroupId, storeSelectedGroupId };
   }, [validInitialGroup, storeSelectedGroup, storeGroupsLoaded]);
@@ -317,83 +333,95 @@ export const Settings: React.FC<SettingsProps> = ({
     setActiveSection("attendance");
   }, [setActiveSection]);
 
-  const handleExportHandlersReady = useCallback((handlers: {
-    exportCSV: () => void;
-    print: () => void;
-  }) => {
-    setReportsExportHandlers(handlers);
-  }, []);
+  const handleExportHandlersReady = useCallback(
+    (handlers: { exportCSV: () => void; print: () => void }) => {
+      setReportsExportHandlers(handlers);
+    },
+    [],
+  );
 
   const handleAddMemberHandlerReady = useCallback((handler: () => void) => {
     setAddMemberHandler(() => handler);
   }, []);
 
-  const handleGroupsChanged = useCallback(async (newGroup?: AttendanceGroup) => {
-    // Update group store FIRST (this is the source of truth)
-    try {
-      const groupStore = useGroupStore.getState();
-      await groupStore.fetchGroups();
-      const updatedGroups = groupStore.groups;
-      
-      // Mark store as loaded (so dropdown uses store groups)
-      setStoreGroupsLoaded(true);
-      
-      // Sync local groups state with store (for fallback scenarios)
-      setGroups(updatedGroups);
-      
-      // Check if currentGroup was deleted and clear it IMMEDIATELY
-      if (currentGroup && !updatedGroups.some((g) => g.id === currentGroup.id)) {
-        groupStore.setSelectedGroup(null);
-        groupStore.setMembers([]);
-        window.dispatchEvent(
-          new CustomEvent("selectGroup", {
-            detail: { group: null },
-          }),
-        );
+  const handleGroupsChanged = useCallback(
+    async (newGroup?: AttendanceGroup) => {
+      // Update group store FIRST (this is the source of truth)
+      try {
+        const groupStore = useGroupStore.getState();
+        await groupStore.fetchGroups();
+        const updatedGroups = groupStore.groups;
+
+        // Mark store as loaded (so dropdown uses store groups)
+        setStoreGroupsLoaded(true);
+
+        // Sync local groups state with store (for fallback scenarios)
+        setGroups(updatedGroups);
+
+        // Check if currentGroup was deleted and clear it IMMEDIATELY
+        if (
+          currentGroup &&
+          !updatedGroups.some((g) => g.id === currentGroup.id)
+        ) {
+          groupStore.setSelectedGroup(null);
+          groupStore.setMembers([]);
+          window.dispatchEvent(
+            new CustomEvent("selectGroup", {
+              detail: { group: null },
+            }),
+          );
+        }
+      } catch (error) {
+        console.error("[Settings] Error updating groups:", error);
       }
-    } catch (error) {
-      console.error("[Settings] Error updating groups:", error);
-    }
-    
-    // Then reload system data
-    await loadSystemData();
-    
-    if (onGroupsChanged) {
-      onGroupsChanged();
-    }
-    // If a new group was created, automatically select it
-    if (newGroup && onGroupSelect) {
-      onGroupSelect(newGroup);
-      // Refresh members if showing registration or members section with the new group
-      if (
-        groupInitialSection === "registration" ||
-        groupInitialSection === "members"
+
+      // Then reload system data
+      await loadSystemData();
+
+      if (onGroupsChanged) {
+        onGroupsChanged();
+      }
+      // If a new group was created, automatically select it
+      if (newGroup && onGroupSelect) {
+        onGroupSelect(newGroup);
+        // Refresh members if showing registration or members section with the new group
+        if (
+          groupInitialSection === "registration" ||
+          groupInitialSection === "members"
+        ) {
+          try {
+            const groupMembers = await attendanceManager.getGroupMembers(
+              newGroup.id,
+            );
+            setMembers(groupMembers);
+          } catch (error) {
+            console.error("Failed to refresh members:", error);
+          }
+        }
+      } else if (
+        (groupInitialSection === "registration" ||
+          groupInitialSection === "members") &&
+        currentGroup
       ) {
+        // Refresh members if showing registration or members section with current group
         try {
-          const groupMembers =
-            await attendanceManager.getGroupMembers(newGroup.id);
+          const groupMembers = await attendanceManager.getGroupMembers(
+            currentGroup.id,
+          );
           setMembers(groupMembers);
         } catch (error) {
           console.error("Failed to refresh members:", error);
         }
       }
-    } else if (
-      (groupInitialSection === "registration" ||
-        groupInitialSection === "members") &&
-      currentGroup
-    ) {
-      // Refresh members if showing registration or members section with current group
-      try {
-        const groupMembers =
-          await attendanceManager.getGroupMembers(
-            currentGroup.id,
-          );
-        setMembers(groupMembers);
-      } catch (error) {
-        console.error("Failed to refresh members:", error);
-      }
-    }
-  }, [currentGroup, groupInitialSection, loadSystemData, onGroupsChanged, onGroupSelect]);
+    },
+    [
+      currentGroup,
+      groupInitialSection,
+      loadSystemData,
+      onGroupsChanged,
+      onGroupSelect,
+    ],
+  );
 
   // Use store's selectedGroup as the dropdown value (most up-to-date)
   // This ensures the dropdown updates immediately when a group is selected
@@ -401,9 +429,10 @@ export const Settings: React.FC<SettingsProps> = ({
     // Priority 1: If store has a selectedGroup and it exists in groups, use it
     if (storeSelectedGroup) {
       // Check if it exists in store groups (if available) or local groups (fallback)
-      const existsInStore = storeGroups.length > 0 && storeGroupsIds.has(storeSelectedGroup.id);
+      const existsInStore =
+        storeGroups.length > 0 && storeGroupsIds.has(storeSelectedGroup.id);
       const existsInLocal = groups.some((g) => g.id === storeSelectedGroup.id);
-      
+
       if (existsInStore || (storeGroups.length === 0 && existsInLocal)) {
         return storeSelectedGroup.id;
       }
@@ -416,7 +445,13 @@ export const Settings: React.FC<SettingsProps> = ({
     }
     // Otherwise, return null (show placeholder)
     return null;
-  }, [storeSelectedGroup, storeGroupsIds, storeGroups.length, groups, validInitialGroup]);
+  }, [
+    storeSelectedGroup,
+    storeGroupsIds,
+    storeGroups.length,
+    groups,
+    validInitialGroup,
+  ]);
 
   const mainContent = (
     <div className="h-full flex bg-[#0f0f0f] text-white">
@@ -453,7 +488,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 onChange={(groupId) => {
                   // Update store immediately for visual feedback
                   const groupStore = useGroupStore.getState();
-                  
+
                   if (groupId) {
                     const group = dropdownGroups.find((g) => g.id === groupId);
                     if (group) {

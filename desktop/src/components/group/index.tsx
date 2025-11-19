@@ -39,7 +39,9 @@ function GroupPanelComponent({
   const fetchGroups = useGroupStore((state) => state.fetchGroups);
   const fetchGroupDetails = useGroupStore((state) => state.fetchGroupDetails);
   const setActiveSection = useGroupUIStore((state) => state.setActiveSection);
-  const setIsMobileDrawerOpen = useGroupUIStore((state) => state.setIsMobileDrawerOpen);
+  const setIsMobileDrawerOpen = useGroupUIStore(
+    (state) => state.setIsMobileDrawerOpen,
+  );
   const openCreateGroup = useGroupUIStore((state) => state.openCreateGroup);
   const openAddMember = useGroupUIStore((state) => state.openAddMember);
 
@@ -54,23 +56,25 @@ function GroupPanelComponent({
     }
   }, [fetchGroupDetails]);
 
-  const handleGroupSuccess = useCallback((newGroup?: AttendanceGroup) => {
-    fetchGroups();
-    if (newGroup) {
-      setSelectedGroup(newGroup);
-    }
-    // Notify parent component that groups have changed, passing the new group if created
-    if (onGroupsChanged) {
-      onGroupsChanged(newGroup);
-    }
-  }, [fetchGroups, setSelectedGroup, onGroupsChanged]);
+  const handleGroupSuccess = useCallback(
+    (newGroup?: AttendanceGroup) => {
+      fetchGroups();
+      if (newGroup) {
+        setSelectedGroup(newGroup);
+      }
+      // Notify parent component that groups have changed, passing the new group if created
+      if (onGroupsChanged) {
+        onGroupsChanged(newGroup);
+      }
+    },
+    [fetchGroups, setSelectedGroup, onGroupsChanged],
+  );
 
   const handleMembersChange = useCallback(() => {
     if (selectedGroup) {
       fetchGroupDetails(selectedGroup.id);
     }
   }, [selectedGroup, fetchGroupDetails]);
-
 
   // Sync initial section - use ref to prevent repeated calls
   const lastSyncedSectionRef = useRef<string | undefined>(undefined);

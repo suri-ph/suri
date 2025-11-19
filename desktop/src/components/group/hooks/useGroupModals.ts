@@ -8,10 +8,18 @@ import { useGroupUIStore } from "../stores";
  */
 export function useGroupModals() {
   // Use selectors to prevent re-renders when unrelated store parts change
-  const showAddMemberModal = useGroupUIStore((state) => state.showAddMemberModal);
-  const showEditMemberModal = useGroupUIStore((state) => state.showEditMemberModal);
-  const showCreateGroupModal = useGroupUIStore((state) => state.showCreateGroupModal);
-  const showEditGroupModal = useGroupUIStore((state) => state.showEditGroupModal);
+  const showAddMemberModal = useGroupUIStore(
+    (state) => state.showAddMemberModal,
+  );
+  const showEditMemberModal = useGroupUIStore(
+    (state) => state.showEditMemberModal,
+  );
+  const showCreateGroupModal = useGroupUIStore(
+    (state) => state.showCreateGroupModal,
+  );
+  const showEditGroupModal = useGroupUIStore(
+    (state) => state.showEditGroupModal,
+  );
   const editingMember = useGroupUIStore((state) => state.editingMember);
   const openAddMember = useGroupUIStore((state) => state.openAddMember);
   const openEditMember = useGroupUIStore((state) => state.openEditMember);

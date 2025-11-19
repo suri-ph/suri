@@ -46,7 +46,7 @@ function GroupContentComponent({
   const openEditMember = useGroupUIStore((state) => state.openEditMember);
   const openEditGroup = useGroupUIStore((state) => state.openEditGroup);
   const openCreateGroup = useGroupUIStore((state) => state.openCreateGroup);
-  
+
   // Handlers that use store actions
   const handleMembersChange = () => {
     if (selectedGroup) {
@@ -65,14 +65,11 @@ function GroupContentComponent({
     return currentGroups.some((g) => g.id === selectedGroupId);
   }, [selectedGroup, selectedGroupId]);
   const hasGroups = groupsLength > 0;
-  
+
   if (!hasSelectedGroup || !selectedGroup) {
     return (
       <div className="h-full px-6 pt-6">
-        <EmptyState
-          onCreateGroup={openCreateGroup}
-          hasGroups={hasGroups}
-        />
+        <EmptyState onCreateGroup={openCreateGroup} hasGroups={hasGroups} />
       </div>
     );
   }

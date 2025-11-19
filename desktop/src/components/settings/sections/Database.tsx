@@ -246,7 +246,7 @@ export function Database({
           const { useGroupStore } = await import("../../group/stores/index.js");
           const groupStore = useGroupStore.getState();
           const currentSelected = groupStore.selectedGroup;
-          
+
           // Dispatch selectGroup event IMMEDIATELY (before any async operations)
           // This ensures the dropdown updates instantly
           window.dispatchEvent(
@@ -254,7 +254,7 @@ export function Database({
               detail: { group: null },
             }),
           );
-          
+
           if (currentSelected?.id === groupId) {
             groupStore.setSelectedGroup(null);
             groupStore.setMembers([]);

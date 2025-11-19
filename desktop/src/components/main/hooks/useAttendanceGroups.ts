@@ -209,7 +209,9 @@ export function useAttendanceGroups() {
   // Listen for selectGroup custom event (e.g., from Settings when group is deleted)
   useEffect(() => {
     const handleSelectGroupEvent = (event: Event) => {
-      const customEvent = event as CustomEvent<{ group: AttendanceGroup | null }>;
+      const customEvent = event as CustomEvent<{
+        group: AttendanceGroup | null;
+      }>;
       const { group } = customEvent.detail;
       if (group === null) {
         setCurrentGroupWithCache(null);
@@ -220,11 +222,22 @@ export function useAttendanceGroups() {
       }
     };
 
-    window.addEventListener("selectGroup", handleSelectGroupEvent as EventListener);
+    window.addEventListener(
+      "selectGroup",
+      handleSelectGroupEvent as EventListener,
+    );
     return () => {
-      window.removeEventListener("selectGroup", handleSelectGroupEvent as EventListener);
+      window.removeEventListener(
+        "selectGroup",
+        handleSelectGroupEvent as EventListener,
+      );
     };
-  }, [handleSelectGroup, setCurrentGroupWithCache, setGroupMembers, setRecentAttendance]);
+  }, [
+    handleSelectGroup,
+    setCurrentGroupWithCache,
+    setGroupMembers,
+    setRecentAttendance,
+  ]);
 
   useEffect(() => {
     const initializeAttendance = async () => {

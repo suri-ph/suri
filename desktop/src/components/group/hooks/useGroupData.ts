@@ -29,7 +29,10 @@ export function useGroupData(initialGroup?: AttendanceGroup | null) {
 
   // Memoize groups by IDs to prevent effect from running when array reference changes but contents are the same
   const groupsIdsString = useMemo(() => {
-    return groups.map((g) => g.id).sort().join(',');
+    return groups
+      .map((g) => g.id)
+      .sort()
+      .join(",");
   }, [groups]);
 
   // Sync ref with store state
@@ -45,49 +48,58 @@ export function useGroupData(initialGroup?: AttendanceGroup | null) {
     const currentGroups = useGroupStore.getState().groups;
     const initialGroupId = initialGroup?.id ?? null;
     const selectedGroupId = selectedGroup?.id ?? null;
-    
+
     // Check if groups have actually changed (by IDs)
-    const currentGroupsIdsString = currentGroups.map((g) => g.id).sort().join(',');
-    const groupsChanged = currentGroupsIdsString !== lastProcessedGroupsIdsString.current;
-    
+    const currentGroupsIdsString = currentGroups
+      .map((g) => g.id)
+      .sort()
+      .join(",");
+    const groupsChanged =
+      currentGroupsIdsString !== lastProcessedGroupsIdsString.current;
+
     // Check if initialGroup still exists in groups list
     // Recreate groupIds Set from current groups for accurate check
     const currentGroupIds = new Set(currentGroups.map((g) => g.id));
     const initialGroupExists = initialGroup
       ? currentGroupIds.has(initialGroup.id)
       : false;
-    
+
     // Skip if we've already processed this exact state combination AND groups haven't changed
     // This prevents infinite loops when groups array reference changes but state is unchanged
     if (
       !groupsChanged &&
       initialGroupId === lastProcessedInitialGroupId.current &&
-      (
-        // Same state: both null or both same ID
-        (initialGroupId === null && selectedGroupId === null) ||
+      // Same state: both null or both same ID
+      ((initialGroupId === null && selectedGroupId === null) ||
         (initialGroupId === selectedGroupId && initialGroupId !== null) ||
         // Or: initialGroup is deleted (doesn't exist) and selectedGroup is null (we've already processed this)
-        (initialGroup && !initialGroupExists && selectedGroupId === null)
-      ) &&
-      (initialGroupId === null || initialGroupRef.current?.id === initialGroupId)
+        (initialGroup && !initialGroupExists && selectedGroupId === null)) &&
+      (initialGroupId === null ||
+        initialGroupRef.current?.id === initialGroupId)
     ) {
       return; // Already processed this exact state and groups haven't changed
     }
-    
+
     // Early exit: If initialGroup is a deleted group (doesn't exist in groups) and we've already processed it
     // This handles the case where groups array reference changes but the deleted group state is the same
-    if (!groupsChanged && initialGroup && !initialGroupExists && selectedGroupId === null && initialGroupId === lastProcessedInitialGroupId.current) {
+    if (
+      !groupsChanged &&
+      initialGroup &&
+      !initialGroupExists &&
+      selectedGroupId === null &&
+      initialGroupId === lastProcessedInitialGroupId.current
+    ) {
       return; // Already processed this deleted group and groups haven't changed
     }
-    
+
     initialGroupRef.current = initialGroup;
-    
+
     // If there are no groups at all, don't restore any initialGroup
     if (currentGroups.length === 0 && initialGroup) {
       lastProcessedInitialGroupId.current = initialGroupId;
       return;
     }
-    
+
     // If selectedGroup is null (was just deleted), don't restore it even if initialGroup matches
     if (selectedGroup === null && initialGroup) {
       // Check if this initialGroup was just deleted
@@ -106,7 +118,7 @@ export function useGroupData(initialGroup?: AttendanceGroup | null) {
         return;
       }
     }
-    
+
     // If initialGroup is null and selectedGroup exists, clear it
     if (initialGroup === null && selectedGroup) {
       setSelectedGroup(null);
@@ -117,7 +129,11 @@ export function useGroupData(initialGroup?: AttendanceGroup | null) {
       lastProcessedInitialGroupId.current = initialGroupId;
     }
     // If initialGroup is provided and different from selectedGroup, update it
-    else if (initialGroup && initialGroupExists && selectedGroup?.id !== initialGroup.id) {
+    else if (
+      initialGroup &&
+      initialGroupExists &&
+      selectedGroup?.id !== initialGroup.id
+    ) {
       setSelectedGroup(initialGroup);
       lastProcessedInitialGroupId.current = initialGroupId;
     }
@@ -128,10 +144,16 @@ export function useGroupData(initialGroup?: AttendanceGroup | null) {
     } else {
       lastProcessedInitialGroupId.current = initialGroupId;
     }
-    
+
     // Update refs after processing
     lastProcessedGroupsIdsString.current = currentGroupsIdsString;
-  }, [initialGroup, selectedGroup, setSelectedGroup, groupsIdsString, lastDeletedGroupId]);
+  }, [
+    initialGroup,
+    selectedGroup,
+    setSelectedGroup,
+    groupsIdsString,
+    lastDeletedGroupId,
+  ]);
 
   // Load groups on mount only (not on every fetchGroups reference change)
   const hasLoadedGroupsRef = useRef(false);
