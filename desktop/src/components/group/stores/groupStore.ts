@@ -115,16 +115,24 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     try {
       await attendanceManager.deleteGroup(groupId);
       const currentSelected = get().selectedGroup;
+      
+      // Dispatch selectGroup event to notify Main component immediately
+      window.dispatchEvent(
+        new CustomEvent("selectGroup", {
+          detail: { group: null },
+        }),
+      );
+      
       if (currentSelected?.id === groupId) {
         set({ selectedGroup: null, members: [] });
       }
       await get().fetchGroups();
       set({ lastDeletedGroupId: null });
     } catch (err) {
-      console.error("[GroupStore] Error in deleteGroup:", err);
+      console.error("[GroupStore] ❌ Error in deleteGroup:", err);
       set({
         error: err instanceof Error ? err.message : "Failed to delete group",
-        lastDeletedGroupId: null, // Clear on error
+        lastDeletedGroupId: null,
       });
     } finally {
       set({ loading: false });

@@ -217,6 +217,13 @@ export function useAttendanceGroups() {
         setCurrentGroupWithCache(null);
         setGroupMembers([]);
         setRecentAttendance([]);
+        // Refresh groups list to remove deleted group from dropdown immediately
+        // Call getGroups directly (don't use loadAttendanceData as it returns early when currentGroup is null)
+        attendanceManager.getGroups().then((groups) => {
+          setAttendanceGroups(groups);
+        }).catch((error) => {
+          console.error("[useAttendanceGroups] Error refreshing groups:", error);
+        });
       } else {
         handleSelectGroup(group);
       }
@@ -237,6 +244,7 @@ export function useAttendanceGroups() {
     setCurrentGroupWithCache,
     setGroupMembers,
     setRecentAttendance,
+    setAttendanceGroups,
   ]);
 
   useEffect(() => {

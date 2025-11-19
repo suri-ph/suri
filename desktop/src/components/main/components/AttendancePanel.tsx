@@ -180,7 +180,12 @@ export const AttendancePanel = memo(function AttendancePanel({
                   value: group.id,
                   label: group.name,
                 }))}
-                value={currentGroup?.id ?? null}
+                value={
+                  currentGroup &&
+                  attendanceGroups.some((g) => g.id === currentGroup.id)
+                    ? currentGroup.id
+                    : null
+                }
                 onChange={(groupId) => {
                   if (groupId) {
                     const group = attendanceGroups.find(
