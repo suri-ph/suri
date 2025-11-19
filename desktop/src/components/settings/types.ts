@@ -2,8 +2,6 @@
 
 export interface QuickSettings {
   showFPS: boolean;
-  showPreprocessing: boolean;
-  showBoundingBoxes: boolean;
   showLandmarks: boolean;
   showRecognitionNames: boolean;
   cameraMirrored: boolean;

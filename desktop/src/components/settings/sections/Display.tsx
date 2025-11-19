@@ -10,17 +10,12 @@ export function Display({ quickSettings, toggleQuickSetting }: DisplayProps) {
     {
       key: "cameraMirrored" as keyof QuickSettings,
       label: "Camera Mirroring",
-      description: "Mirror camera display like a mirror (default: on)",
+      description: "Mirror camera display",
     },
     {
       key: "showFPS" as keyof QuickSettings,
       label: "FPS Counter",
       description: "Frame rate indicator",
-    },
-    {
-      key: "showBoundingBoxes" as keyof QuickSettings,
-      label: "Bounding Boxes",
-      description: "Face detection outlines",
     },
     {
       key: "showLandmarks" as keyof QuickSettings,

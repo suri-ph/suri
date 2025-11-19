@@ -39,11 +39,9 @@ export const useUIStore = create<UIState>((set) => ({
   quickSettings: {
     cameraMirrored: true,
     showFPS: false,
-    showPreprocessing: false,
-    showBoundingBoxes: true,
     showRecognitionNames: true,
     showLandmarks: true,
-  }, // Will be loaded from store
+  },
 
   // Actions
   setError: (error) => set({ error }),

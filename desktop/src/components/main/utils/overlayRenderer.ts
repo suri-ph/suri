@@ -351,9 +351,7 @@ export const drawOverlays = ({
     const color = getFaceColor(recognitionResult || null, recognitionEnabled);
 
     setupCanvasContext(ctx, color);
-    if (quickSettings.showBoundingBoxes) {
-      drawBoundingBox(ctx, clampedX1, clampedY1, clampedX2, clampedY2);
-    }
+    drawBoundingBox(ctx, clampedX1, clampedY1, clampedX2, clampedY2);
 
     if (
       quickSettings.showLandmarks &&
