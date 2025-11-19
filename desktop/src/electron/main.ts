@@ -7,6 +7,28 @@ import { persistentStore } from "./persistentStore.js";
 // Set consistent app name across all platforms for userData directory
 app.setName("Suri");
 
+// Prevent multiple instances - ensure only one instance runs at a time
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+  process.exit(0);
+}
+
+// Handle second instance attempts - focus existing window
+app.on("second-instance", () => {
+  if (mainWindowRef) {
+    // Restore window if minimized
+    if (mainWindowRef.isMinimized()) {
+      mainWindowRef.restore();
+    }
+    // Show and focus the existing window
+    mainWindowRef.show();
+    mainWindowRef.focus();
+  }
+});
+
 // Dynamic GPU configuration - works on both old and new hardware
 // Enable modern GPU features for capable hardware, graceful fallback for old GPUs
 
