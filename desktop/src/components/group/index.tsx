@@ -76,11 +76,9 @@ function GroupPanelComponent({
     }
   }, [selectedGroup, fetchGroupDetails]);
 
-  // Sync initial section - use ref to prevent repeated calls
-  const lastSyncedSectionRef = useRef<string | undefined>(undefined);
+  // Sync initial section
   useEffect(() => {
-    if (initialSection && initialSection !== lastSyncedSectionRef.current) {
-      lastSyncedSectionRef.current = initialSection;
+    if (initialSection) {
       setActiveSection(initialSection);
     }
   }, [initialSection, setActiveSection]);

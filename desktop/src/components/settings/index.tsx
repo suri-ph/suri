@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { backendService, attendanceManager } from "../../services";
 import { Display } from "./sections/Display";
 import { Database } from "./sections/Database";
@@ -238,94 +238,40 @@ export const Settings: React.FC<SettingsProps> = ({
   // This ensures deleted groups are immediately removed from dropdown
   const dropdownGroups = storeGroupsLoaded ? storeGroups : groups;
 
-  // Memoize the filtered initialGroup to prevent passing deleted groups
-  // Check both local groups state and store groups to ensure we don't pass deleted groups
+  // Only pass currentGroup if it exists in groups (prevents passing deleted groups)
   const validInitialGroup = useMemo(() => {
-    // Only pass currentGroup if it exists in the groups list
-    // This prevents passing deleted groups even if parent hasn't updated yet
     if (!currentGroup) return null;
 
-    // If store groups have been loaded, use them as the source of truth
-    if (storeGroupsLoaded) {
-      // If store has no groups, currentGroup must be deleted - return null
-      if (storeGroups.length === 0) {
-        return null;
-      }
-      // Check if group exists in store groups
-      if (storeGroupsIds.has(currentGroup.id)) {
-        return currentGroup;
-      }
-      // Group doesn't exist in store (was deleted), return null
-      return null;
-    }
-
-    // Store not loaded yet - fallback to local groups during initial load
-    const existsInLocal = groups.some((g) => g.id === currentGroup.id);
-    if (existsInLocal) {
-      return currentGroup;
-    }
-
-    // Group doesn't exist in local groups either, return null
-    return null;
-  }, [
-    currentGroup,
-    storeGroupsIds,
-    storeGroups.length,
-    storeGroupsLoaded,
-    groups,
-  ]);
-
-  // Track last synced state to prevent unnecessary updates
-  const lastSyncedStateRef = useRef<{
-    validInitialGroupId: string | null;
-    storeSelectedGroupId: string | null;
-  } | null>(null);
+    // Use store groups if loaded, otherwise fallback to local groups
+    const groupsToCheck = storeGroupsLoaded ? storeGroups : groups;
+    return groupsToCheck.some((g) => g.id === currentGroup.id)
+      ? currentGroup
+      : null;
+  }, [currentGroup, storeGroups, storeGroupsLoaded, groups]);
 
   // Sync store's selectedGroup with currentGroup when Settings opens
-  // This ensures that when a group is created from main and Settings is opened,
-  // the store's selectedGroup is updated to match
   useEffect(() => {
-    const validInitialGroupId = validInitialGroup?.id ?? null;
-    const storeSelectedGroupId = storeSelectedGroup?.id ?? null;
-
-    // Skip if we've already processed this exact state
-    if (
-      lastSyncedStateRef.current &&
-      lastSyncedStateRef.current.validInitialGroupId === validInitialGroupId &&
-      lastSyncedStateRef.current.storeSelectedGroupId === storeSelectedGroupId
-    ) {
-      return;
-    }
-
-    // Get fresh groups from store to ensure we're working with current data
     const groupStore = useGroupStore.getState();
     const currentGroups = groupStore.groups;
 
-    // Only sync if validInitialGroup exists and is different from store's selectedGroup
     if (validInitialGroup) {
-      // Double-check that the group still exists in the current groups list
+      // Sync if group exists and is different from store's selection
       const stillExists = currentGroups.some(
         (g) => g.id === validInitialGroup.id,
       );
       if (
         stillExists &&
-        (!storeSelectedGroup || storeSelectedGroup.id !== validInitialGroup.id)
+        storeSelectedGroup?.id !== validInitialGroup.id
       ) {
         groupStore.setSelectedGroup(validInitialGroup);
       }
     } else if (storeSelectedGroup && storeGroupsLoaded) {
-      // If validInitialGroup is null (group was deleted) but store still has a selection, clear it
-      // But only if the selectedGroup doesn't exist in the current groups list
-      const existsInStore =
-        currentGroups.length > 0 &&
-        currentGroups.some((g) => g.id === storeSelectedGroup.id);
-      if (!existsInStore) {
+      // Clear selection if group was deleted
+      const exists = currentGroups.some((g) => g.id === storeSelectedGroup.id);
+      if (!exists) {
         groupStore.setSelectedGroup(null);
       }
     }
-
-    // Update ref after processing to prevent re-running
-    lastSyncedStateRef.current = { validInitialGroupId, storeSelectedGroupId };
   }, [validInitialGroup, storeSelectedGroup, storeGroupsLoaded]);
 
   // Memoize callbacks to prevent unnecessary re-renders of GroupPanel
