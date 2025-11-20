@@ -160,7 +160,9 @@ export function useVideoStream(options: UseVideoStreamOptions) {
         setSelectedCamera(videoDevices[0].deviceId);
       }
     } catch {
-      setError("Unable to detect cameras. Please make sure your camera is connected.");
+      setError(
+        "Unable to detect cameras. Please make sure your camera is connected.",
+      );
     }
   }, [selectedCamera, setError, setCameraDevices, setSelectedCamera]);
 

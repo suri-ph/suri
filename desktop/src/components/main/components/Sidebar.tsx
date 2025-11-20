@@ -95,7 +95,7 @@ export const Sidebar = memo(function Sidebar({
         Math.min(MAX_WIDTH, uiState.sidebarWidth),
       );
       setSidebarWidth(width);
-      
+
       // Set width immediately without transition on initial load
       if (sidebarRef.current) {
         const expectedWidth = uiState.sidebarCollapsed ? MIN_WIDTH : width;
@@ -104,7 +104,7 @@ export const Sidebar = memo(function Sidebar({
         sidebarRef.current.style.width = `${expectedWidth}px`;
         sidebarRef.current.style.minWidth = `${expectedWidth}px`;
         sidebarRef.current.style.maxWidth = `${expectedWidth}px`;
-        
+
         // Re-enable transition after a brief moment
         requestAnimationFrame(() => {
           if (sidebarRef.current) {

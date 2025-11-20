@@ -229,7 +229,7 @@ export function FaceCapture({
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCameraState] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
-  
+
   const setSelectedCamera = useCallback((deviceId: string) => {
     setSelectedCameraState(deviceId);
     persistentSettings
@@ -304,7 +304,9 @@ export function FaceCapture({
       );
       setCameraDevices(videoDevices);
     } catch {
-      setCameraError("Unable to detect cameras. Please make sure your camera is connected.");
+      setCameraError(
+        "Unable to detect cameras. Please make sure your camera is connected.",
+      );
     }
   }, []);
 
@@ -326,7 +328,7 @@ export function FaceCapture({
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
-      
+
       setIsStreaming(true);
       setIsVideoReady(false);
 
@@ -334,9 +336,11 @@ export function FaceCapture({
       const videoDevices = devices.filter(
         (device) => device.kind === "videoinput",
       );
-      
+
       if (videoDevices.length === 0) {
-        throw new Error("No camera detected. Please make sure your camera is connected and try again.");
+        throw new Error(
+          "No camera detected. Please make sure your camera is connected and try again.",
+        );
       }
 
       setCameraDevices(videoDevices);
@@ -347,7 +351,7 @@ export function FaceCapture({
 
       let deviceIdToUse: string | undefined = undefined;
       let cameraToSelect = selectedCamera;
-      
+
       if (cameraToSelect && videoDevices.length > 0) {
         const deviceExists = videoDevices.some(
           (device) => device.deviceId && device.deviceId === cameraToSelect,
@@ -427,7 +431,7 @@ export function FaceCapture({
         };
 
         await waitForVideoReady();
-        
+
         const video = videoRef.current;
         if (video && video.videoWidth > 0 && video.videoHeight > 0) {
           setIsVideoReady(true);
@@ -437,35 +441,54 @@ export function FaceCapture({
       }
     } catch (err) {
       console.error("Error starting camera:", err);
-      
-      let errorMessage = "Unable to access your camera. Please make sure your camera is connected and try again.";
+
+      let errorMessage =
+        "Unable to access your camera. Please make sure your camera is connected and try again.";
       if (err instanceof Error) {
         const errorName = err.name;
-        if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+        if (
+          errorName === "NotAllowedError" ||
+          errorName === "PermissionDeniedError"
+        ) {
           const userAgent = navigator.userAgent.toLowerCase();
           let instructions = "";
-          
+
           if (userAgent.includes("win")) {
-            instructions = "Go to Settings → Privacy → Camera → Turn ON 'Allow apps to access your camera'";
+            instructions =
+              "Go to Settings → Privacy → Camera → Turn ON 'Allow apps to access your camera'";
           } else if (userAgent.includes("mac")) {
-            instructions = "Go to System Settings → Privacy & Security → Camera → Turn ON for this app";
+            instructions =
+              "Go to System Settings → Privacy & Security → Camera → Turn ON for this app";
           } else {
-            instructions = "Go to your system settings and allow camera access for this application";
+            instructions =
+              "Go to your system settings and allow camera access for this application";
           }
-          
+
           errorMessage = `Camera access was blocked. ${instructions}.`;
-        } else if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
-          errorMessage = "No camera detected. Please make sure your camera is connected and try again.";
-        } else if (errorName === "NotReadableError" || errorName === "TrackStartError") {
-          errorMessage = "Your camera is being used by another app. Please close other apps (like Zoom, Teams, or your web browser) that might be using the camera, then try again.";
-        } else if (errorName === "OverconstrainedError" || errorName === "ConstraintNotSatisfiedError") {
+        } else if (
+          errorName === "NotFoundError" ||
+          errorName === "DevicesNotFoundError"
+        ) {
+          errorMessage =
+            "No camera detected. Please make sure your camera is connected and try again.";
+        } else if (
+          errorName === "NotReadableError" ||
+          errorName === "TrackStartError"
+        ) {
+          errorMessage =
+            "Your camera is being used by another app. Please close other apps (like Zoom, Teams, or your web browser) that might be using the camera, then try again.";
+        } else if (
+          errorName === "OverconstrainedError" ||
+          errorName === "ConstraintNotSatisfiedError"
+        ) {
           errorMessage = "Switching to a different camera...";
           try {
             const fallbackConstraints: MediaStreamConstraints = {
               video: true,
               audio: false,
             };
-            const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            const fallbackStream =
+              await navigator.mediaDevices.getUserMedia(fallbackConstraints);
             streamRef.current = fallbackStream;
             if (videoRef.current) {
               videoRef.current.srcObject = fallbackStream;
@@ -475,13 +498,15 @@ export function FaceCapture({
             }
           } catch (fallbackErr) {
             console.error("Fallback camera start failed:", fallbackErr);
-            errorMessage = "Unable to start camera. Please check if your camera is working and not being used by another app.";
+            errorMessage =
+              "Unable to start camera. Please check if your camera is working and not being used by another app.";
           }
         } else {
-          errorMessage = "Unable to start camera. Please make sure your camera is connected and not being used by another app.";
+          errorMessage =
+            "Unable to start camera. Please make sure your camera is connected and not being used by another app.";
         }
       }
-      
+
       setCameraError(errorMessage);
       setIsStreaming(false);
       setIsVideoReady(false);
@@ -722,9 +747,9 @@ export function FaceCapture({
       const hasDimensions = video.videoWidth > 0 && video.videoHeight > 0;
       const isPlaying = !video.paused;
       const noError = !cameraError;
-      
+
       const ready = hasSrcObject && hasDimensions && isPlaying && noError;
-      
+
       if (!ready && isVideoReady) {
         console.warn("Video became unready");
         setIsVideoReady(false);
@@ -1246,7 +1271,9 @@ export function FaceCapture({
                                 }}
                                 placeholder="Select camera…"
                                 emptyMessage="No cameras available"
-                                disabled={isStreaming || cameraDevices.length <= 1}
+                                disabled={
+                                  isStreaming || cameraDevices.length <= 1
+                                }
                                 maxHeight={256}
                                 buttonClassName="text-xs px-2 py-1 bg-black/60 backdrop-blur-sm border border-white/10"
                                 showPlaceholderOption={false}
@@ -1274,13 +1301,20 @@ export function FaceCapture({
                               const isCameraSelected =
                                 !!selectedCamera &&
                                 selectedCamera.trim() !== "" &&
-                                cameraDevices.some((device) => device.deviceId === selectedCamera);
-                              const canStartCamera = isCameraSelected && !isStreaming;
-                              const isButtonEnabled = isStreaming || canStartCamera;
-                              
+                                cameraDevices.some(
+                                  (device) =>
+                                    device.deviceId === selectedCamera,
+                                );
+                              const canStartCamera =
+                                isCameraSelected && !isStreaming;
+                              const isButtonEnabled =
+                                isStreaming || canStartCamera;
+
                               return (
                                 <button
-                                  onClick={isStreaming ? stopCamera : startCamera}
+                                  onClick={
+                                    isStreaming ? stopCamera : startCamera
+                                  }
                                   disabled={!isButtonEnabled}
                                   className={`px-2 py-2 rounded-md backdrop-blur-sm border text-xs font-medium transition-all min-w-[100px] ${
                                     isStreaming
@@ -1355,7 +1389,7 @@ export function FaceCapture({
                         }
                       </div>
                     </div>
-                    
+
                     <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1.5">
                       <button
                         onClick={resetWorkflow}
@@ -1363,10 +1397,12 @@ export function FaceCapture({
                       >
                         Retake
                       </button>
-                      
+
                       <button
                         onClick={() => void handleRegister()}
-                        disabled={!framesReady || !selectedMemberId || isRegistering}
+                        disabled={
+                          !framesReady || !selectedMemberId || isRegistering
+                        }
                         className={`px-2 py-2 rounded-md backdrop-blur-sm border text-xs font-medium transition-all min-w-[100px] ${
                           memberStatus.get(selectedMemberId)
                             ? "bg-amber-500/40 border-amber-400/50 text-amber-100 hover:bg-amber-500/50"

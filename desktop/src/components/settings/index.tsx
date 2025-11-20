@@ -193,7 +193,13 @@ export const Settings: React.FC<SettingsProps> = ({
         fetchMembers();
       }
     }
-  }, [activeSection, groupInitialSection, currentGroup, storeSelectedGroup, fetchGroupDetails]);
+  }, [
+    activeSection,
+    groupInitialSection,
+    currentGroup,
+    storeSelectedGroup,
+    fetchGroupDetails,
+  ]);
 
   // Reset reports state when switching away from reports section
   useEffect(() => {
@@ -306,7 +312,12 @@ export const Settings: React.FC<SettingsProps> = ({
         groupStore.setSelectedGroup(null);
       }
     }
-  }, [validInitialGroup, storeSelectedGroup, storeGroupsLoaded, fetchGroupDetails]);
+  }, [
+    validInitialGroup,
+    storeSelectedGroup,
+    storeGroupsLoaded,
+    fetchGroupDetails,
+  ]);
 
   // Memoize callbacks to prevent unnecessary re-renders of GroupPanel
   const handleGroupBack = useCallback(() => {

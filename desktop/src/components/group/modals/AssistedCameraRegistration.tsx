@@ -86,32 +86,47 @@ export function AssistedCameraRegistration({
       setCameraReady(true);
     } catch (error) {
       console.error("🚨 Camera start failed:", error);
-      
+
       // Provide user-friendly error messages
-      let errorMessage = "Unable to access your camera. Please make sure your camera is connected and try again.";
+      let errorMessage =
+        "Unable to access your camera. Please make sure your camera is connected and try again.";
       if (error instanceof Error) {
         const errorName = error.name;
-        if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+        if (
+          errorName === "NotAllowedError" ||
+          errorName === "PermissionDeniedError"
+        ) {
           // Detect operating system for platform-specific instructions using userAgent
           const userAgent = navigator.userAgent.toLowerCase();
           let instructions = "";
-          
+
           if (userAgent.includes("win")) {
-            instructions = "Go to Settings → Privacy → Camera → Turn ON 'Allow apps to access your camera'";
+            instructions =
+              "Go to Settings → Privacy → Camera → Turn ON 'Allow apps to access your camera'";
           } else if (userAgent.includes("mac")) {
-            instructions = "Go to System Settings → Privacy & Security → Camera → Turn ON for this app";
+            instructions =
+              "Go to System Settings → Privacy & Security → Camera → Turn ON for this app";
           } else {
-            instructions = "Go to your system settings and allow camera access for this application";
+            instructions =
+              "Go to your system settings and allow camera access for this application";
           }
-          
+
           errorMessage = `Camera access was blocked. ${instructions}. Then close and reopen this app.`;
-        } else if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
-          errorMessage = "No camera detected. Please make sure your camera is connected and try again.";
-        } else if (errorName === "NotReadableError" || errorName === "TrackStartError") {
-          errorMessage = "Your camera is being used by another app. Please close other apps that might be using the camera, then try again.";
+        } else if (
+          errorName === "NotFoundError" ||
+          errorName === "DevicesNotFoundError"
+        ) {
+          errorMessage =
+            "No camera detected. Please make sure your camera is connected and try again.";
+        } else if (
+          errorName === "NotReadableError" ||
+          errorName === "TrackStartError"
+        ) {
+          errorMessage =
+            "Your camera is being used by another app. Please close other apps that might be using the camera, then try again.";
         }
       }
-      
+
       setCameraError(errorMessage);
       setCameraReady(false);
     }
