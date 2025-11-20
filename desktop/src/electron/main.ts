@@ -646,9 +646,6 @@ app.whenReady().then(async () => {
     callback(filePath);
   });
 
-  createWindow();
-
-  // Start backend service (models are loaded on the server side)
   console.log("[Main] Starting backend service...");
   try {
     await startBackend();
@@ -656,6 +653,8 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error("[ERROR] Failed to start backend service:", error);
   }
+
+  createWindow();
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the
