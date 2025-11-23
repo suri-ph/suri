@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import logging
 from typing import List, Dict
 from .session_utils import init_onnx_session
 from .preprocess import (
@@ -13,6 +14,8 @@ from .postprocess import (
     run_batch_inference,
     assemble_liveness_results,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LivenessDetector:
@@ -77,7 +80,6 @@ class LivenessDetector:
 
             valid_detections_for_cropping.append(detection)
 
-        # Extract face crops from valid detections
         face_crops, valid_detections, skipped_results = (
             extract_face_crops_from_detections(
                 rgb_image,

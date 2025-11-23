@@ -1,22 +1,27 @@
 import numpy as np
+import logging
 from typing import Dict, List, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def softmax(prediction: np.ndarray) -> np.ndarray:
-    """Apply softmax to prediction"""
+    """Apply numerically stable softmax to prediction."""
     exp_pred = np.exp(prediction - np.max(prediction, axis=-1, keepdims=True))
     return exp_pred / np.sum(exp_pred, axis=-1, keepdims=True)
 
 
 def process_prediction(raw_pred: np.ndarray, confidence_threshold: float) -> Dict:
-    """Process raw prediction into liveness result"""
+    """Process raw prediction into liveness result."""
+    if len(raw_pred) < 3:
+        raise ValueError(f"Expected 3-class prediction, got {len(raw_pred)} classes")
+
     live_score = float(raw_pred[0])
     print_score = float(raw_pred[1])
     replay_score = float(raw_pred[2])
 
     spoof_score = print_score + replay_score
     max_confidence = max(live_score, spoof_score)
-
     is_real = live_score >= confidence_threshold
 
     result = {
@@ -77,12 +82,7 @@ def run_batch_inference(
     preprocess_fn,
     postprocess_fn,
 ) -> List[Optional[np.ndarray]]:
-    """
-    Run inference on face crops (one at a time since model expects batch size 1).
-
-    Returns:
-        List of raw predictions (or None for failed predictions)
-    """
+    """Run inference on face crops (one at a time since model expects batch size 1)."""
     if not face_crops:
         return []
 
@@ -90,21 +90,14 @@ def run_batch_inference(
     if not ort_session:
         return [None] * len(face_crops)
 
-    # Process each face individually since model expects batch size 1
     for face_crop in face_crops:
         try:
-            # Preprocess single face crop: [1, C, H, W]
-            single_input = preprocess_fn(face_crop)  # Shape: [1, 3, 128, 128]
-
-            # Run inference on single face
+            single_input = preprocess_fn(face_crop)
             onnx_results = ort_session.run([], {input_name: single_input})
-            logits = onnx_results[0]  # Shape: [1, 3]
-
-            # Apply postprocessing (softmax) and extract single prediction
-            prediction = postprocess_fn(logits)  # Shape: [1, 3]
-            raw_pred = prediction[0]  # Shape: [3]
+            logits = onnx_results[0]
+            prediction = postprocess_fn(logits)
+            raw_pred = prediction[0]
             raw_predictions.append(raw_pred)
-
         except Exception:
             raw_predictions.append(None)
 
@@ -120,7 +113,6 @@ def assemble_liveness_results(
     """Assemble liveness results from predictions and add to results list."""
     for detection, raw_pred in zip(valid_detections, raw_predictions):
         if raw_pred is None:
-            # Fail-safe: Mark as spoofed if prediction fails
             detection["liveness"] = {
                 "is_real": False,
                 "live_score": 0.0,

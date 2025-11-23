@@ -165,15 +165,15 @@ MODEL_CONFIGS = {
         "input_size": (640, 640),  # Optimized for better distant face detection
         "score_threshold": 0.9,
         "nms_threshold": 0.3,
-        "top_k": 5000,
-        "min_face_size": 80,  # Faces smaller are marked as "too_small" for UI feedback.
+        "top_k": 10000,
+        "min_face_size": 64,  # Faces smaller are marked as "too_small" for UI feedback.
     },
     "liveness_detector": {
         "model_path": WEIGHTS_DIR / "antispoof.onnx",
         "confidence_threshold": 0.60,  # 0.95 default
         "bbox_inc": 1.5,  # Bbox expansion factor (matches model training: 1.5_128.onnx)
         "model_img_size": 128,
-        "min_face_size": 80,  # Faces smaller than this are skipped from anti-spoof processing.
+        "min_face_size": 64,  # Faces smaller than this are skipped from anti-spoof processing.
     },
     "face_recognizer": {
         "model_path": WEIGHTS_DIR / "recognizer_light.onnx",
