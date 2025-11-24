@@ -505,7 +505,25 @@ export function Reports({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${group.name}(${reportStartDate} to ${reportEndDate}).csv`;
+      
+      // Format dates to "Month Day, Year" format
+      const formatDateForFilename = (dateString: string): string => {
+        const date = new Date(dateString);
+        const month = date.toLocaleString('en-US', { month: 'long' });
+        const day = date.getDate();
+        const year = date.getFullYear();
+        return `${month} ${day}, ${year}`;
+      };
+      
+      const formattedStartDate = formatDateForFilename(reportStartDate);
+      const formattedEndDate = formatDateForFilename(reportEndDate);
+      
+      // If same date, only show one date
+      const dateRange = reportStartDate === reportEndDate 
+        ? formattedStartDate 
+        : `${formattedStartDate} to ${formattedEndDate}`;
+      
+      anchor.download = `${group.name} (${dateRange}).csv`;
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
