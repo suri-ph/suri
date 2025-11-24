@@ -723,7 +723,7 @@ async def process_attendance_event(
                 hour=day_start_hour, minute=day_start_minute, second=0, microsecond=0
             )
             time_diff_minutes = (timestamp - day_start).total_seconds() / 60
-            is_late = time_diff_minutes > late_threshold_minutes
+            is_late = time_diff_minutes >= late_threshold_minutes
             late_minutes = (
                 int(time_diff_minutes - late_threshold_minutes) if is_late else 0
             )
@@ -1272,7 +1272,7 @@ def _compute_sessions_from_records(
             time_diff_minutes = (timestamp - day_start).total_seconds() / 60
 
             # Determine if late
-            is_late = time_diff_minutes > late_threshold_minutes
+            is_late = time_diff_minutes >= late_threshold_minutes
             late_minutes = (
                 int(time_diff_minutes - late_threshold_minutes) if is_late else 0
             )

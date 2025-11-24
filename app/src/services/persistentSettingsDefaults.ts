@@ -42,7 +42,7 @@ export const defaultSettings: PersistentSettingsSchema = {
     trackingMode: "auto",
     lateThresholdEnabled: false,
     lateThresholdMinutes: 5,
-    classStartTime: "08:00",
+    classStartTime: "00:00",
     attendanceCooldownSeconds: 10,
   },
   ui: {

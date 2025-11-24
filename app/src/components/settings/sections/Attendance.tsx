@@ -21,6 +21,27 @@ export function Attendance({
   onSpoofDetectionToggle,
   isStreaming = false,
 }: AttendanceProps) {
+  // Calculate late time by adding minutes to class start time
+  const calculateLateTime = (startTime: string, minutes: number): string => {
+    try {
+      const [hours, mins] = startTime.split(":").map(Number);
+      let totalMinutes = hours * 60 + mins + minutes;
+      // Handle day overflow (wrap around to next day)
+      if (totalMinutes < 0) totalMinutes += 24 * 60;
+      totalMinutes = totalMinutes % (24 * 60);
+      const finalHours = Math.floor(totalMinutes / 60);
+      const finalMins = totalMinutes % 60;
+      return `${String(finalHours).padStart(2, "0")}:${String(finalMins).padStart(2, "0")}`;
+    } catch {
+      return startTime;
+    }
+  };
+
+  const lateTime = calculateLateTime(
+    attendanceSettings.classStartTime,
+    attendanceSettings.lateThresholdMinutes,
+  );
+
   return (
     <div className="space-y-4 max-w-3xl p-6">
       {/* Tracking Mode Section */}
@@ -179,11 +200,10 @@ export function Attendance({
             <div className="flex items-center py-3 border-b border-white/5 gap-4">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-white/90">
-                  Late After
+                  Late Time
                 </div>
                 <div className="text-xs text-white/50 mt-0.5">
-                  {attendanceSettings.lateThresholdMinutes} minutes after start
-                  time
+                  Late from {lateTime}
                 </div>
               </div>
 
@@ -198,33 +218,11 @@ export function Attendance({
                     onLateThresholdChange(parseInt(e.target.value))
                   }
                   disabled={isStreaming}
-                  className="w-24 accent-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-24 accent-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <span className="text-amber-400 font-semibold text-sm min-w-[2.5rem] text-right whitespace-nowrap">
+                <span className="text-cyan-400 font-semibold text-sm min-w-[2.5rem] text-right whitespace-nowrap">
                   {attendanceSettings.lateThresholdMinutes} min
                 </span>
-              </div>
-            </div>
-
-            <div className="mt-2 p-3 rounded-md bg-amber-500/5 border border-amber-500/20">
-              <div className="flex items-start gap-2">
-                <svg
-                  className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                    strokeWidth={2}
-                  />
-                </svg>
-                <div className="text-xs text-amber-200/80">
-                  Late status applied after {attendanceSettings.classStartTime}{" "}
-                  +{attendanceSettings.lateThresholdMinutes}min
-                </div>
               </div>
             </div>
           </>
