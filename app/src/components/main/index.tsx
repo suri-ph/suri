@@ -671,14 +671,12 @@ export default function Main() {
       capture: true,
     });
     window.addEventListener("pagehide", handlePageHide, { capture: true });
-    window.addEventListener("unload", handlePageHide, { capture: true });
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload, {
         capture: true,
       });
       window.removeEventListener("pagehide", handlePageHide, { capture: true });
-      window.removeEventListener("unload", handlePageHide, { capture: true });
     };
   }, [cleanupOnUnload]);
 
