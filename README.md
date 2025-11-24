@@ -1,8 +1,8 @@
-<h3 align="center"><img width="80" alt="Suri AI Attendance Tracker: Real-time face recognition attendance tracking that runs 100% offline" src="app/public/icons/icon-1024.png"></h3>
+<h3 align="center"><img width="120" alt="Suri AI Attendance Tracker: Real-time face recognition attendance tracking that runs 100% offline" src="app/public/icons/icon-1024.png"></h3>
 
 <h3 align="center">AI-Powered Attendance Tracking. Local-First, Privacy-Focused</h3>
 
-Suri is a desktop application for automated attendance tracking using Artificial Intelligence. Built for classrooms, offices, and events.
+Suri is a desktop application for automated attendance tracking using Artificial Intelligence.
 
 ---
 
