@@ -4,7 +4,7 @@ This document contains the licenses for third-party AI models and algorithms use
 
 ---
 
-## Face Recognition Component
+## Face Recognition
 
 **License**: BSD 3-Clause License
 
@@ -24,7 +24,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 ---
 
-## Face Detection Component
+## Face Detection
 
 **License**: MIT License
 
@@ -38,7 +38,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
-## Face Anti-Spoofing Component
+## Face Anti-Spoofing
 
 **License**: Apache License 2.0
 
@@ -112,7 +112,7 @@ END OF TERMS AND CONDITIONS
 
 ---
 
-## Object Tracking Component
+## Object Tracking
 
 **License**: MIT License
 
