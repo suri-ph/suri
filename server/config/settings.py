@@ -161,36 +161,35 @@ except ImportError:
 # Model configurations
 MODEL_CONFIGS = {
     "face_detector": {
-        "model_path": WEIGHTS_DIR / "detector_fast.onnx",
-        "input_size": (640, 640),  # Optimized for better distant face detection
+        "model_path": WEIGHTS_DIR / "detector.onnx",
+        "input_size": (640, 640),
         "score_threshold": 0.9,
         "nms_threshold": 0.3,
         "top_k": 10000,
         "min_face_size": 64,  # Faces smaller are marked as "too_small" for UI feedback.
     },
     "liveness_detector": {
-        "model_path": WEIGHTS_DIR / "antispoof.onnx",
-        "confidence_threshold": 0.60,  # 0.95 default
-        "bbox_inc": 1.5,  # Bbox expansion factor (matches model training: 1.5_128.onnx)
+        "model_path": WEIGHTS_DIR / "liveness.onnx",
+        "confidence_threshold": 0.60,
+        "bbox_inc": 1.5,
         "model_img_size": 128,
         "min_face_size": 64,  # Faces smaller than this are skipped from anti-spoof processing.
     },
     "face_recognizer": {
-        "model_path": WEIGHTS_DIR / "recognizer_light.onnx",
-        "input_size": (112, 112),  # Face recognizer standard input size
+        "model_path": WEIGHTS_DIR / "recognizer.onnx",
+        "input_size": (112, 112),
         "similarity_threshold": 0.4,
-        "providers": OPTIMIZED_PROVIDERS,  # Use optimized providers
+        "providers": OPTIMIZED_PROVIDERS,
         "session_options": OPTIMIZED_SESSION_OPTIONS,
-        "embedding_dimension": 512,  # Face embedding dimension
-        "database_path": DATA_DIR
-        / "face_database.db",  # SQLite database storage (auto-handles dev/prod)
+        "embedding_dimension": 512,
+        "database_path": DATA_DIR / "face_database.db",
     },
     "face_tracker": {
         "model_path": WEIGHTS_DIR / "tracker.onnx",
-        "track_thresh": 0.5,  # Detection confidence threshold (ByteTrack default)
-        "match_thresh": 0.8,  # Matching threshold for association (ByteTrack default)
-        "track_buffer": 30,  # Buffer size for lost tracks (ByteTrack default)
-        "frame_rate": 30,  # Default frame rate (auto-detected per client)
+        "track_thresh": 0.5,
+        "match_thresh": 0.8,
+        "track_buffer": 30,
+        "frame_rate": 30,
     },
 }
 
