@@ -145,9 +145,7 @@ class FaceTracker:
                     best_iou = iou_matrix[track_idx, best_det_idx]
 
                     # Use ByteTrack's match_thresh logic: IoU must be >= (1.0 - match_thresh)
-                    if best_iou >= self.min_iou and best_det_idx < len(
-                        face_detections
-                    ):
+                    if best_iou >= self.min_iou and best_det_idx < len(face_detections):
                         face_result = face_detections[best_det_idx].copy()
                         face_result["track_id"] = int(track.track_id)
 

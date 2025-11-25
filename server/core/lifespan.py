@@ -55,6 +55,12 @@ async def lifespan(app: FastAPI):
             confidence_threshold=LIVENESS_DETECTOR_CONFIG["confidence_threshold"],
             min_face_size=LIVENESS_DETECTOR_CONFIG["min_face_size"],
             bbox_inc=LIVENESS_DETECTOR_CONFIG["bbox_inc"],
+            temporal_alpha=LIVENESS_DETECTOR_CONFIG[
+                "temporal_alpha"
+            ],  # Use config value directly
+            enable_temporal_smoothing=LIVENESS_DETECTOR_CONFIG[
+                "enable_temporal_smoothing"
+            ],
         )
 
         face_recognizer = FaceRecognizer(

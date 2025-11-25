@@ -1,9 +1,6 @@
 import cv2
 import numpy as np
-import logging
 from typing import List, Dict, Tuple, Optional
-
-logger = logging.getLogger(__name__)
 
 
 def preprocess_image(img: np.ndarray, model_img_size: int) -> np.ndarray:
@@ -153,23 +150,15 @@ def extract_face_crops_from_detections(
         try:
             face_crop = crop_fn(rgb_image, (x, y, x + w, y + h), bbox_inc)
             if len(face_crop.shape) != 3 or face_crop.shape[2] != 3:
-                logger.warning(
-                    f"[LIVENESS_DETECTOR] Invalid crop shape: {face_crop.shape}"
-                )
                 skipped_results.append(detection)
                 continue
             if face_crop.shape[0] != face_crop.shape[1]:
-                logger.warning(
-                    f"[LIVENESS_DETECTOR] Non-square crop: {face_crop.shape[0]}x{face_crop.shape[1]}"
-                )
                 skipped_results.append(detection)
                 continue
-        except (ValueError, IndexError) as e:
-            logger.warning(f"[LIVENESS_DETECTOR] Crop error: {e}")
+        except (ValueError, IndexError):
             skipped_results.append(detection)
             continue
-        except Exception as e:
-            logger.warning(f"[LIVENESS_DETECTOR] Unexpected crop error: {e}")
+        except Exception:
             skipped_results.append(detection)
             continue
 

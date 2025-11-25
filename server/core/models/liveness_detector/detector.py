@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
-import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 from .session_utils import init_onnx_session
 from .preprocess import (
     preprocess_image,
@@ -14,8 +13,7 @@ from .postprocess import (
     run_batch_inference,
     assemble_liveness_results,
 )
-
-logger = logging.getLogger(__name__)
+from .temporal_smoothing import TemporalSmoother
 
 
 class LivenessDetector:
@@ -26,13 +24,30 @@ class LivenessDetector:
         confidence_threshold: float,
         min_face_size: int,
         bbox_inc: float,
+        temporal_alpha: Optional[float] = None,
+        enable_temporal_smoothing: bool = True,
     ):
         self.model_img_size = model_img_size
         self.confidence_threshold = confidence_threshold
         self.min_face_size = min_face_size
         self.bbox_inc = bbox_inc
+        self.enable_temporal_smoothing = enable_temporal_smoothing
 
         self.ort_session, self.input_name = self._init_session_(model_path)
+
+        # Initialize temporal smoother if enabled
+        # Use config value directly (single source of truth)
+        if self.enable_temporal_smoothing:
+            if temporal_alpha is None:
+                raise ValueError(
+                    "temporal_alpha must be provided from config when enable_temporal_smoothing is True"
+                )
+            self.temporal_smoother = TemporalSmoother(alpha=temporal_alpha)
+        else:
+            self.temporal_smoother = None
+
+        # Global frame counter for proper frame tracking
+        self.frame_counter = 0
 
     def _init_session_(self, onnx_model_path: str):
         """Initialize ONNX Runtime session"""
@@ -58,6 +73,9 @@ class LivenessDetector:
         """Process face detections with anti-spoofing"""
         if not face_detections:
             return []
+
+        # Increment global frame counter (one per video frame, not per detection)
+        self.frame_counter += 1
 
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -114,9 +132,18 @@ class LivenessDetector:
             self.postprocessing,
         )
 
-        # Assemble liveness results
+        # Assemble liveness results with temporal smoothing
         results = assemble_liveness_results(
-            valid_detections, raw_predictions, self.confidence_threshold, results
+            valid_detections,
+            raw_predictions,
+            self.confidence_threshold,
+            results,
+            self.temporal_smoother,
+            self.frame_counter,  # Pass global frame number
         )
+
+        # Cleanup stale tracks periodically (optimized - runs every N frames)
+        if self.temporal_smoother:
+            self.temporal_smoother.cleanup_stale_tracks()
 
         return results

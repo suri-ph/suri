@@ -7,16 +7,7 @@ def process_detection(
     min_face_size: int,
     landmarks_5: np.ndarray,
 ) -> Dict:
-    """Process a single face detection and format output.
-
-    Args:
-        face: Raw detection array from FaceDetectorYN
-        min_face_size: Minimum face size threshold
-        landmarks_5: Landmarks array (not clipped - clipping handled in frontend)
-
-    Returns:
-        Detection dictionary with bbox, confidence, landmarks, and optional liveness
-    """
+    """Process a single face detection and format output."""
     x, y, w, h = face[:4]
     conf = float(face[14])
 

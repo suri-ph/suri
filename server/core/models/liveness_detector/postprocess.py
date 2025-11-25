@@ -1,8 +1,5 @@
 import numpy as np
-import logging
 from typing import Dict, List, Tuple, Optional
-
-logger = logging.getLogger(__name__)
 
 
 def softmax(prediction: np.ndarray) -> np.ndarray:
@@ -109,8 +106,20 @@ def assemble_liveness_results(
     raw_predictions: List[Optional[np.ndarray]],
     confidence_threshold: float,
     results: List[Dict],
+    temporal_smoother=None,
+    frame_number: int = 0,
 ) -> List[Dict]:
-    """Assemble liveness results from predictions and add to results list."""
+    """
+    Assemble liveness results from predictions and add to results list.
+
+    Args:
+        valid_detections: List of valid face detections
+        raw_predictions: List of raw model predictions
+        confidence_threshold: Threshold for liveness classification
+        results: List to append results to
+        temporal_smoother: Optional TemporalSmoother instance
+        frame_number: Current video frame number (for proper frame tracking)
+    """
     for detection, raw_pred in zip(valid_detections, raw_predictions):
         if raw_pred is None:
             detection["liveness"] = {
@@ -125,13 +134,29 @@ def assemble_liveness_results(
 
         prediction = process_prediction(raw_pred, confidence_threshold)
 
+        # Apply temporal smoothing if enabled
+        live_score = prediction["live_score"]
+        spoof_score = prediction["spoof_score"]
+
+        if temporal_smoother:
+            track_id = detection.get("track_id")
+            if track_id is not None:
+                live_score, spoof_score = temporal_smoother.smooth(
+                    track_id, live_score, spoof_score, frame_number
+                )
+
+        # Recalculate is_real and status with smoothed scores
+        max_confidence = max(live_score, spoof_score)
+        is_real = live_score >= confidence_threshold
+
         detection["liveness"] = {
-            "is_real": prediction["is_real"],
-            "live_score": prediction["live_score"],
-            "spoof_score": prediction["spoof_score"],
-            "confidence": prediction["confidence"],
-            "status": prediction["status"],
+            "is_real": is_real,
+            "live_score": live_score,
+            "spoof_score": spoof_score,
+            "confidence": max_confidence,
+            "status": "live" if is_real else "spoof",
         }
+
         results.append(detection)
 
     return results
