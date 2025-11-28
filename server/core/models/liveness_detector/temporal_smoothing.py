@@ -74,6 +74,14 @@ class TemporalSmoother:
             if self.current_frame - state["last_frame"] > self.max_stale_frames
         ]
 
+        # Also remove any negative track IDs (untracked faces shouldn't use temporal smoothing)
+        negative_tracks = [
+            track_id
+            for track_id in self.track_states.keys()
+            if track_id < 0
+        ]
+        stale_tracks.extend(negative_tracks)
+
         for track_id in stale_tracks:
             del self.track_states[track_id]
 

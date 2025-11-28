@@ -151,7 +151,10 @@ def assemble_liveness_results(
 
         if temporal_smoother:
             track_id = detection.get("track_id")
-            if track_id is not None:
+            # Only apply temporal smoothing to positive track IDs (tracked faces)
+            # Negative track IDs are temporary and change per frame - using them
+            # would cause state leakage between different faces
+            if track_id is not None and track_id > 0:
                 live_score, spoof_score = temporal_smoother.smooth(
                     track_id, live_score, spoof_score, frame_number
                 )
