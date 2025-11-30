@@ -17,7 +17,7 @@ from core.models import (
     FaceRecognizer,
 )
 from database.attendance import AttendanceDatabaseManager
-from hooks import set_model_references, init_model_executor, shutdown_model_executor
+from hooks import set_model_references
 
 if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
@@ -36,8 +36,6 @@ async def lifespan(app: FastAPI):
 
     try:
         logger.info("Starting up backend server...")
-
-        init_model_executor(max_workers=4)
 
         face_detector = FaceDetector(
             model_path=str(FACE_DETECTOR_MODEL_PATH),
@@ -91,5 +89,4 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down...")
-    shutdown_model_executor()
     logger.info("Shutdown complete")

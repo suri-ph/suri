@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 from typing import List, Dict, Tuple, Optional, Any
@@ -148,102 +147,76 @@ class FaceRecognizer:
         landmarks_5: List,
         allowed_person_ids: Optional[List[str]] = None,
     ) -> Dict:
-        """
-        Recognize a face asynchronously.
+        try:
+            face_data = [{"landmarks_5": landmarks_5}]
+            embeddings = self._extract_embeddings(image, face_data)
 
-        Full pipeline: Extract Embedding -> Find Match -> Return Result
-        """
-        from hooks import get_model_executor
-
-        loop = asyncio.get_event_loop()
-        executor = get_model_executor()
-
-        def _recognize():
-            try:
-                face_data = [{"landmarks_5": landmarks_5}]
-                embeddings = self._extract_embeddings(image, face_data)
-
-                if not embeddings:
-                    return {
-                        "person_id": None,
-                        "similarity": 0.0,
-                        "success": False,
-                        "error": "Failed to extract embedding",
-                    }
-
-                embedding = embeddings[0]
-                person_id, similarity = self._find_best_match(
-                    embedding, allowed_person_ids
-                )
-
-                result = {
-                    "person_id": person_id,
-                    "similarity": similarity,
-                    "success": person_id is not None,
-                }
-
-                return result
-
-            except Exception as e:
-                logger.error(f"Face recognition error: {e}")
+            if not embeddings:
                 return {
                     "person_id": None,
                     "similarity": 0.0,
                     "success": False,
-                    "error": str(e),
+                    "error": "Failed to extract embedding",
                 }
 
-        return await loop.run_in_executor(executor, _recognize)
+            embedding = embeddings[0]
+            person_id, similarity = self._find_best_match(
+                embedding, allowed_person_ids
+            )
+
+            result = {
+                "person_id": person_id,
+                "similarity": similarity,
+                "success": person_id is not None,
+            }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Face recognition error: {e}")
+            return {
+                "person_id": None,
+                "similarity": 0.0,
+                "success": False,
+                "error": str(e),
+            }
 
     async def register_person(
         self, person_id: str, image: np.ndarray, landmarks_5: List
     ) -> Dict:
-        """
-        Register a new person in the database asynchronously.
+        try:
+            face_data = [{"landmarks_5": landmarks_5}]
+            embeddings = self._extract_embeddings(image, face_data)
 
-        Pipeline: Extract Embedding -> Save to Database -> Refresh Cache
-        """
-        from hooks import get_model_executor
-
-        loop = asyncio.get_event_loop()
-        executor = get_model_executor()
-
-        def _register():
-            try:
-                face_data = [{"landmarks_5": landmarks_5}]
-                embeddings = self._extract_embeddings(image, face_data)
-
-                if not embeddings:
-                    return {
-                        "success": False,
-                        "error": "Failed to extract embedding",
-                        "person_id": person_id,
-                    }
-
-                embedding = embeddings[0]
-
-                if self.db_manager:
-                    save_success = self.db_manager.add_person(person_id, embedding)
-                    stats = self.db_manager.get_stats()
-                    total_persons = stats.get("total_persons", 0)
-                    self._refresh_cache()
-                else:
-                    save_success = False
-                    total_persons = 0
-                    logger.warning("No database manager available for registration")
-
+            if not embeddings:
                 return {
-                    "success": True,
+                    "success": False,
+                    "error": "Failed to extract embedding",
                     "person_id": person_id,
-                    "database_saved": save_success,
-                    "total_persons": total_persons,
                 }
 
-            except Exception as e:
-                logger.error(f"Person registration failed: {e}")
-                return {"success": False, "error": str(e), "person_id": person_id}
+            embedding = embeddings[0]
 
-        return await loop.run_in_executor(executor, _register)
+            if self.db_manager:
+                save_success = self.db_manager.add_person(person_id, embedding)
+                stats = self.db_manager.get_stats()
+                total_persons = stats.get("total_persons", 0)
+                self._refresh_cache()
+            else:
+                save_success = False
+                total_persons = 0
+                logger.warning("No database manager available for registration")
+
+            return {
+                "success": True,
+                "person_id": person_id,
+                "database_saved": save_success,
+                "total_persons": total_persons,
+            }
+
+        except Exception as e:
+            logger.error(f"Person registration failed: {e}")
+            return {"success": False, "error": str(e), "person_id": person_id}
 
     def remove_person(self, person_id: str) -> Dict:
         """Remove a person from the database"""
