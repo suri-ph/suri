@@ -222,19 +222,42 @@ export function BulkFaceRegistration({
           ? bbox
           : [bbox.x, bbox.y, bbox.width, bbox.height];
 
-        // Add padding
+        // Add padding - use raw coordinates with padding
         const padding = 20;
-        const cropX = Math.max(0, x - padding);
-        const cropY = Math.max(0, y - padding);
-        const cropW = Math.min(img.width - cropX, w + padding * 2);
-        const cropH = Math.min(img.height - cropY, h + padding * 2);
+        const desiredX = x - padding;
+        const desiredY = y - padding;
+        const desiredW = w + padding * 2;
+        const desiredH = h + padding * 2;
 
-        canvas.width = cropW;
-        canvas.height = cropH;
+        // Calculate actual crop region within image bounds
+        const cropX = Math.max(0, desiredX);
+        const cropY = Math.max(0, desiredY);
+        const cropX2 = Math.min(img.width, desiredX + desiredW);
+        const cropY2 = Math.min(img.height, desiredY + desiredH);
+        const cropW = cropX2 - cropX;
+        const cropH = cropY2 - cropY;
+
+        // Calculate padding offsets
+        const offsetX = Math.max(0, -desiredX);
+        const offsetY = Math.max(0, -desiredY);
+
+        canvas.width = desiredW;
+        canvas.height = desiredH;
 
         const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        if (ctx && cropW > 0 && cropH > 0) {
+          // Draw the cropped region at the correct offset position
+          ctx.drawImage(
+            img,
+            cropX,
+            cropY,
+            cropW,
+            cropH,
+            offsetX,
+            offsetY,
+            cropW,
+            cropH
+          );
           resolve(canvas.toDataURL("image/jpeg", 0.9));
         } else {
           resolve(imageDataUrl);
