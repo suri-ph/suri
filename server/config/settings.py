@@ -167,6 +167,7 @@ MODEL_CONFIGS = {
         "nms_threshold": 0.3,
         "top_k": 10000,
         "min_face_size": 64,
+        "edge_margin": 5,
     },
     "liveness_detector": {
         "model_path": WEIGHTS_DIR / "liveness.onnx",

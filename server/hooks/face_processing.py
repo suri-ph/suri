@@ -22,6 +22,7 @@ def process_face_detection(
     confidence_threshold: Optional[float] = None,
     nms_threshold: Optional[float] = None,
     min_face_size: Optional[int] = None,
+    enable_liveness: bool = False,
 ) -> List[Dict]:
     if not face_detector:
         logger.warning("Face detector not available")
@@ -35,7 +36,7 @@ def process_face_detection(
         if min_face_size is not None:
             face_detector.set_min_face_size(min_face_size)
 
-        faces = face_detector.detect_faces(image)
+        faces = face_detector.detect_faces(image, enable_liveness)
         return faces
 
     except Exception as e:
@@ -59,13 +60,14 @@ def process_liveness_detection(
             if "liveness" not in face:
                 face["liveness"] = {
                     "is_real": False,
-                    "real_score": 0.0,
-                    "spoof_score": 1.0,
-                    "confidence": 0.0,
                     "status": "error",
+                    "logit_diff": 0.0,
+                    "real_logit": 0.0,
+                    "spoof_logit": 0.0,
+                    "confidence": 0.0,
                     "message": f"Liveness detection error: {str(e)}",
                 }
-            elif face["liveness"].get("status") not in ["live", "spoof"]:
+            elif face["liveness"].get("status") not in ["real", "spoof"]:
                 face["liveness"]["status"] = "error"
                 face["liveness"]["message"] = f"Liveness detection error: {str(e)}"
 
@@ -151,7 +153,7 @@ def process_liveness_for_face_operation(
                 f"{operation_name} blocked: spoofed face detected (status: {status})",
             )
 
-        if status in ["too_small", "error"]:
+        if status in ["move_closer", "error"]:
             logger.warning(f"{operation_name} blocked for face with status: {status}")
             return True, f"{operation_name} blocked: face status {status}"
 

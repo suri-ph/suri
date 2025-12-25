@@ -58,10 +58,11 @@ interface IPCMessage {
     confidence?: number;
     liveness?: {
       is_real?: boolean | null;
-      real_score?: number;
-      spoof_score?: number;
+      logit_diff?: number;
+      real_logit?: number;
+      spoof_logit?: number;
       confidence?: number;
-      status?: "live" | "spoof" | "error" | "too_small";
+      status?: "real" | "spoof" | "error" | "move_closer";
       label?: string;
       attack_type?: string;
       message?: string;

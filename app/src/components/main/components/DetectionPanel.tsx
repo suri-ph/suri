@@ -43,11 +43,11 @@ const DetectionCard = memo(
       const status = face.liveness.status;
 
       switch (status) {
-        case "live":
+        case "real":
           return {
             borderColor: "border-green-500/60",
             bgColor: "",
-            statusText: "LIVE",
+            statusText: "REAL",
             statusColor: "text-green-400",
           };
         case "spoof":
@@ -57,12 +57,12 @@ const DetectionCard = memo(
             statusText: "SPOOF",
             statusColor: "text-red-300 font-semibold",
           };
-        case "too_small":
+        case "move_closer":
           return {
-            borderColor: "border-red-500/90",
-            bgColor: "bg-red-950/30",
-            statusText: "TOO SMALL",
-            statusColor: "text-red-300 font-semibold",
+            borderColor: "border-yellow-500/90",
+            bgColor: "bg-yellow-950/30",
+            statusText: "MOVE CLOSER",
+            statusColor: "text-yellow-300 font-semibold",
           };
         default:
           return {
@@ -77,7 +77,7 @@ const DetectionCard = memo(
     const statusStyles = getStatusStyles();
     const isSpoof =
       face.liveness?.status === "spoof" ||
-      face.liveness?.status === "too_small";
+      face.liveness?.status === "move_closer";
     const hasName = isRecognized && recognitionResult?.person_id && displayName;
 
     return (
@@ -163,10 +163,10 @@ export function DetectionPanel({
     // Show all faces
     const faces = currentDetections.faces;
 
-    // Sort: LIVE faces (status === "live") always on top
+    // Sort: REAL faces (status === "real") always on top
     return [...faces].sort((a, b) => {
-      const aIsLive = a.liveness?.status === "live";
-      const bIsLive = b.liveness?.status === "live";
+      const aIsLive = a.liveness?.status === "real";
+      const bIsLive = b.liveness?.status === "real";
 
       if (aIsLive && !bIsLive) return -1; // a comes first
       if (!aIsLive && bIsLive) return 1; // b comes first

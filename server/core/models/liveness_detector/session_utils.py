@@ -8,7 +8,6 @@ def init_onnx_session(
     providers: Optional[List] = None,
     session_options: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Optional[ort.InferenceSession], Optional[str]]:
-    """Initialize ONNX Runtime session with optimized providers and session options."""
     ort_session = None
     input_name = None
 

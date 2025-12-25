@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI):
             nms_threshold=FACE_DETECTOR_CONFIG["nms_threshold"],
             top_k=FACE_DETECTOR_CONFIG["top_k"],
             min_face_size=FACE_DETECTOR_CONFIG["min_face_size"],
+            edge_margin=FACE_DETECTOR_CONFIG["edge_margin"],
         )
 
         liveness_detector = LivenessDetector(

@@ -3,13 +3,7 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional
 
 
-def preprocess_image(img: np.ndarray, model_img_size: int) -> np.ndarray:
-    """
-    Preprocess single image for model inference.
-
-    Returns:
-        np.ndarray: Preprocessed image with shape [3, H, W] (no batch dimension)
-    """
+def preprocess(img: np.ndarray, model_img_size: int) -> np.ndarray:
     new_size = model_img_size
     old_size = img.shape[:2]
 
@@ -25,40 +19,23 @@ def preprocess_image(img: np.ndarray, model_img_size: int) -> np.ndarray:
     left, right = delta_w // 2, delta_w - (delta_w // 2)
 
     img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_REFLECT_101)
-
-    # Convert to CHW format and normalize: [H, W, 3] -> [3, H, W]
     img = img.transpose(2, 0, 1).astype(np.float32) / 255.0
 
     return img
 
 
 def preprocess_batch(face_crops: List[np.ndarray], model_img_size: int) -> np.ndarray:
-    """
-    Preprocess multiple face crops into a batch tensor for batch inference.
-
-    Args:
-        face_crops: List of face crop images (each is [H, W, 3] RGB)
-        model_img_size: Target image size for the model
-
-    Returns:
-        np.ndarray: Batch tensor with shape [N, 3, H, W] where N is the number of faces
-    """
     if not face_crops:
         raise ValueError("face_crops list cannot be empty")
 
-    preprocessed_images = []
-    for face_crop in face_crops:
-        preprocessed = preprocess_image(face_crop, model_img_size)
-        preprocessed_images.append(preprocessed)
-
-    # Stack all preprocessed images into a batch: [N, 3, H, W]
-    batch_tensor = np.stack(preprocessed_images, axis=0)
-
-    return batch_tensor
+    batch = np.zeros((len(face_crops), 3, model_img_size, model_img_size), dtype=np.float32)
+    for i, face_crop in enumerate(face_crops):
+        batch[i] = preprocess(face_crop, model_img_size)
+    
+    return batch
 
 
-def crop_with_margin(img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarray:
-    """Crop face with expanded bounding box. Matches hairymax's exact implementation."""
+def crop(img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarray:
     real_h, real_w = img.shape[:2]
     x, y, w, h = bbox
 
@@ -66,7 +43,7 @@ def crop_with_margin(img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarra
     h = h - y
 
     if w <= 0 or h <= 0:
-        raise ValueError(f"Invalid bbox dimensions: w={w}, h={h}")
+        raise ValueError("Invalid bbox dimensions")
 
     max_dim = max(w, h)
     xc = x + w / 2
@@ -76,38 +53,22 @@ def crop_with_margin(img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarra
     y = int(yc - max_dim * bbox_inc / 2)
     crop_size = int(max_dim * bbox_inc)
 
-    # Calculate actual crop region within image bounds
     crop_x1 = max(0, x)
     crop_y1 = max(0, y)
     crop_x2 = min(real_w, x + crop_size)
     crop_y2 = min(real_h, y + crop_size)
 
-    # Calculate padding needed
-    top_pad = max(0, -y)
-    left_pad = max(0, -x)
-    bottom_pad = max(0, (y + crop_size) - real_h)
-    right_pad = max(0, (x + crop_size) - real_w)
+    top_pad = int(max(0, -y))
+    left_pad = int(max(0, -x))
+    bottom_pad = int(max(0, (y + crop_size) - real_h))
+    right_pad = int(max(0, (x + crop_size) - real_w))
 
-    # Crop the available region from image
     if crop_x2 > crop_x1 and crop_y2 > crop_y1:
         img = img[crop_y1:crop_y2, crop_x1:crop_x2, :]
     else:
-        # If crop region is completely outside bounds, create empty image of correct size
         img = np.zeros((0, 0, 3), dtype=img.dtype)
 
-    max_pad = crop_size * 2
-    if (
-        abs(top_pad) > max_pad
-        or abs(bottom_pad) > max_pad
-        or abs(left_pad) > max_pad
-        or abs(right_pad) > max_pad
-    ):
-        raise ValueError(
-            f"Extreme padding values detected: top={top_pad}, bottom={bottom_pad}, "
-            f"left={left_pad}, right={right_pad}. This may indicate an error."
-        )
-
-    img = cv2.copyMakeBorder(
+    result = cv2.copyMakeBorder(
         img,
         top_pad,
         bottom_pad,
@@ -116,18 +77,13 @@ def crop_with_margin(img: np.ndarray, bbox: tuple, bbox_inc: float) -> np.ndarra
         cv2.BORDER_REFLECT_101,
     )
 
-    expected_size = int(max_dim * bbox_inc)
-    if img.shape[0] != expected_size or img.shape[1] != expected_size:
-        raise ValueError(
-            f"Crop size mismatch: expected {expected_size}x{expected_size}, "
-            f"got {img.shape[0]}x{img.shape[1]}"
-        )
+    if result.shape[0] != crop_size or result.shape[1] != crop_size:
+        raise ValueError(f"Crop size mismatch: expected {crop_size}x{crop_size}, got {result.shape[0]}x{result.shape[1]}")
 
-    return img
+    return result
 
 
 def extract_bbox_coordinates(detection: Dict) -> Optional[Tuple[float, float, float, float]]:
-    """Extract bbox coordinates from detection (expects dict format). Preserves float precision."""
     bbox = detection.get("bbox", {})
     if not isinstance(bbox, dict):
         return None
@@ -149,15 +105,6 @@ def extract_face_crops_from_detections(
     bbox_inc: float,
     crop_fn,
 ) -> Tuple[List[np.ndarray], List[Dict], List[Dict]]:
-    """
-    Extract face crops from detections.
-
-    Returns:
-        Tuple of (face_crops, valid_detections, skipped_results)
-        - face_crops: List of cropped face images
-        - valid_detections: List of detections with valid crops
-        - skipped_results: List of detections that were skipped
-    """
     face_crops = []
     valid_detections = []
     skipped_results = []

@@ -3,16 +3,20 @@ import numpy as np
 from typing import List, Dict, Optional
 from .session_utils import init_onnx_session
 from .preprocess import (
-    crop_with_margin,
+    crop,
     extract_face_crops_from_detections,
 )
 from .postprocess import (
-    softmax,
     validate_detection,
     run_batch_inference,
     assemble_liveness_results,
 )
 from .temporal_smoothing import TemporalSmoother
+
+
+def probability_to_logit_threshold(p: float) -> float:
+    p = max(1e-6, min(1 - 1e-6, p))
+    return np.log(p / (1 - p))
 
 
 class LivenessDetector:
@@ -26,9 +30,9 @@ class LivenessDetector:
         enable_temporal_smoothing: bool = True,
     ):
         self.model_img_size = model_img_size
-        self.confidence_threshold = confidence_threshold
         self.bbox_inc = bbox_inc
         self.enable_temporal_smoothing = enable_temporal_smoothing
+        self.logit_threshold = probability_to_logit_threshold(confidence_threshold)
 
         self.ort_session, self.input_name = self._init_session_(model_path)
 
@@ -46,13 +50,10 @@ class LivenessDetector:
     def _init_session_(self, onnx_model_path: str):
         return init_onnx_session(onnx_model_path)
 
-    def postprocessing(self, prediction: np.ndarray) -> np.ndarray:
-        return softmax(prediction)
-
     def increased_crop(
         self, img: np.ndarray, bbox: tuple, bbox_inc: float
     ) -> np.ndarray:
-        return crop_with_margin(img, bbox, bbox_inc)
+        return crop(img, bbox, bbox_inc)
 
     def detect_faces(
         self, image: np.ndarray, face_detections: List[Dict]
@@ -91,28 +92,28 @@ class LivenessDetector:
             if "liveness" not in skipped:
                 skipped["liveness"] = {
                     "is_real": False,
-                    "real_score": 0.0,
-                    "spoof_score": 1.0,
-                    "confidence": 0.0,
                     "status": "error",
+                    "logit_diff": 0.0,
+                    "real_logit": 0.0,
+                    "spoof_logit": 0.0,
+                    "confidence": 0.0,
                 }
         results.extend(skipped_results)
 
         if not face_crops:
             return results
 
-        raw_predictions = run_batch_inference(
+        raw_logits = run_batch_inference(
             face_crops,
             self.ort_session,
             self.input_name,
-            self.postprocessing,
             self.model_img_size,
         )
 
         results = assemble_liveness_results(
             valid_detections,
-            raw_predictions,
-            self.confidence_threshold,
+            raw_logits,
+            self.logit_threshold,
             results,
             self.temporal_smoother,
             self.frame_counter,

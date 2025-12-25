@@ -90,6 +90,7 @@ async def detect_faces(request: DetectionRequest):
                 confidence_threshold=request.confidence_threshold,
                 nms_threshold=request.nms_threshold,
                 min_face_size=min_face_size,
+                enable_liveness=request.enable_liveness_detection,
             )
 
             for face in faces:
@@ -165,6 +166,7 @@ async def detect_faces_upload(
                 confidence_threshold=confidence_threshold,
                 nms_threshold=nms_threshold,
                 min_face_size=min_face_size,
+                enable_liveness=enable_liveness_detection,
             )
 
             for face in faces:

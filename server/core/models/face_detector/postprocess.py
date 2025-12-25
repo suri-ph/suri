@@ -1,43 +1,44 @@
 import numpy as np
-from typing import Dict
+from typing import Dict, Optional
 
 
 def process_detection(
     face: np.ndarray,
     min_face_size: int,
     landmarks_5: np.ndarray,
-) -> Dict:
-    x, y, w, h = face[:4]
+    img_width: int,
+    img_height: int,
+    edge_margin: int = 0,
+) -> Optional[Dict]:
+    x, y, w, h = face[:4].astype(int)
     conf = float(face[14])
 
-    x1_orig = float(x)
-    y1_orig = float(y)
-    x2_orig = float(x + w)
-    y2_orig = float(y + h)
+    if x < 0 or y < 0 or x + w > img_width or y + h > img_height:
+        return None
 
-    face_width_orig = x2_orig - x1_orig
-    face_height_orig = y2_orig - y1_orig
+    if edge_margin > 0:
+        dist_left = x
+        dist_right = img_width - (x + w)
+        dist_top = y
+        dist_bottom = img_height - (y + h)
+        if min(dist_left, dist_right, dist_top, dist_bottom) < edge_margin:
+            return None
 
     detection = {
         "bbox": {
-            "x": x1_orig,
-            "y": y1_orig,
-            "width": face_width_orig,
-            "height": face_height_orig,
+            "x": float(x),
+            "y": float(y),
+            "width": float(w),
+            "height": float(h),
         },
         "confidence": conf,
         "landmarks_5": landmarks_5.tolist(),
     }
 
-    if min_face_size > 0:
-        is_bounding_box_too_small = (
-            face_width_orig < min_face_size or face_height_orig < min_face_size
-        )
-
-        if is_bounding_box_too_small:
-            detection["liveness"] = {
-                "is_real": False,
-                "status": "too_small",
-            }
+    if min_face_size > 0 and (w < min_face_size or h < min_face_size):
+        detection["liveness"] = {
+            "is_real": None,
+            "status": "move_closer",
+        }
 
     return detection

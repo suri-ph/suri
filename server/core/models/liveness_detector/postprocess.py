@@ -3,33 +3,27 @@ from typing import Dict, List, Tuple, Optional
 from .preprocess import preprocess_batch
 
 
-def softmax(prediction: np.ndarray) -> np.ndarray:
-    exp_pred = np.exp(prediction - np.max(prediction, axis=-1, keepdims=True))
-    return exp_pred / np.sum(exp_pred, axis=-1, keepdims=True)
+def process_with_logits(raw_logits: np.ndarray, threshold: float) -> Dict:
+    real_logit = float(raw_logits[0])
+    spoof_logit = float(raw_logits[1])
+    logit_diff = real_logit - spoof_logit
+    is_real = logit_diff >= threshold
+    confidence = abs(logit_diff)
 
-
-def process_prediction(raw_pred: np.ndarray, confidence_threshold: float) -> Dict:
-    real_score = float(raw_pred[0])
-    spoof_score = float(raw_pred[1])
-
-    max_confidence = max(real_score, spoof_score)
-    is_real = real_score >= confidence_threshold
-
-    result = {
+    return {            
         "is_real": bool(is_real),
-        "real_score": float(real_score),
-        "spoof_score": float(spoof_score),
-        "confidence": float(max_confidence),
-        "status": "live" if is_real else "spoof",
+        "status": "real" if is_real else "spoof",
+        "logit_diff": float(logit_diff),
+        "real_logit": float(real_logit),
+        "spoof_logit": float(spoof_logit),
+        "confidence": float(confidence),
     }
-
-    return result
 
 
 def validate_detection(
     detection: Dict
 ) -> Tuple[bool, Optional[Dict]]:
-    if "liveness" in detection and detection["liveness"].get("status") == "too_small":
+    if "liveness" in detection and detection["liveness"].get("status") == "move_closer":
         return False, None
 
     bbox = detection.get("bbox", {})
@@ -49,7 +43,6 @@ def run_batch_inference(
     face_crops: List[np.ndarray],
     ort_session,
     input_name: str,
-    postprocess_fn,
     model_img_size: int,
 ) -> List[np.ndarray]:
     if not face_crops:
@@ -59,57 +52,53 @@ def run_batch_inference(
         raise RuntimeError("ONNX session is not available")
 
     batch_input = preprocess_batch(face_crops, model_img_size)
-    onnx_results = ort_session.run([], {input_name: batch_input})
-    logits = onnx_results[0]
+    logits = ort_session.run([], {input_name: batch_input})[0]
 
-    if logits.shape[0] != len(face_crops):
+    if logits.shape != (len(face_crops), 2):
         raise ValueError(
-            f"Model output batch size mismatch: got {logits.shape[0]} predictions "
-            f"for {len(face_crops)} face crops"
+            f"Model output shape mismatch: expected ({len(face_crops)}, 2), "
+            f"got {logits.shape}"
         )
 
-    predictions = postprocess_fn(logits)
-    raw_predictions = [predictions[i] for i in range(len(face_crops))]
-
-    return raw_predictions
+    return [logits[i] for i in range(len(face_crops))]
 
 
 def assemble_liveness_results(
     valid_detections: List[Dict],
-    raw_predictions: List[np.ndarray],
-    confidence_threshold: float,
+    raw_logits: List[np.ndarray],
+    logit_threshold: float,
     results: List[Dict],
     temporal_smoother=None,
     frame_number: int = 0,
 ) -> List[Dict]:
-    if len(valid_detections) != len(raw_predictions):
+    if len(valid_detections) != len(raw_logits):
         raise ValueError(
             f"Length mismatch: {len(valid_detections)} detections but "
-            f"{len(raw_predictions)} predictions. This indicates a bug in the pipeline."
+            f"{len(raw_logits)} predictions. This indicates a bug in the pipeline."
         )
 
-    for detection, raw_pred in zip(valid_detections, raw_predictions):
-        prediction = process_prediction(raw_pred, confidence_threshold)
-
-        real_score = prediction["real_score"]
-        spoof_score = prediction["spoof_score"]
+    for detection, logits in zip(valid_detections, raw_logits):
+        real_logit = float(logits[0])
+        spoof_logit = float(logits[1])
 
         if temporal_smoother:
             track_id = detection.get("track_id")
             if track_id is not None and track_id > 0:
-                real_score, spoof_score = temporal_smoother.smooth(
-                    track_id, real_score, spoof_score, frame_number
+                real_logit, spoof_logit = temporal_smoother.smooth(
+                    track_id, real_logit, spoof_logit, frame_number
                 )
 
-        max_confidence = max(real_score, spoof_score)
-        is_real = real_score >= confidence_threshold
+        logit_diff = real_logit - spoof_logit
+        is_real = logit_diff >= logit_threshold
+        confidence = abs(logit_diff)
 
         detection["liveness"] = {
-            "is_real": is_real,
-            "real_score": real_score,
-            "spoof_score": spoof_score,
-            "confidence": max_confidence,
-            "status": "live" if is_real else "spoof",
+            "is_real": bool(is_real),
+            "status": "real" if is_real else "spoof",
+            "logit_diff": float(logit_diff),
+            "real_logit": float(real_logit),
+            "spoof_logit": float(spoof_logit),
+            "confidence": float(confidence),
         }
 
         results.append(detection)
