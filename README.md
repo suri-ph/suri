@@ -1,4 +1,6 @@
-<h3 align="center"><img width="120" alt="Suri AI Attendance Tracker: Real-time face recognition attendance tracking that runs 100% offline" src="app/public/icons/icon-1024.png"></h3>
+still in development...
+
+<!-- <h3 align="center"><img width="120" alt="Suri AI Attendance Tracker: Real-time face recognition attendance tracking that runs 100% offline" src="app/public/icons/icon-1024.png"></h3>
 
 <h3 align="center">AI-Powered Attendance Tracking. Local-First, Privacy-Focused</h3>
 
@@ -662,4 +664,4 @@ If you find Suri useful, please ⭐ star the repository!
 
 [Report Bug](https://github.com/yourusername/Suri/issues) · [Request Feature](https://github.com/yourusername/Suri/discussions) · [Documentation](https://github.com/yourusername/Suri/wiki)
 
-</div>
+</div> -->
