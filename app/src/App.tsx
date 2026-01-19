@@ -16,7 +16,7 @@ function App() {
         <LoadingScreen />
       ) : (
         <div className="app-content-wrapper">
-          <div className="text-white">
+          <div className="text-white h-full">
             <Main />
           </div>
         </div>

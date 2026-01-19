@@ -61,7 +61,7 @@ export default function Main() {
 
   const lastDetectionRef = useRef<DetectionResult | null>(null);
   const lastFrameTimestampRef = useRef<number>(0);
-  const processCurrentFrameRef = useRef<() => Promise<void>>(async () => {});
+  const processCurrentFrameRef = useRef<() => Promise<void>>(async () => { });
   const fpsTrackingRef = useRef({
     timestamps: [] as number[],
     maxSamples: 10,
@@ -391,7 +391,7 @@ export default function Main() {
 
   // ===== RENDER =====
   return (
-    <div className="pt-9 pb-5 h-screen bg-black text-white flex flex-col overflow-hidden">
+    <div className="h-full bg-black text-white flex flex-col overflow-hidden">
       {error && (
         <div className="mx-4 mt-3 bg-red-900 border border-red-600 p-3 rounded text-red-200">
           {error}

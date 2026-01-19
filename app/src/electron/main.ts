@@ -412,6 +412,22 @@ ipcMain.handle("store:reset", () => {
   return true;
 });
 
+// System Stats IPC Handler
+ipcMain.handle("system:get-stats", () => {
+  const cpu = process.getCPUUsage();
+  const memory = process.getSystemMemoryInfo();
+
+  return {
+    cpu: cpu.percentCPUUsage,
+    memory: {
+      total: memory.total,
+      free: memory.free,
+      // approximate application usage (RSS)
+      appUsage: process.memoryUsage().rss
+    }
+  };
+});
+
 // Check if backend server is ready
 // All AI models are loaded on the server side, not in Electron
 ipcMain.handle("backend:is-ready", async () => {
@@ -485,10 +501,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         startX = offset;
       }
@@ -497,10 +513,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         endX = width - offset;
       }

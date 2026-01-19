@@ -138,7 +138,7 @@ function GroupPanelComponent({
 
   // Standalone mode - full page with sidebar
   return (
-    <div className="pt-12 lg:pt-9 pb-5 h-screen bg-black text-white flex overflow-hidden">
+    <div className="h-full bg-black text-white flex overflow-hidden">
       {/* Error Banner */}
       {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
 

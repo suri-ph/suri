@@ -9,7 +9,7 @@ import type {
   DatabaseClearResponse,
 } from "./recognition.js";
 
-export {};
+export { };
 
 declare global {
   interface SuriWSClientAPI {
@@ -56,6 +56,10 @@ declare global {
     close: () => Promise<boolean>;
     onMaximize: (callback: () => void) => () => void;
     onUnmaximize: (callback: () => void) => () => void;
+    getSystemStats: () => Promise<{
+      cpu: number;
+      memory: { total: number; free: number; appUsage: number };
+    }>;
   }
 
   interface BackendAPI {

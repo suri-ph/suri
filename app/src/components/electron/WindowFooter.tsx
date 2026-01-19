@@ -1,8 +1,16 @@
 export default function WindowFooter() {
   return (
-    <div className="z-60 fixed bottom-0 w-full h-5 bg-gradient-surface flex items-center justify-between select-none flex-shrink-0">
-      <div className="flex justify-end mr-3 space-x-2 flex-1">
-        <div className="text-white/60 text-[10px] font-medium">v1.0.0</div>
+    <div className="w-full h-7 bg-black/60 backdrop-blur-xl flex items-center justify-between select-none flex-shrink-0 border-t border-white/[0.06] relative z-50 px-3">
+      {/* Left: System Status */}
+      <div className="flex items-center opacity-60 hover:opacity-100 transition-opacity">
+        <span className="text-[10px] font-medium text-white tracking-wide uppercase">
+          Active
+        </span>
+      </div>
+
+      {/* Right: Version Info */}
+      <div className="flex items-center">
+        <span className="text-white/30 text-[10px] font-medium tracking-wider font-mono">v1.0.0</span>
       </div>
     </div>
   );

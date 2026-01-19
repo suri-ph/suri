@@ -120,4 +120,5 @@ contextBridge.exposeInMainWorld("suriElectron", {
     ipcRenderer.on("window:unmaximized", listener);
     return () => ipcRenderer.removeListener("window:unmaximized", listener);
   },
+  getSystemStats: () => ipcRenderer.invoke("system:get-stats"),
 });
