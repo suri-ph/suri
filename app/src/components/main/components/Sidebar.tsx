@@ -292,10 +292,11 @@ export const Sidebar = memo(function Sidebar({
             }}
           >
             <div
-              className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-r transition-all ${isResizing
-                ? "bg-blue-500/70 h-16"
-                : "bg-white/10 group-hover:bg-blue-500/50"
-                }`}
+              className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-r transition-all ${
+                isResizing
+                  ? "bg-blue-500/70 h-16"
+                  : "bg-white/10 group-hover:bg-blue-500/50"
+              }`}
             />
           </div>
         )}

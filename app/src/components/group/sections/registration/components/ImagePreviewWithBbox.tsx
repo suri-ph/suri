@@ -1,0 +1,133 @@
+import { useState, useEffect, useRef } from "react";
+import type { CapturedFrame } from "../types";
+
+export function ImagePreviewWithBbox({ frame }: { frame: CapturedFrame }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [bboxStyle, setBboxStyle] = useState<{
+    left: string;
+    top: string;
+    width: string;
+    height: string;
+  } | null>(null);
+  const lastBboxStyleRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!frame.bbox || !frame.width || !frame.height || !containerRef.current) {
+      setBboxStyle(null);
+      lastBboxStyleRef.current = "";
+      return;
+    }
+
+    const calculateBbox = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      if (containerWidth === 0 || containerHeight === 0) {
+        return;
+      }
+
+      const imageAspectRatio = frame.width / frame.height;
+      const containerAspectRatio = containerWidth / containerHeight;
+
+      let displayedWidth: number;
+      let displayedHeight: number;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (imageAspectRatio > containerAspectRatio) {
+        displayedWidth = containerWidth;
+        displayedHeight = containerWidth / imageAspectRatio;
+        offsetY = (containerHeight - displayedHeight) / 2;
+      } else {
+        displayedHeight = containerHeight;
+        displayedWidth = containerHeight * imageAspectRatio;
+        offsetX = (containerWidth - displayedWidth) / 2;
+      }
+
+      const bbox = frame.bbox;
+      if (!bbox) {
+        return;
+      }
+
+      const scaleX = displayedWidth / frame.width;
+      const scaleY = displayedHeight / frame.height;
+
+      const bboxLeft = bbox[0] * scaleX + offsetX;
+      const bboxTop = bbox[1] * scaleY + offsetY;
+      const bboxWidth = bbox[2] * scaleX;
+      const bboxHeight = bbox[3] * scaleY;
+
+      const newStyle = {
+        left: `${bboxLeft}px`,
+        top: `${bboxTop}px`,
+        width: `${bboxWidth}px`,
+        height: `${bboxHeight}px`,
+      };
+
+      const styleKey = `${bboxLeft.toFixed(2)},${bboxTop.toFixed(
+        2,
+      )},${bboxWidth.toFixed(2)},${bboxHeight.toFixed(2)}`;
+      if (lastBboxStyleRef.current !== styleKey) {
+        lastBboxStyleRef.current = styleKey;
+        setBboxStyle(newStyle);
+      }
+    };
+
+    let timeoutId: NodeJS.Timeout;
+    const debouncedCalculate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(calculateBbox, 16);
+    };
+
+    calculateBbox();
+    const resizeObserver = new ResizeObserver(debouncedCalculate);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, [frame.bbox, frame.width, frame.height]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 min-h-0 relative rounded-lg overflow-hidden bg-black"
+    >
+      <img
+        src={frame.dataUrl}
+        alt={frame.label}
+        className="w-full h-full object-contain"
+      />
+      {frame.status === "processing" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-6 w-6 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+            <span className="text-xs text-white/60">Analyzing...</span>
+          </div>
+        </div>
+      )}
+      {frame.status === "error" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-500/20 p-3 text-center">
+          <div className="space-y-1">
+            <div className="text-xl">⚠️</div>
+            <div className="text-xs text-red-200">
+              {frame.error || "Failed"}
+            </div>
+          </div>
+        </div>
+      )}
+      {frame.status !== "error" && bboxStyle && (
+        <div
+          className="absolute border-2 border-cyan-400 shadow-lg shadow-cyan-400/50"
+          style={bboxStyle}
+        />
+      )}
+    </div>
+  );
+}

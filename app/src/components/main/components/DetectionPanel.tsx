@@ -100,15 +100,17 @@ const DetectionCard = memo(
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {hasName ? (
               <span
-                className={`font-semibold text-sm truncate ${isSpoof ? "text-red-200" : "text-white"
-                  }`}
+                className={`font-semibold text-sm truncate ${
+                  isSpoof ? "text-red-200" : "text-white"
+                }`}
               >
                 {displayName}
               </span>
             ) : (
               <span
-                className={`text-xs italic ${isSpoof ? "text-red-300/70" : "text-white/40"
-                  }`}
+                className={`text-xs italic ${
+                  isSpoof ? "text-red-300/70" : "text-white/40"
+                }`}
               >
                 {isSpoof ? "Spoofed Face" : "Unknown"}
               </span>
@@ -121,8 +123,9 @@ const DetectionCard = memo(
               className={`flex items-center gap-1.5 shrink-0 ${statusStyles.statusColor}`}
             >
               <span
-                className={`text-xs ${isSpoof ? "font-bold tracking-wide" : "font-medium"
-                  }`}
+                className={`text-xs ${
+                  isSpoof ? "font-bold tracking-wide" : "font-medium"
+                }`}
               >
                 {statusStyles.statusText}
               </span>
@@ -191,10 +194,14 @@ export function DetectionPanel({
               ) : (
                 <>
                   {/* Outer pulsing ring - only animate when streaming */}
-                  <div className={`absolute inset-0 rounded-2xl border ${isStreaming ? 'border-cyan-500/30 ai-pulse-ring' : 'border-white/20'}`} />
+                  <div
+                    className={`absolute inset-0 rounded-2xl border ${isStreaming ? "border-cyan-500/30 ai-pulse-ring" : "border-white/20"}`}
+                  />
 
                   {/* Main scanner frame */}
-                  <div className={`absolute inset-1 rounded-xl border overflow-hidden ${isStreaming ? 'border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-transparent' : 'border-white/10 bg-white/5'}`}>
+                  <div
+                    className={`absolute inset-1 rounded-xl border overflow-hidden ${isStreaming ? "border-cyan-400/20 bg-gradient-to-br from-cyan-500/10 to-transparent" : "border-white/10 bg-white/5"}`}
+                  >
                     {/* Scanning line - only show when streaming */}
                     {isStreaming && (
                       <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent ai-scan-line" />
@@ -202,7 +209,7 @@ export function DetectionPanel({
 
                     {/* Face icon */}
                     <svg
-                      className={`w-full h-full p-4 ${isStreaming ? 'text-cyan-400/50' : 'text-white/30 animate-pulse'}`}
+                      className={`w-full h-full p-4 ${isStreaming ? "text-cyan-400/50" : "text-white/30 animate-pulse"}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -217,16 +224,26 @@ export function DetectionPanel({
                   </div>
 
                   {/* Corner accents */}
-                  <div className={`absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg ${isStreaming ? 'border-cyan-400/40' : 'border-white/20'}`} />
-                  <div className={`absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg ${isStreaming ? 'border-cyan-400/40' : 'border-white/20'}`} />
-                  <div className={`absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg ${isStreaming ? 'border-cyan-400/40' : 'border-white/20'}`} />
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg ${isStreaming ? 'border-cyan-400/40' : 'border-white/20'}`} />
+                  <div
+                    className={`absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg ${isStreaming ? "border-cyan-400/40" : "border-white/20"}`}
+                  />
+                  <div
+                    className={`absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg ${isStreaming ? "border-cyan-400/40" : "border-white/20"}`}
+                  />
+                  <div
+                    className={`absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg ${isStreaming ? "border-cyan-400/40" : "border-white/20"}`}
+                  />
+                  <div
+                    className={`absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg ${isStreaming ? "border-cyan-400/40" : "border-white/20"}`}
+                  />
                 </>
               )}
             </div>
 
             {/* Text - different based on streaming state */}
-            <div className={`text-sm font-medium ${isStreaming ? 'text-cyan-400/60' : 'text-white/40'}`}>
+            <div
+              className={`text-sm font-medium ${isStreaming ? "text-cyan-400/60" : "text-white/40"}`}
+            >
               {isVideoLoading ? null : isStreaming ? (
                 <span className="flex items-center gap-1">
                   <span>Tracking</span>

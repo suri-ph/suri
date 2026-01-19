@@ -4,6 +4,8 @@ import type {
   AttendanceGroup,
   AttendanceMember,
 } from "../../../types/recognition";
+import { useCamera } from "../sections/registration/hooks/useCamera";
+import { toBase64Payload } from "../sections/registration/hooks/useImageProcessing";
 
 type CaptureStatus =
   | "pending"
@@ -32,11 +34,6 @@ interface AssistedCameraRegistrationProps {
 
 const REQUIRED_ANGLE = "Front";
 
-const toBase64Payload = (dataUrl: string) => {
-  const [, payload] = dataUrl.split(",");
-  return payload || dataUrl;
-};
-
 export function AssistedCameraRegistration({
   group,
   members,
@@ -45,8 +42,6 @@ export function AssistedCameraRegistration({
 }: AssistedCameraRegistrationProps) {
   const [memberQueue, setMemberQueue] = useState<QueuedMember[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -54,92 +49,22 @@ export function AssistedCameraRegistration({
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [showQualityFeedback, setShowQualityFeedback] = useState(true);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Use camera hook
+  const { videoRef, isVideoReady, cameraError, startCamera, stopCamera } =
+    useCamera();
+
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const currentMember = memberQueue[currentIndex];
-  const currentAngle = REQUIRED_ANGLE;
+  // const currentAngle = REQUIRED_ANGLE;
+  // Refactor note: REQUIRED_ANGLE is 'Front'.
+
   const totalMembers = memberQueue.length;
   const completedMembers = memberQueue.filter(
     (m) => m.status === "completed",
   ).length;
   const progress =
     totalMembers > 0 ? Math.round((completedMembers / totalMembers) * 100) : 0;
-
-  // Initialize camera
-  const startCamera = useCallback(async () => {
-    try {
-      setCameraError(null);
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: "user",
-        },
-        audio: false,
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraReady(true);
-    } catch (error) {
-      console.error("🚨 Camera start failed:", error);
-
-      // Provide user-friendly error messages
-      let errorMessage =
-        "Unable to access your camera. Please make sure your camera is connected and try again.";
-      if (error instanceof Error) {
-        const errorName = error.name;
-        if (
-          errorName === "NotAllowedError" ||
-          errorName === "PermissionDeniedError"
-        ) {
-          // Detect operating system for platform-specific instructions using userAgent
-          const userAgent = navigator.userAgent.toLowerCase();
-          let instructions = "";
-
-          if (userAgent.includes("win")) {
-            instructions =
-              "Go to Settings → Privacy → Camera → Turn ON 'Allow apps to access your camera'";
-          } else if (userAgent.includes("mac")) {
-            instructions =
-              "Go to System Settings → Privacy & Security → Camera → Turn ON for this app";
-          } else {
-            instructions =
-              "Go to your system settings and allow camera access for this application";
-          }
-
-          errorMessage = `Camera access was blocked. ${instructions}. Then close and reopen this app.`;
-        } else if (
-          errorName === "NotFoundError" ||
-          errorName === "DevicesNotFoundError"
-        ) {
-          errorMessage =
-            "No camera detected. Please make sure your camera is connected and try again.";
-        } else if (
-          errorName === "NotReadableError" ||
-          errorName === "TrackStartError"
-        ) {
-          errorMessage =
-            "Your camera is being used by another app. Please close other apps that might be using the camera, then try again.";
-        }
-      }
-
-      setCameraError(errorMessage);
-      setCameraReady(false);
-    }
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setCameraReady(false);
-  }, []);
 
   // Setup member queue
   const setupQueue = useCallback((selectedMembers: AttendanceMember[]) => {
@@ -158,7 +83,8 @@ export function AssistedCameraRegistration({
   // Capture from camera
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !currentMember) {
-      setCameraError("Camera feed not ready yet.");
+      // setCameraError("Camera feed not ready yet."); // useCamera manages cameraError, but here we might want local feedback?
+      // Actually we just return if not ready. Button should be disabled.
       return;
     }
 
@@ -172,7 +98,6 @@ export function AssistedCameraRegistration({
     const height = video.videoHeight;
 
     if (!width || !height) {
-      setCameraError("Camera is still initializing. Please wait a moment.");
       return;
     }
 
@@ -189,7 +114,8 @@ export function AssistedCameraRegistration({
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      setCameraError("Unable to capture from camera.");
+      // setCameraError("Unable to capture from camera.");
+      setError("Unable to capture from camera context.");
       return;
     }
 
@@ -254,7 +180,7 @@ export function AssistedCameraRegistration({
           idx === currentIndex
             ? {
                 ...m,
-                capturedAngles: [currentAngle],
+                capturedAngles: [REQUIRED_ANGLE],
                 status: "completed" as CaptureStatus,
                 qualityWarning:
                   bestFace.confidence && bestFace.confidence < 0.8
@@ -299,13 +225,13 @@ export function AssistedCameraRegistration({
     }
   }, [
     currentMember,
-    currentAngle,
     currentIndex,
     memberQueue,
     group.id,
     autoAdvance,
     totalMembers,
     onRefresh,
+    videoRef,
   ]);
 
   // Keyboard shortcuts
@@ -315,7 +241,7 @@ export function AssistedCameraRegistration({
 
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
-        if (!isProcessing && cameraReady) {
+        if (!isProcessing && isVideoReady) {
           void capturePhoto();
         }
       } else if (e.key === "n" || e.key === "N") {
@@ -358,7 +284,7 @@ export function AssistedCameraRegistration({
     queueStarted,
     currentMember,
     isProcessing,
-    cameraReady,
+    isVideoReady,
     currentIndex,
     memberQueue.length,
     capturePhoto,
@@ -542,9 +468,9 @@ export function AssistedCameraRegistration({
                     Live Camera Feed
                   </h3>
                   <span
-                    className={`text-xs uppercase ${cameraReady ? "text-cyan-300" : "text-yellow-200"}`}
+                    className={`text-xs uppercase ${isVideoReady ? "text-cyan-300" : "text-yellow-200"}`}
                   >
-                    {cameraReady ? "● Ready" : "○ Loading"}
+                    {isVideoReady ? "● Ready" : "○ Loading"}
                   </span>
                 </div>
 
@@ -555,7 +481,7 @@ export function AssistedCameraRegistration({
                     playsInline
                     muted
                   />
-                  {!cameraReady && !cameraError && (
+                  {!isVideoReady && !cameraError && (
                     <div className="absolute inset-0 flex items-center justify-center text-white/60 text-sm">
                       Initializing camera...
                     </div>
@@ -565,14 +491,14 @@ export function AssistedCameraRegistration({
                       {cameraError}
                     </div>
                   )}
-                  {currentMember && cameraReady && (
+                  {currentMember && isVideoReady && (
                     <div className="absolute top-4 left-4 right-4">
                       <div className="bg-black/80 rounded-lg p-3 border border-white/20">
                         <div className="text-lg font-semibold text-white">
                           {currentMember.name}
                         </div>
                         <div className="text-sm text-white/60 mt-1">
-                          Capture: {currentAngle}
+                          Capture: {REQUIRED_ANGLE}
                         </div>
                       </div>
                     </div>
@@ -582,12 +508,17 @@ export function AssistedCameraRegistration({
                 {/* Capture Button */}
                 <button
                   onClick={() => void capturePhoto()}
-                  disabled={!cameraReady || isProcessing || !currentMember}
+                  disabled={
+                    !isVideoReady ||
+                    isProcessing ||
+                    !currentMember ||
+                    !!cameraError
+                  }
                   className="w-full px-4 py-4 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
                 >
                   {isProcessing
                     ? "Processing..."
-                    : `Capture ${currentAngle} (Space)`}
+                    : `Capture ${REQUIRED_ANGLE} (Space)`}
                 </button>
 
                 {/* Keyboard Shortcuts */}

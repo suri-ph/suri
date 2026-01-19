@@ -182,7 +182,7 @@ export const AttendancePanel = memo(function AttendancePanel({
                 }))}
                 value={
                   currentGroup &&
-                    attendanceGroups.some((g) => g.id === currentGroup.id)
+                  attendanceGroups.some((g) => g.id === currentGroup.id)
                     ? currentGroup.id
                     : null
                 }

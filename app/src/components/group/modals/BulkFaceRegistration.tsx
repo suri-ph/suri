@@ -256,7 +256,7 @@ export function BulkFaceRegistration({
             offsetX,
             offsetY,
             cropW,
-            cropH
+            cropH,
           );
           resolve(canvas.toDataURL("image/jpeg", 0.9));
         } else {

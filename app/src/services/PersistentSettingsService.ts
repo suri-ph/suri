@@ -72,7 +72,7 @@ class PersistentSettingsService {
   async getAttendanceSettings() {
     const settings =
       await this.get<typeof defaultSettings.attendance>("attendance");
-    
+
     // If no settings exist (first start), initialize with current time
     if (!settings) {
       const now = new Date();
@@ -84,7 +84,7 @@ class PersistentSettingsService {
       await this.set("attendance", initialSettings);
       return initialSettings;
     }
-    
+
     return settings;
   }
 
