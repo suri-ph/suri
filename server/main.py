@@ -95,6 +95,10 @@ async def get_available_models():
 
 if __name__ == "__main__":
     import os
+    from database.migrate import run_migrations
+
+    # Run database migrations before starting the server
+    run_migrations()
 
     logging_config = get_logging_config()
     uvicorn.run(

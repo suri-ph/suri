@@ -267,11 +267,18 @@ export class BackendService {
         ];
       }
 
+      // Prepare environment
+      const env = {
+        ...process.env,
+        ENVIRONMENT: isDev() ? "development" : "production",
+      };
+
       // Spawn the process
       this.process = spawn(command, args, {
         stdio: "pipe", // Capture stdout/stderr to avoid showing console
         detached: false,
         windowsHide: true, // Hide console window on Windows
+        env,
       });
 
       // Optionally log backend output for debugging

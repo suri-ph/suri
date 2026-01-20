@@ -60,6 +60,8 @@ a = Analysis(
         ('utils', 'utils'),
         ('weights', 'weights'),  # Bundle model weights from server/weights
         ('api', 'api'),  # API package (includes routes, schemas, endpoints)
+        ('alembic.ini', '.'),  # Include alembic config in root of bundle
+        ('migrations', 'migrations'),  # Include migrations directory
     ],
     hiddenimports=hidden_imports,
     hookspath=['.'],

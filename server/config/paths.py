@@ -23,9 +23,25 @@ def get_data_dir() -> Path:
         return data_dir
 
 
+def get_alembic_config_path() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "alembic.ini"
+    else:
+        return Path(__file__).parent.parent / "alembic.ini"
+
+
+def get_migrations_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "migrations"
+    else:
+        return Path(__file__).parent.parent / "migrations"
+
+
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = (
     BASE_DIR.parent if not getattr(sys, "frozen", False) else Path(sys._MEIPASS)
 )
 WEIGHTS_DIR = get_weights_dir()
 DATA_DIR = get_data_dir()
+ALEMBIC_CONFIG_PATH = get_alembic_config_path()
+MIGRATIONS_DIR = get_migrations_dir()
