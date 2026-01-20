@@ -97,10 +97,10 @@ export function useBulkRegistration(
   );
 
   const handleDetectFaces = useCallback(
-    async (filesToProcess?: File[]) => {
+    async (filesToProcess?: File[], startIndex: number = 0) => {
       const files = filesToProcess || uploadedFiles;
       if (files.length === 0) {
-        setError("Please upload images first");
+        if (!filesToProcess) setError("Please upload images first");
         return;
       }
 
@@ -112,7 +112,7 @@ export function useBulkRegistration(
           files.map(async (file, idx) => {
             const dataUrl = await readFileAsDataUrl(file);
             return {
-              id: `image_${idx}`,
+              id: `image_${startIndex + idx}`,
               image: toBase64Payload(dataUrl),
               fileName: file.name,
             };
@@ -149,7 +149,7 @@ export function useBulkRegistration(
           }
 
           const imageIdx = parseInt(imageResult.image_id.replace("image_", ""));
-          const file = files[imageIdx];
+          const file = files[imageIdx - startIndex];
           const dataUrl = await readFileAsDataUrl(file);
 
           for (const face of imageResult.faces) {
@@ -170,9 +170,16 @@ export function useBulkRegistration(
           }
         }
 
-        setDetectedFaces(allDetectedFaces);
+        setDetectedFaces((prev) =>
+          filesToProcess ? [...prev, ...allDetectedFaces] : allDetectedFaces,
+        );
+
         if (allDetectedFaces.length === 0) {
-          setError("No faces detected in uploaded images");
+          setError(
+            filesToProcess
+              ? "No new faces detected"
+              : "No faces detected in uploaded images",
+          );
         }
       } catch (err) {
         console.error("Face detection error:", err);
@@ -194,11 +201,12 @@ export function useBulkRegistration(
 
       if (newFiles.length === 0) return;
 
+      const startIndex = uploadedFiles.length;
       setUploadedFiles((prev) => [...prev, ...newFiles]);
       // Append new files faces detection
-      await handleDetectFaces(newFiles);
+      await handleDetectFaces(newFiles, startIndex);
     },
-    [handleDetectFaces],
+    [handleDetectFaces, uploadedFiles.length],
   );
 
   const handleClearFiles = useCallback(() => {
