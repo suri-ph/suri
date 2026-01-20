@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { attendanceManager, backendService } from "../../../../services";
 import type {
   AttendanceGroup,
@@ -12,6 +12,7 @@ type CaptureStatus =
   | "capturing"
   | "processing"
   | "completed"
+  | "skipped"
   | "error";
 
 interface QueuedMember {
@@ -34,15 +35,24 @@ interface CameraQueueProps {
 
 const REQUIRED_ANGLE = "Front";
 
-export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
+export function CameraQueue({
+  group,
+  members,
+  onRefresh,
+  onClose,
+}: CameraQueueProps) {
   const [memberQueue, setMemberQueue] = useState<QueuedMember[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [queueStarted, setQueueStarted] = useState(false);
-  const [autoAdvance, setAutoAdvance] = useState(true);
-  const [showQualityFeedback, setShowQualityFeedback] = useState(true);
+  const autoAdvance = true;
+  const showQualityFeedback = true;
+  const [memberSearch, setMemberSearch] = useState("");
+  const [registrationFilter, setRegistrationFilter] = useState<
+    "all" | "registered" | "non-registered"
+  >("all");
 
   // Use camera hook
   const { videoRef, isVideoReady, cameraError, startCamera, stopCamera } =
@@ -53,8 +63,32 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
   const currentMember = memberQueue[currentIndex];
   const totalMembers = memberQueue.length;
   const completedMembers = memberQueue.filter(
-    (m) => m.status === "completed",
+    (m) => m.status === "completed" || m.status === "skipped",
   ).length;
+  const memberOrderMap = useMemo(
+    () => new Map(members.map((member, index) => [member.person_id, index])),
+    [members],
+  );
+  const filteredMembers = useMemo(() => {
+    let result = members;
+    if (memberSearch.trim()) {
+      const query = memberSearch.toLowerCase();
+      result = result.filter(
+        (member) =>
+          member.name.toLowerCase().includes(query) ||
+          member.person_id.toLowerCase().includes(query),
+      );
+    }
+    if (registrationFilter !== "all") {
+      result = result.filter((member) => {
+        const isRegistered = member.has_face_data ?? false;
+        return registrationFilter === "registered"
+          ? isRegistered
+          : !isRegistered;
+      });
+    }
+    return result;
+  }, [members, memberSearch, registrationFilter]);
 
   // Setup member queue
   const setupQueue = useCallback((selectedMembers: AttendanceMember[]) => {
@@ -69,6 +103,16 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
     setCurrentIndex(0);
     setQueueStarted(false);
   }, []);
+
+  useEffect(() => {
+    if (
+      totalMembers > 0 &&
+      completedMembers === totalMembers &&
+      !isProcessing
+    ) {
+      setSuccessMessage(`All ${totalMembers} members registered successfully!`);
+    }
+  }, [completedMembers, totalMembers, isProcessing]);
 
   // Capture from camera
   const capturePhoto = useCallback(async () => {
@@ -262,6 +306,13 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
       } else if (e.key === "s" || e.key === "S") {
         e.preventDefault();
         // Skip current member
+        setMemberQueue((prev) =>
+          prev.map((m, idx) =>
+            idx === currentIndex
+              ? { ...m, status: "skipped" as CaptureStatus }
+              : m,
+          ),
+        );
         if (currentIndex < memberQueue.length - 1) {
           setCurrentIndex((prev) => prev + 1);
         }
@@ -291,10 +342,10 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative bg-[#0a0a0a]">
+    <div className="h-full flex flex-col overflow-hidden bg-[#0f0f0f] text-white">
       {/* Error Alert */}
       {error && (
-        <div className="mx-6 mt-4 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-200 flex items-center gap-3 flex-shrink-0">
+        <div className="mx-6 mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center gap-3 flex-shrink-0">
           <div className="h-1 w-1 rounded-full bg-red-400 animate-pulse" />
           <span className="flex-1">{error}</span>
           <button
@@ -307,7 +358,7 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
       )}
 
       {successMessage && (
-        <div className="mx-6 mt-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-200 flex items-center gap-3 flex-shrink-0">
+        <div className="mx-6 mt-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200 flex items-center gap-3 flex-shrink-0">
           <div className="h-1 w-1 rounded-full bg-cyan-400 animate-pulse" />
           <span className="flex-1">{successMessage}</span>
         </div>
@@ -318,127 +369,181 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
         {!queueStarted ? (
           /* Setup Phase */
           <div className="space-y-6">
-            {/* Settings */}
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Options</h3>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10">
-                  <input
-                    type="checkbox"
-                    checked={autoAdvance}
-                    onChange={(e) => setAutoAdvance(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <div>
-                    <div className="text-sm text-white">Auto-advance</div>
-                    <div className="text-xs text-white/50">
-                      Automatically move to next member after capture
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10">
-                  <input
-                    type="checkbox"
-                    checked={showQualityFeedback}
-                    onChange={(e) => setShowQualityFeedback(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <div>
-                    <div className="text-sm text-white">Quality feedback</div>
-                    <div className="text-xs text-white/50">
-                      Show real-time quality warnings
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
             {/* Member Selection */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white">
                   Select Members to Register
                 </h3>
-                {memberQueue.length < members.length && (
-                  <button
-                    onClick={() => setupQueue(members)}
-                    className="text-xs text-cyan-300 hover:text-cyan-200 transition"
-                  >
-                    Select All
-                  </button>
-                )}
+                <div className="flex items-center gap-3">
+                  {memberQueue.length > 0 && (
+                    <button
+                      onClick={() => setupQueue([])}
+                      className="text-xs text-white/40 hover:text-white/70 transition"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  {memberQueue.length < members.length && (
+                    <button
+                      onClick={() => setupQueue(members)}
+                      className="text-xs text-cyan-300 hover:text-cyan-200 transition"
+                    >
+                      Select All
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="max-h-64 overflow-y-auto space-y-2 border border-white/10 rounded-lg p-3 bg-white/5 scrollbar-thin scrollbar-thumb-white/10">
-                {members.map((member) => {
-                  const isInQueue = memberQueue.some(
-                    (m) => m.personId === member.person_id,
-                  );
-                  return (
-                    <label
-                      key={member.person_id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${
-                        isInQueue
-                          ? "bg-white/10 border border-white/20"
-                          : "bg-white/5 border border-white/10 hover:bg-white/10"
-                      }`}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <div className="relative flex-1 min-w-[220px]">
+                    <svg
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <input
-                        type="checkbox"
-                        checked={isInQueue}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            // Add member to queue without resetting others
-                            const newMember: QueuedMember = {
-                              personId: member.person_id,
-                              name: member.name,
-                              role: member.role,
-                              status: "pending",
-                              capturedAngles: [],
-                            };
-                            setMemberQueue((prev) => [...prev, newMember]);
-                          } else {
-                            // Remove member from queue
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <input
+                      type="search"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Search members..."
+                      className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <select
+                    value={registrationFilter}
+                    onChange={(e) =>
+                      setRegistrationFilter(
+                        e.target.value as "all" | "registered" | "non-registered",
+                      )
+                    }
+                    className="min-w-[170px] rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none"
+                  >
+                    <option value="all">All members</option>
+                    <option value="non-registered">Needs registration</option>
+                    <option value="registered">Registered</option>
+                  </select>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-1.5 custom-scroll">
+                  {members.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-white/5 bg-white/[0.02] px-3 py-8 text-center">
+                      <div className="text-xs text-white/40">No members yet</div>
+                    </div>
+                  )}
+
+                  {members.length > 0 && filteredMembers.length === 0 && (
+                    <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-6 text-center">
+                      <div className="text-xs text-white/40">
+                        {memberSearch.trim()
+                          ? `No results for "${memberSearch}"`
+                          : registrationFilter === "registered"
+                            ? "No registered members"
+                            : registrationFilter === "non-registered"
+                              ? "All members are registered"
+                              : "No members found"}
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredMembers.map((member) => {
+                    const isInQueue = memberQueue.some(
+                      (m) => m.personId === member.person_id,
+                    );
+                    const isRegistered = member.has_face_data ?? false;
+                    return (
+                      <button
+                        key={member.person_id}
+                        type="button"
+                        onClick={() => {
+                          if (isInQueue) {
                             const memberIndex = memberQueue.findIndex(
                               (m) => m.personId === member.person_id,
                             );
-
                             setMemberQueue((prev) =>
                               prev.filter(
                                 (m) => m.personId !== member.person_id,
                               ),
                             );
-
-                            // Adjust index if we removed a member before the current one
                             if (
                               memberIndex !== -1 &&
                               memberIndex < currentIndex
                             ) {
                               setCurrentIndex((prev) => Math.max(0, prev - 1));
                             }
+                            return;
                           }
+                          const newMember: QueuedMember = {
+                            personId: member.person_id,
+                            name: member.name,
+                            role: member.role,
+                            status: "pending",
+                            capturedAngles: [],
+                          };
+                          setMemberQueue((prev) => {
+                            const next = [...prev, newMember];
+                            return next.sort(
+                              (a, b) =>
+                                (memberOrderMap.get(a.personId) ?? 0) -
+                                (memberOrderMap.get(b.personId) ?? 0),
+                            );
+                          });
                         }}
-                        className="w-4 h-4"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm text-white">{member.name}</div>
-                        {member.role && (
-                          <div className="text-xs text-white/50">
-                            {member.role}
+                        className={`group w-full rounded-xl border px-3 py-2 text-left transition-all ${
+                          isInQueue
+                            ? "border-cyan-400/50 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5"
+                            : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                              {member.name}
+                            </div>
+                            {member.role && (
+                              <div className="text-xs text-white/40 truncate">
+                                {member.role}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
+                          <div className="flex items-center gap-2">
+                            {isRegistered && (
+                              <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-500/30 text-[10px] text-cyan-200">
+                                Registered
+                              </span>
+                            )}
+                            {isInQueue && (
+                              <span className="text-cyan-300 text-xs">Queued</span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+
+            {memberQueue.length === 0 && (
+              <div className="text-xs text-white/40">
+                Select at least one member to start.
+              </div>
+            )}
 
             {/* Start Button */}
             {memberQueue.length > 0 && (
               <button
                 onClick={() => setQueueStarted(true)}
-                className="w-full px-4 py-4 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition text-base font-medium"
+                className="btn-success w-full px-4 py-3 text-sm font-semibold"
               >
                 Start Queue ({memberQueue.length} members)
               </button>
@@ -453,14 +558,22 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                 <h3 className="text-sm font-semibold text-white">
                   Live Camera Feed
                 </h3>
-                <span
-                  className={`text-xs uppercase ${isVideoReady ? "text-cyan-300" : "text-yellow-200"}`}
-                >
-                  {isVideoReady ? "● Ready" : "○ Loading"}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setQueueStarted(false)}
+                    className="text-xs text-white/50 hover:text-white transition"
+                  >
+                    Edit Queue
+                  </button>
+                  <span
+                    className={`text-xs uppercase ${isVideoReady ? "text-cyan-300" : "text-yellow-200"}`}
+                  >
+                    {isVideoReady ? "● Ready" : "○ Loading"}
+                  </span>
+                </div>
               </div>
 
-              <div className="relative overflow-hidden rounded-lg border border-white/10 bg-black aspect-video flex-grow max-h-[500px]">
+              <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black aspect-video flex-grow max-h-[500px]">
                 <video
                   ref={videoRef}
                   className="w-full h-full object-cover scale-x-[-1]"
@@ -479,7 +592,7 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                 )}
                 {currentMember && isVideoReady && (
                   <div className="absolute top-4 left-4 right-4">
-                    <div className="bg-black/80 rounded-lg p-3 border border-white/20">
+                    <div className="bg-black/70 rounded-lg p-3 border border-white/10">
                       <div className="text-lg font-semibold text-white">
                         {currentMember.name}
                       </div>
@@ -500,17 +613,87 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                   !currentMember ||
                   !!cameraError
                 }
-                className="w-full px-4 py-4 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/15 transition disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium flex-shrink-0"
+                className="btn-success w-full px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing
                   ? "Processing..."
                   : `Capture ${REQUIRED_ANGLE} (Space)`}
               </button>
 
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <button
+                  onClick={() => {
+                    if (currentIndex > 0) {
+                      setCurrentIndex((prev) => prev - 1);
+                      setError(null);
+                    }
+                  }}
+                  disabled={currentIndex === 0}
+                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentMember) {
+                      setMemberQueue((prev) =>
+                        prev.map((m, idx) =>
+                          idx === currentIndex
+                            ? { ...m, status: "skipped" as CaptureStatus }
+                            : m,
+                        ),
+                      );
+                      if (currentIndex < memberQueue.length - 1) {
+                        setCurrentIndex((prev) => prev + 1);
+                      }
+                    }
+                  }}
+                  disabled={!currentMember}
+                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentMember) {
+                      setMemberQueue((prev) =>
+                        prev.map((m, idx) =>
+                          idx === currentIndex
+                            ? {
+                                ...m,
+                                status: "pending" as CaptureStatus,
+                                error: undefined,
+                                qualityWarning: undefined,
+                              }
+                            : m,
+                        ),
+                      );
+                      setError(null);
+                    }
+                  }}
+                  disabled={!currentMember}
+                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentIndex < memberQueue.length - 1) {
+                      setCurrentIndex((prev) => prev + 1);
+                      setError(null);
+                    }
+                  }}
+                  disabled={currentIndex >= memberQueue.length - 1}
+                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+
               {/* Keyboard Shortcuts */}
               <div className="rounded-lg bg-white/5 border border-white/10 p-3 flex-shrink-0">
                 <div className="text-xs font-semibold text-white/60 uppercase mb-2">
-                  Keyboard Shortcuts
+                  Shortcuts
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center gap-2">
@@ -543,15 +726,22 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
 
             {/* Queue Status */}
             <div className="space-y-3 flex flex-col h-full overflow-hidden">
-              <h3 className="text-sm font-semibold text-white flex-shrink-0">
-                Queue ({completedMembers}/{totalMembers})
-              </h3>
+              <div className="flex items-center justify-between flex-shrink-0">
+                <h3 className="text-sm font-semibold text-white">
+                  Queue
+                </h3>
+                <span className="text-xs text-white/50">
+                  {completedMembers}/{totalMembers}
+                </span>
+              </div>
               <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/10 pr-2">
                 {memberQueue.map((member, idx) => {
                   const isCurrent = idx === currentIndex;
                   const statusColor =
                     member.status === "completed"
                       ? "border-cyan-400/60 bg-cyan-500/10"
+                      : member.status === "skipped"
+                        ? "border-white/20 bg-white/5"
                       : member.status === "error"
                         ? "border-red-400/60 bg-red-500/10"
                         : isCurrent
@@ -581,6 +771,8 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                           className={`text-xs px-2 py-0.5 rounded ${
                             member.status === "completed"
                               ? "bg-cyan-500/20 text-cyan-200"
+                              : member.status === "skipped"
+                                ? "bg-white/10 text-white/60"
                               : member.status === "error"
                                 ? "bg-red-500/20 text-red-200"
                                 : member.status === "processing"
@@ -590,11 +782,13 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                         >
                           {member.status === "completed"
                             ? "✓ Done"
+                            : member.status === "skipped"
+                              ? "Skipped"
                             : member.status === "error"
                               ? "✕"
-                              : member.status === "processing"
-                                ? "..."
-                                : "Pending"}
+                            : member.status === "processing"
+                              ? "..."
+                              : "Pending"}
                         </span>
                       </div>
                       {member.capturedAngles.length > 0 && (
@@ -616,13 +810,28 @@ export function CameraQueue({ group, members, onRefresh }: CameraQueueProps) {
                         <img
                           src={member.previewUrl}
                           alt="Preview"
-                          className="w-full h-20 object-cover rounded mt-2"
+                          className="w-full h-20 object-cover rounded-lg mt-2"
                         />
                       )}
                     </div>
                   );
                 })}
               </div>
+              {completedMembers === totalMembers && totalMembers > 0 && (
+                <button
+                  onClick={async () => {
+                    if (onRefresh) {
+                      await onRefresh();
+                    }
+                    if (onClose) {
+                      onClose();
+                    }
+                  }}
+                  className="btn-success w-full px-4 py-3 text-sm font-semibold"
+                >
+                  Finish Registration
+                </button>
+              )}
             </div>
           </div>
         )}

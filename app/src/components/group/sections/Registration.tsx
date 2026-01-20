@@ -118,9 +118,12 @@ export function Registration({
   if (members.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center px-6">
-        <div className="flex flex-col items-center justify-center space-y-3">
-          <div className="text-white/40 text-xs text-center">
-            No members in this group yet
+        <div className="flex flex-col items-center justify-center space-y-3 max-w-md text-center">
+          <div className="text-white/70 text-sm font-medium">
+            Add your first member to start registration
+          </div>
+          <div className="text-white/40 text-xs">
+            Create a member profile first so we can attach face data to it.
           </div>
           {onAddMember && (
             <button
@@ -139,7 +142,10 @@ export function Registration({
   if (!source) {
     return (
       <div className="h-full flex flex-col items-center justify-center px-6">
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-lg space-y-4">
+          <div className="text-center text-white/60 text-sm">
+            Choose how you want to capture faces for <span className="text-white">{group.name}</span>.
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => handleSourceChange("upload")}
@@ -164,7 +170,10 @@ export function Registration({
 
   return (
     <div className="h-full flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-lg space-y-4">
+        <div className="text-center text-white/60 text-sm">
+          Pick a registration mode for <span className="text-white">{group.name}</span>.
+        </div>
         <div className="grid gap-3">
           <button
             onClick={() => handleModeChange("single")}

@@ -14,6 +14,7 @@ interface VideoCanvasProps {
   detectionFps: number;
   isVideoLoading: boolean;
   isStreaming: boolean;
+  hasSelectedGroup: boolean;
   // Manual mode props
   trackingMode: "auto" | "manual";
   currentDetections: DetectionResult | null;
@@ -43,6 +44,7 @@ export const VideoCanvas = memo(function VideoCanvas({
   detectionFps,
   isVideoLoading,
   isStreaming,
+  hasSelectedGroup,
   trackingMode,
   currentDetections,
   currentRecognitionResults,
@@ -171,7 +173,7 @@ export const VideoCanvas = memo(function VideoCanvas({
       {/* Camera Icon - Show when not streaming (before Start Tracking) */}
       {!isStreaming && !isVideoLoading && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-15">
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
             <div className="relative">
               <svg
                 className="w-16 h-16 text-white/30 animate-pulse"
@@ -186,6 +188,11 @@ export const VideoCanvas = memo(function VideoCanvas({
                   d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                 />
               </svg>
+            </div>
+            <div className="text-xs text-white/60 max-w-sm">
+              {hasSelectedGroup
+                ? "Select a camera, then press Start Tracking to begin attendance."
+                : "Create or select a group to start tracking attendance."}
             </div>
           </div>
         </div>

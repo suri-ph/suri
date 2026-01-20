@@ -117,6 +117,10 @@ export const Settings: React.FC<SettingsProps> = ({
     loadSystemData();
   }, [loadSystemData]);
 
+  useEffect(() => {
+    setGroups(initialGroups);
+  }, [initialGroups]);
+
   // Clear currentGroup if it no longer exists in groups list (e.g., after deletion)
   useEffect(() => {
     if (currentGroup) {

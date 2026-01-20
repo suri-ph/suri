@@ -32,7 +32,7 @@ interface GroupEntryProps {
     value: string,
   ) => void;
   onCancelEditing: () => void;
-  onDeleteGroup: (groupId: string, name: string) => void;
+  onDeleteGroup: (groupId: string) => void;
   onDeleteMember: (personId: string, name: string) => void;
 }
 
@@ -144,7 +144,7 @@ export function GroupEntry({
             </div>
           )}
           <button
-            onClick={() => onDeleteGroup(group.id, group.name)}
+            onClick={() => onDeleteGroup(group.id)}
             disabled={deletingGroup === group.id || deletingGroup === "all"}
             className="px-2 py-1 text-xs bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             title="Delete group"

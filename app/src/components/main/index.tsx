@@ -389,8 +389,17 @@ export default function Main() {
   return (
     <div className="h-full bg-black text-white flex flex-col overflow-hidden">
       {error && (
-        <div className="mx-4 mt-3 bg-red-900 border border-red-600 p-3 rounded text-red-200">
-          {error}
+        <div className="mx-4 mt-3 bg-red-900/60 border border-red-600/70 p-3 rounded-lg text-red-100 flex items-start justify-between gap-4">
+          <div className="text-sm leading-relaxed">{error}</div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-red-100/70 hover:text-red-100 transition-colors"
+            aria-label="Dismiss error"
+            title="Dismiss"
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
         </div>
       )}
 
@@ -405,6 +414,7 @@ export default function Main() {
               detectionFps={detectionFps}
               isVideoLoading={isVideoLoading}
               isStreaming={isStreaming}
+              hasSelectedGroup={Boolean(currentGroup)}
               trackingMode={trackingMode}
               currentDetections={currentDetections}
               currentRecognitionResults={currentRecognitionResults}

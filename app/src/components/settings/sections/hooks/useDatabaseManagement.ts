@@ -4,6 +4,7 @@ import type {
   AttendanceGroup,
   AttendanceMember,
 } from "../../../../types/recognition";
+import { useAttendanceStore } from "../../../main/stores";
 import type {
   GroupWithMembers,
   EditingMember,
@@ -16,6 +17,12 @@ export function useDatabaseManagement(
   groups: AttendanceGroup[],
   onGroupsChanged?: () => void,
 ) {
+  const {
+    setGroupToDelete,
+    setShowDeleteConfirmation,
+    showDeleteConfirmation,
+    groupToDelete,
+  } = useAttendanceStore();
   const [groupsWithMembers, setGroupsWithMembers] = useState<
     GroupWithMembers[]
   >([]);
@@ -30,6 +37,12 @@ export function useDatabaseManagement(
   const [savingGroup, setSavingGroup] = useState<string | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<string | null>(null);
   const [deletingMember, setDeletingMember] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showDeleteConfirmation || !groupToDelete) {
+      setDeletingGroup(null);
+    }
+  }, [showDeleteConfirmation, groupToDelete]);
 
   // Load members for all groups
   useEffect(() => {
@@ -195,49 +208,18 @@ export function useDatabaseManagement(
   );
 
   const handleDeleteGroup = useCallback(
-    async (groupId: string, groupName: string) => {
-      const confirmMessage = `⚠️ Delete group "${groupName}"?\n\nThis will delete the group and all its members. This cannot be undone.`;
-      if (!window.confirm(confirmMessage)) return;
-
-      setDeletingGroup(groupId);
-      try {
-        const success = await attendanceManager.deleteGroup(groupId);
-        if (success) {
-          try {
-            const { useGroupStore } =
-              await import("../../../group/stores/index");
-            const groupStore = useGroupStore.getState();
-            const currentSelected = groupStore.selectedGroup;
-
-            window.dispatchEvent(
-              new CustomEvent("selectGroup", {
-                detail: { group: null },
-              }),
-            );
-
-            if (currentSelected?.id === groupId) {
-              groupStore.setSelectedGroup(null);
-              groupStore.setMembers([]);
-            }
-            await groupStore.fetchGroups();
-          } catch (error) {
-            console.error("[Database] Error updating group store:", error);
-          }
-          setGroupsWithMembers((prev) => prev.filter((g) => g.id !== groupId));
-          if (onGroupsChanged) {
-            onGroupsChanged();
-          }
-        } else {
-          alert("Failed to delete group");
-        }
-      } catch (error) {
-        console.error("[Database] ❌ Error deleting group:", error);
-        alert("Failed to delete group");
-      } finally {
-        setDeletingGroup(null);
+    async (groupId: string) => {
+      const targetGroup = groups.find((group) => group.id === groupId);
+      if (!targetGroup) {
+        alert("Group not found. Please refresh and try again.");
+        return;
       }
+
+      setGroupToDelete(targetGroup);
+      setShowDeleteConfirmation(true);
+      setDeletingGroup(groupId);
     },
-    [onGroupsChanged],
+    [groups, setGroupToDelete, setShowDeleteConfirmation],
   );
 
   const handleDeleteMember = useCallback(

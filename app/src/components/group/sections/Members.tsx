@@ -75,9 +75,12 @@ export function Members({
     return (
       <section className="h-full flex flex-col overflow-hidden p-6">
         <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="text-white/40 text-xs text-center">
-              No members in this group yet
+          <div className="flex flex-col items-center justify-center space-y-3 max-w-md text-center">
+            <div className="text-white/70 text-sm font-medium">
+              No members yet
+            </div>
+            <div className="text-white/40 text-xs">
+              Add members first so they can be registered and tracked for attendance.
             </div>
             <button
               onClick={onAdd}

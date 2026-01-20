@@ -81,7 +81,12 @@ export function Database({
             <div className="text-sm">No groups or members found</div>
             {groups.length === 0 && (
               <div className="text-xs mt-1">
-                Create groups in the Menu to get started
+                Create a group first to manage members here.
+              </div>
+            )}
+            {groups.length > 0 && (
+              <div className="text-xs mt-1">
+                Try adjusting the search or expand a group to view members.
               </div>
             )}
           </div>
@@ -139,10 +144,13 @@ export function Database({
                   strokeWidth={2}
                 />
               </svg>
-              Clear All Groups
+              Delete All Groups
             </>
           )}
         </button>
+        <p className="text-xs text-white/40">
+          Removes all groups and their members. This does not delete face data.
+        </p>
         <button
           onClick={onClearDatabase}
           disabled={isLoading}
@@ -163,6 +171,9 @@ export function Database({
           </svg>
           Clear All Face Data
         </button>
+        <p className="text-xs text-white/40">
+          Clears recognition data for every person. Attendance records remain.
+        </p>
       </div>
     </div>
   );

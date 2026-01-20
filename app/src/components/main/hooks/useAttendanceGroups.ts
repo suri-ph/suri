@@ -65,6 +65,22 @@ export function useAttendanceGroups() {
       setAttendanceGroups(groups);
 
       if (!currentGroupValue) {
+        if (groups.length > 0) {
+          setCurrentGroupWithCache(groups[0]);
+          const [members, , records] = await Promise.all([
+            attendanceManager.getGroupMembers(groups[0].id),
+            attendanceManager.getGroupStats(groups[0].id),
+            attendanceManager.getRecords({
+              group_id: groups[0].id,
+              limit: 100,
+            }),
+          ]);
+          setGroupMembers(members);
+          setRecentAttendance(records);
+        } else {
+          setGroupMembers([]);
+          setRecentAttendance([]);
+        }
         return;
       }
 
@@ -143,8 +159,9 @@ export function useAttendanceGroups() {
       setNewGroupName("");
       setShowGroupManagement(false);
       await loadAttendanceData();
-
-      await handleSelectGroup(group);
+      if (group) {
+        await handleSelectGroup(group);
+      }
     } catch (error) {
       console.error("❌ Failed to create group:", error);
       setError("Failed to create group");

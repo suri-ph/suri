@@ -302,7 +302,13 @@ export const AttendancePanel = memo(function AttendancePanel({
                 No results for "{searchQuery}"
               </div>
             </div>
-          ) : groupMembers.length === 0 && currentGroup ? (
+          ) : !currentGroup ? (
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              <div className="text-white/40 text-xs text-center">
+                Select a group to see today&apos;s attendance logs
+              </div>
+            </div>
+          ) : groupMembers.length === 0 ? (
             <div className="flex-1 flex items-center justify-center min-h-0">
               <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="text-white/40 text-xs text-center">
@@ -319,13 +325,13 @@ export const AttendancePanel = memo(function AttendancePanel({
                 )}
               </div>
             </div>
-          ) : currentGroup ? (
+          ) : (
             <div className="flex-1 flex items-center justify-center min-h-0">
               <div className="text-white/40 text-xs text-center">
-                NO RECORDS FOUND
+                No attendance logs yet
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       )}
     </div>
