@@ -1,6 +1,15 @@
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Boolean, Integer, Float, ForeignKey, DateTime, func
+from sqlalchemy import (
+    String,
+    Boolean,
+    Integer,
+    Float,
+    ForeignKey,
+    DateTime,
+    func,
+    Index,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 
@@ -57,6 +66,8 @@ class AttendanceMember(Base):
     records: Mapped[List["AttendanceRecord"]] = relationship(back_populates="member")
     sessions: Mapped[List["AttendanceSession"]] = relationship(back_populates="member")
 
+    __table_args__ = (Index("ix_member_group_id", "group_id"),)
+
 
 class AttendanceRecord(Base):
     __tablename__ = "attendance_records"
@@ -77,6 +88,12 @@ class AttendanceRecord(Base):
 
     member: Mapped["AttendanceMember"] = relationship(back_populates="records")
     group: Mapped["AttendanceGroup"] = relationship(back_populates="records")
+
+    __table_args__ = (
+        Index("ix_record_group_id", "group_id"),
+        Index("ix_record_timestamp", "timestamp"),
+        Index("ix_record_group_timestamp", "group_id", "timestamp"),
+    )
 
 
 class AttendanceSession(Base):
@@ -99,6 +116,12 @@ class AttendanceSession(Base):
 
     member: Mapped["AttendanceMember"] = relationship(back_populates="sessions")
     group: Mapped["AttendanceGroup"] = relationship(back_populates="sessions")
+
+    __table_args__ = (
+        Index("ix_session_group_id", "group_id"),
+        Index("ix_session_date", "date"),
+        Index("ix_session_group_date", "group_id", "date"),
+    )
 
 
 class AttendanceSettings(Base):

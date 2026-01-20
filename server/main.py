@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from core.lifespan import lifespan
 from api.endpoints import router
 from middleware.cors import setup_cors
+from config.logging_config import get_logging_config
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 if not logging.getLogger().handlers:
     logging.basicConfig(level=logging.INFO)
@@ -24,6 +27,20 @@ setup_cors(app)
 
 # Include API router
 app.include_router(router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all exception handler to prevent leaking details and ensure JSON response"""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Internal Server Error",
+            "detail": str(exc) if os.getenv("ENVIRONMENT") != "production" else None,
+        },
+    )
 
 
 @app.get("/")
@@ -77,8 +94,12 @@ async def get_available_models():
 
 
 if __name__ == "__main__":
+    import os
+
+    logging_config = get_logging_config()
     uvicorn.run(
-        app,  # Pass app object directly for PyInstaller compatibility
+        app,
         host="127.0.0.1",
         port=8700,
+        log_config=logging_config,
     )

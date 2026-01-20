@@ -15,20 +15,39 @@ LOGGING_CONFIG = {
             "formatter": "default",
             "stream": "ext://sys.stdout",
         },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "INFO",
+            "formatter": "default",
+            "filename": "server.log",
+            "maxBytes": 10485760,  # 10MB
+            "backupCount": 5,
+            "encoding": "utf8",
+        },
     },
     "loggers": {
         "": {
             "level": "INFO",
-            "handlers": ["console"],
+            "handlers": ["console", "file"],
         },
         "uvicorn": {
             "level": "INFO",
-            "handlers": ["console"],
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "uvicorn.error": {
+            "level": "INFO",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        },
+        "uvicorn.access": {
+            "level": "INFO",
+            "handlers": ["console", "file"],
             "propagate": False,
         },
         "fastapi": {
             "level": "INFO",
-            "handlers": ["console"],
+            "handlers": ["console", "file"],
             "propagate": False,
         },
     },
@@ -36,7 +55,11 @@ LOGGING_CONFIG = {
 
 
 def get_logging_config():
+    from config.paths import DATA_DIR
+
     config = LOGGING_CONFIG.copy()
+    config["handlers"]["file"]["filename"] = str(DATA_DIR / "server.log")
+
     env = os.getenv("ENVIRONMENT", "development")
 
     if env == "production":

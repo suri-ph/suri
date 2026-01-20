@@ -6,6 +6,8 @@ DATABASE_URL = f"sqlite+aiosqlite:///{DATA_DIR}/attendance.db"
 engine = create_async_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},  # Needed for SQLite
+    pool_size=5,  # Moderate pool for desktop app concurrency
+    max_overflow=10,
     echo=False,
 )
 
