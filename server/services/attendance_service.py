@@ -10,13 +10,14 @@ from utils.image_utils import decode_base64_image
 
 logger = logging.getLogger(__name__)
 
+
 class AttendanceService:
     def __init__(
-        self, 
-        repo: AttendanceRepository, 
-        face_detector=None, 
+        self,
+        repo: AttendanceRepository,
+        face_detector=None,
         face_recognizer=None,
-        ws_manager=None
+        ws_manager=None,
     ):
         self.repo = repo
         self.face_detector = face_detector
@@ -101,7 +102,7 @@ class AttendanceService:
 
                     if joined_at_obj and target_date_obj < joined_at_obj:
                         continue
-                    
+
                     today = datetime.now().date()
                     if joined_at_obj and joined_at_obj > today:
                         continue
@@ -114,7 +115,11 @@ class AttendanceService:
                 existing_session = existing_sessions_map.get(person_id)
                 sessions.append(
                     {
-                        "id": existing_session.id if existing_session else self.generate_id(),
+                        "id": (
+                            existing_session.id
+                            if existing_session
+                            else self.generate_id()
+                        ),
                         "person_id": person_id,
                         "group_id": member.group_id,
                         "date": target_date,
@@ -135,7 +140,10 @@ class AttendanceService:
 
             if late_threshold_enabled:
                 day_start = timestamp.replace(
-                    hour=day_start_hour, minute=day_start_minute, second=0, microsecond=0
+                    hour=day_start_hour,
+                    minute=day_start_minute,
+                    second=0,
+                    microsecond=0,
                 )
                 time_diff_minutes = (timestamp - day_start).total_seconds() / 60
                 is_late = time_diff_minutes >= late_threshold_minutes
@@ -149,7 +157,9 @@ class AttendanceService:
             existing_session = existing_sessions_map.get(person_id)
             sessions.append(
                 {
-                    "id": existing_session.id if existing_session else self.generate_id(),
+                    "id": (
+                        existing_session.id if existing_session else self.generate_id()
+                    ),
                     "person_id": person_id,
                     "group_id": member.group_id,
                     "date": target_date,
@@ -194,7 +204,9 @@ class AttendanceService:
             "late_today": late_today,
         }
 
-    async def process_event(self, event_data, member, settings) -> AttendanceEventResponse:
+    async def process_event(
+        self, event_data, member, settings
+    ) -> AttendanceEventResponse:
         """Process an attendance event"""
         cooldown_seconds = settings.attendance_cooldown_seconds or 10
 
@@ -318,7 +330,9 @@ class AttendanceService:
             error=None,
         )
 
-    async def register_face(self, group_id: str, person_id: str, request: dict) -> Dict[str, Any]:
+    async def register_face(
+        self, group_id: str, person_id: str, request: dict
+    ) -> Dict[str, Any]:
         """Register face for a person"""
         if not self.face_recognizer:
             raise ValueError("Face recognition system not available")
@@ -408,10 +422,12 @@ class AttendanceService:
         else:
             raise ValueError("Face data not found for this person")
 
-    async def bulk_detect_faces_in_images(self, group_id: str, images_data: list) -> Dict[str, Any]:
+    async def bulk_detect_faces_in_images(
+        self, group_id: str, images_data: list
+    ) -> Dict[str, Any]:
         """Detect faces in multiple images"""
         if not self.face_detector:
-             raise ValueError("Face detection system not available")
+            raise ValueError("Face detection system not available")
 
         group = await self.repo.get_group(group_id)
         if not group:
@@ -527,11 +543,15 @@ class AttendanceService:
                     continue
 
                 landmarks_5 = reg_data.get("landmarks_5")
-                result = self.face_recognizer.register_person(person_id, image, landmarks_5)
+                result = self.face_recognizer.register_person(
+                    person_id, image, landmarks_5
+                )
 
                 if result["success"]:
                     success_count += 1
-                    results.append({"index": idx, "person_id": person_id, "success": True})
+                    results.append(
+                        {"index": idx, "person_id": person_id, "success": True}
+                    )
                 else:
                     failed_count += 1
                     results.append(
