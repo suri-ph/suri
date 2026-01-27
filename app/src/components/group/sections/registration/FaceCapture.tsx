@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useGroupUIStore } from "@/components/group/stores";
-import type { AttendanceGroup, AttendanceMember } from "@/types/recognition.js";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 import { useCamera } from "@/components/group/sections/registration/hooks/useCamera";
 import { useFaceCapture } from "@/components/group/sections/registration/hooks/useFaceCapture";
 import { CaptureControls } from "@/components/group/sections/registration/components/CaptureControls";

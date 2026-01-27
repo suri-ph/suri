@@ -8,7 +8,7 @@ import type {
   AttendanceStats,
   AttendanceRecord,
   AttendanceSession,
-} from "@/types/recognition.js";
+} from "@/types/recognition";
 
 interface OverviewProps {
   group: AttendanceGroup;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { attendanceManager } from "@/services";
-import type { AttendanceMember } from "@/types/recognition.js";
+import type { AttendanceMember } from "@/types/recognition";
 
 interface EditMemberProps {
   member: AttendanceMember;

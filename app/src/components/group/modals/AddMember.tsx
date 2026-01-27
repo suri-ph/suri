@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { attendanceManager } from "@/services";
-import type { AttendanceGroup, AttendanceMember } from "@/types/recognition.js";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 interface AddMemberProps {
   group: AttendanceGroup;

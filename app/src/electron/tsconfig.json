@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "skipLibCheck": true,
     "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "outDir": "../../dist-electron",
     "baseUrl": "..",
     "paths": {
-      "../services/*": ["../services/*"]
+      "@/*": ["./*"]
     }
   },
   "include": ["**/*.ts", "../services/**/*.ts"],

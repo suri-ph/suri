@@ -1,4 +1,4 @@
-import type { QuickSettings } from "@/components/settings/types.js";
+import type { QuickSettings } from "../components/settings/types";
 
 // Define the persistent settings schema (shared between main and renderer)
 export interface PersistentSettingsSchema {

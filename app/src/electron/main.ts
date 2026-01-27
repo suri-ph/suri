@@ -1,12 +1,9 @@
 import { app, BrowserWindow, ipcMain, protocol } from "electron";
 import path from "path";
 import { fileURLToPath } from "node:url";
-import isDev from "@/electron/util.js";
-import {
-  backendService,
-  type DetectionOptions,
-} from "@/electron/backendService.js";
-import { persistentStore } from "@/electron/persistentStore.js";
+import isDev from "./util.js";
+import { backendService, type DetectionOptions } from "./backendService.js";
+import { persistentStore } from "./persistentStore.js";
 // Set consistent app name across all platforms for userData directory
 app.setName("Suri");
 

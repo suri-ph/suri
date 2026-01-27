@@ -3,7 +3,7 @@ import { CameraQueue } from "@/components/group/sections/registration/CameraQueu
 import { BulkRegistration } from "@/components/group/sections/registration/BulkRegistration";
 import { FaceCapture } from "@/components/group/sections";
 import { useGroupUIStore } from "@/components/group/stores";
-import type { AttendanceGroup, AttendanceMember } from "@/types/recognition.js";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 interface RegistrationProps {
   group: AttendanceGroup;

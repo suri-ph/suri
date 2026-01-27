@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { attendanceManager } from "@/services";
-import type { AttendanceGroup } from "@/types/recognition.js";
+import type { AttendanceGroup } from "@/types/recognition";
 import { ErrorMessage, FormInput } from "@/components/common";
 
 interface EditGroupProps {

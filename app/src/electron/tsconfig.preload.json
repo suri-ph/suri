@@ -8,7 +8,7 @@
     "outDir": "../../dist-electron/electron",
     "baseUrl": "..",
     "paths": {
-      "../services/*": ["../services/*"]
+      "@/*": ["./*"]
     }
   },
   "include": ["preload.ts"]

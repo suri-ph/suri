@@ -9,7 +9,7 @@ import path from "path";
 import fs from "fs";
 import { promisify } from "util";
 import { fileURLToPath } from "node:url";
-import isDev from "@/electron/util.js";
+import isDev from "./util.js";
 
 const sleep = promisify(setTimeout);
 const execAsync = promisify(exec);
