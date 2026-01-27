@@ -1,8 +1,8 @@
-import type { SettingsOverview } from "../types";
-import type { AttendanceGroup } from "../../../types/recognition";
-import { useDatabaseManagement } from "./hooks/useDatabaseManagement";
-import { DatabaseStats } from "./components/DatabaseStats";
-import { GroupEntry } from "./components/GroupEntry";
+import type { SettingsOverview } from "@/components/settings/types";
+import type { AttendanceGroup } from "@/types/recognition";
+import { useDatabaseManagement } from "@/components/settings/sections/hooks/useDatabaseManagement";
+import { DatabaseStats } from "@/components/settings/sections/components/DatabaseStats";
+import { GroupEntry } from "@/components/settings/sections/components/GroupEntry";
 
 interface DatabaseProps {
   systemData: SettingsOverview;

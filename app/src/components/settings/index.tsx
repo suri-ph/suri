@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { backendService, attendanceManager } from "../../services";
-import { Display } from "./sections/Display";
-import { Database } from "./sections/Database";
-import { Attendance } from "./sections/Attendance";
-import { GroupPanel, type GroupSection } from "../group";
-import { Dropdown } from "../shared";
-import { useGroupStore, useGroupUIStore } from "../group/stores";
+import { backendService, attendanceManager } from "@/services";
+import { Display } from "@/components/settings/sections/Display";
+import { Database } from "@/components/settings/sections/Database";
+import { Attendance } from "@/components/settings/sections/Attendance";
+import { GroupPanel, type GroupSection } from "@/components/group";
+import { Dropdown } from "@/components/shared";
+import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
 import type {
   QuickSettings,
   AttendanceSettings,
   SettingsOverview,
-} from "./types";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../types/recognition";
+} from "@/components/settings/types";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 export type { QuickSettings, AttendanceSettings };
 

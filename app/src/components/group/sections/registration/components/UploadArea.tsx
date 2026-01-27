@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useImageProcessing } from "../hooks/useImageProcessing";
+import { useImageProcessing } from "@/components/group/sections/registration/hooks/useImageProcessing";
 
 interface UploadAreaProps {
   onFileProcessed: (dataUrl: string, width: number, height: number) => void;

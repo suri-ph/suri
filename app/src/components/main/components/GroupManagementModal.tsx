@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { AttendanceGroup } from "../types";
-import { FormInput } from "../../common";
+import type { AttendanceGroup } from "@/components/main/types";
+import { FormInput } from "@/components/common";
 
 interface GroupManagementModalProps {
   showGroupManagement: boolean;

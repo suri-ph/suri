@@ -2,11 +2,8 @@
  * Member cache helper functions to eliminate code duplication
  */
 
-import { attendanceManager } from "../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition";
+import { attendanceManager } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 /**
  * Gets a member from cache or fetches it if not cached

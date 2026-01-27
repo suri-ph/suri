@@ -1,5 +1,5 @@
-import type { FaceRecognitionResponse } from "../../../types/recognition";
-import { TRACKING_HISTORY_LIMIT } from "../constants";
+import type { FaceRecognitionResponse } from "@/types/recognition";
+import { TRACKING_HISTORY_LIMIT } from "@/components/main/constants";
 
 export interface ExtendedFaceRecognitionResponse extends FaceRecognitionResponse {
   memberName?: string;

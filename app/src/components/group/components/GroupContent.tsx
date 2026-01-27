@@ -1,13 +1,13 @@
 import { useMemo, memo } from "react";
-import { useGroupStore, useGroupUIStore } from "../stores";
+import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
 import {
   GroupSettings,
   Members,
   Overview,
   Registration,
   Reports,
-} from "../sections";
-import { EmptyState } from "../shared";
+} from "@/components/group/sections";
+import { EmptyState } from "@/components/group/shared";
 
 interface GroupContentProps {
   onMembersChange: () => void;

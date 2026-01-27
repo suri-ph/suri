@@ -1,7 +1,4 @@
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 export interface GroupWithMembers extends AttendanceGroup {
   members: AttendanceMember[];

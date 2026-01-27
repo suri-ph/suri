@@ -1,16 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useGroupUIStore } from "../../stores";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition.js";
-import { useCamera } from "../registration/hooks/useCamera";
-import { useFaceCapture } from "../registration/hooks/useFaceCapture";
-import { CaptureControls } from "./components/CaptureControls";
-import { CameraFeed } from "./components/CameraFeed";
-import { UploadArea } from "./components/UploadArea";
-import { MemberSidebar } from "./components/MemberSidebar";
-import { ResultView } from "./components/ResultView";
+import { useGroupUIStore } from "@/components/group/stores";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition.js";
+import { useCamera } from "@/components/group/sections/registration/hooks/useCamera";
+import { useFaceCapture } from "@/components/group/sections/registration/hooks/useFaceCapture";
+import { CaptureControls } from "@/components/group/sections/registration/components/CaptureControls";
+import { CameraFeed } from "@/components/group/sections/registration/components/CameraFeed";
+import { UploadArea } from "@/components/group/sections/registration/components/UploadArea";
+import { MemberSidebar } from "@/components/group/sections/registration/components/MemberSidebar";
+import { ResultView } from "@/components/group/sections/registration/components/ResultView";
 
 interface FaceCaptureProps {
   group: AttendanceGroup;

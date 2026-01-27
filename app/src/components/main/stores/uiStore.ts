@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { QuickSettings } from "../../settings";
-import type { GroupSection } from "../../group";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
+import type { QuickSettings } from "@/components/settings";
+import type { GroupSection } from "@/components/group";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 
 interface UIState {
   // Error state

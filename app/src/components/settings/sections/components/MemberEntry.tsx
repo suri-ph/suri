@@ -1,5 +1,8 @@
-import type { AttendanceMember } from "../../../../types/recognition";
-import type { EditingMember, MemberField } from "../types";
+import type { AttendanceMember } from "@/types/recognition";
+import type {
+  EditingMember,
+  MemberField,
+} from "@/components/settings/sections/types";
 
 interface MemberEntryProps {
   member: AttendanceMember;

@@ -1,8 +1,13 @@
-import type { AttendanceGroup } from "../../../types/recognition";
+import type { AttendanceGroup } from "@/types/recognition";
 
-import { useGroupStore } from "../stores";
-import { useGroupModals } from "../hooks";
-import { AddMember, CreateGroup, EditGroup, EditMember } from "../modals";
+import { useGroupStore } from "@/components/group/stores";
+import { useGroupModals } from "@/components/group/hooks";
+import {
+  AddMember,
+  CreateGroup,
+  EditGroup,
+  EditMember,
+} from "@/components/group/modals";
 
 interface GroupModalsProps {
   onMemberSuccess: () => void;

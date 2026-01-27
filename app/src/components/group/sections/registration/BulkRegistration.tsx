@@ -1,11 +1,8 @@
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition";
-import { useBulkRegistration } from "./hooks/useBulkRegistration";
-import { BulkUploadArea } from "../../shared";
-import { FaceAssignmentGrid } from "./components/FaceAssignmentGrid";
-import { RegistrationResults } from "./components/RegistrationResults";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import { useBulkRegistration } from "@/components/group/sections/registration/hooks/useBulkRegistration";
+import { BulkUploadArea } from "@/components/group/shared";
+import { FaceAssignmentGrid } from "@/components/group/sections/registration/components/FaceAssignmentGrid";
+import { RegistrationResults } from "@/components/group/sections/registration/components/RegistrationResults";
 
 interface BulkRegistrationProps {
   group: AttendanceGroup;

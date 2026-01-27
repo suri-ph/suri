@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useEffect } from "react";
-import type { CooldownInfo } from "../types";
+import type { CooldownInfo } from "@/components/main/types";
 
 interface CooldownListProps {
   trackingMode: "auto" | "manual";

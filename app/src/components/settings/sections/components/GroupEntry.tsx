@@ -4,12 +4,9 @@ import type {
   EditingGroup,
   MemberField,
   GroupField,
-} from "../types";
-import { MemberEntry } from "./MemberEntry";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition";
+} from "@/components/settings/sections/types";
+import { MemberEntry } from "@/components/settings/sections/components/MemberEntry";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 interface GroupEntryProps {
   group: GroupWithMembers;

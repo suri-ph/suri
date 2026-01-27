@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { attendanceManager } from "../../../services";
-import { useGroupUIStore } from "../stores";
-import { generateDisplayNames } from "../../../utils";
-import type { AttendanceMember } from "../../../types/recognition.js";
+import { attendanceManager } from "@/services";
+import { useGroupUIStore } from "@/components/group/stores";
+import { generateDisplayNames } from "@/utils";
+import type { AttendanceMember } from "@/types/recognition.js";
 
 interface MembersProps {
   members: AttendanceMember[];

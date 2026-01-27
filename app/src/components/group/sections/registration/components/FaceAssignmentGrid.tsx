@@ -1,5 +1,5 @@
-import type { AttendanceMember } from "../../../../../types/recognition";
-import type { DetectedFace } from "../types";
+import type { AttendanceMember } from "@/types/recognition";
+import type { DetectedFace } from "@/components/group/sections/registration/types";
 
 interface FaceAssignmentGridProps {
   detectedFaces: DetectedFace[];

@@ -1,11 +1,11 @@
 import { useState, useCallback } from "react";
-import { attendanceManager, backendService } from "../../../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../../types/recognition";
-import type { CapturedFrame } from "../types";
-import { makeId, toBase64Payload } from "./useImageProcessing";
+import { attendanceManager, backendService } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import type { CapturedFrame } from "@/components/group/sections/registration/types";
+import {
+  makeId,
+  toBase64Payload,
+} from "@/components/group/sections/registration/hooks/useImageProcessing";
 
 export function useFaceCapture(
   group: AttendanceGroup | null,

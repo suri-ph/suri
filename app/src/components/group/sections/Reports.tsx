@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { useGroupStore } from "../stores";
-import { getLocalDateString } from "../../../utils";
-import type { AttendanceGroup } from "../../../types/recognition";
+import { useGroupStore } from "@/components/group/stores";
+import { getLocalDateString } from "@/utils";
+import type { AttendanceGroup } from "@/types/recognition";
 
 // Hooks & Components
-import { useReportData } from "./reports/hooks/useReportData";
-import { useReportViews } from "./reports/hooks/useReportViews";
-import { useReportTransform } from "./reports/hooks/useReportTransform";
-import { ReportHeader } from "./reports/components/ReportHeader";
-import { ReportToolbar } from "./reports/components/ReportToolbar";
-import { ReportTable } from "./reports/components/ReportTable";
-import { exportReportToCSV } from "./reports/utils/exportUtils";
+import { useReportData } from "@/components/group/sections/reports/hooks/useReportData";
+import { useReportViews } from "@/components/group/sections/reports/hooks/useReportViews";
+import { useReportTransform } from "@/components/group/sections/reports/hooks/useReportTransform";
+import { ReportHeader } from "@/components/group/sections/reports/components/ReportHeader";
+import { ReportToolbar } from "@/components/group/sections/reports/components/ReportToolbar";
+import { ReportTable } from "@/components/group/sections/reports/components/ReportTable";
+import { exportReportToCSV } from "@/components/group/sections/reports/utils/exportUtils";
 
-import type { ColumnKey } from "./reports/types";
+import type { ColumnKey } from "@/components/group/sections/reports/types";
 
 interface ReportsProps {
   group: AttendanceGroup;

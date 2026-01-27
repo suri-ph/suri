@@ -5,10 +5,10 @@ import {
   cleanupAnimationFrame,
   resetFrameCounters,
   resetLastDetectionRef,
-} from "../utils";
-import { useDetectionStore } from "../stores";
-import type { BackendService } from "../../../services/BackendService";
-import type { DetectionResult } from "../types";
+} from "@/components/main/utils";
+import { useDetectionStore } from "@/components/main/stores";
+import type { BackendService } from "@/services/BackendService";
+import type { DetectionResult } from "@/components/main/types";
 
 interface CameraControlProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;

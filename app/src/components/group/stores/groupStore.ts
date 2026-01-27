@@ -1,11 +1,8 @@
 import { create } from "zustand";
-import { attendanceManager } from "../../../services";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
-import { getLocalDateString } from "../../../utils";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition";
+import { attendanceManager } from "@/services";
+import { persistentSettings } from "@/services/PersistentSettingsService";
+import { getLocalDateString } from "@/utils";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 
 interface GroupState {
   selectedGroup: AttendanceGroup | null;

@@ -3,9 +3,9 @@ import type {
   AttendanceGroup,
   AttendanceMember,
   AttendanceRecord,
-} from "../../../types/recognition";
-import type { CooldownInfo } from "../types";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
+} from "@/types/recognition";
+import type { CooldownInfo } from "@/components/main/types";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 
 interface AttendanceState {
   currentGroup: AttendanceGroup | null;

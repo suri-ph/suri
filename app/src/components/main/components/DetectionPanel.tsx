@@ -1,8 +1,8 @@
 import { useMemo, memo } from "react";
-import { createDisplayNameMap } from "../../../utils";
-import type { DetectionResult, TrackedFace } from "../types";
-import type { AttendanceMember } from "../../../types/recognition";
-import type { ExtendedFaceRecognitionResponse } from "../utils";
+import { createDisplayNameMap } from "@/utils";
+import type { DetectionResult, TrackedFace } from "@/components/main/types";
+import type { AttendanceMember } from "@/types/recognition";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/utils";
 
 interface DetectionPanelProps {
   currentDetections: DetectionResult | null;

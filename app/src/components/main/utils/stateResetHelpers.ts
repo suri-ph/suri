@@ -1,4 +1,4 @@
-import type { DetectionResult } from "../types";
+import type { DetectionResult } from "@/components/main/types";
 
 export function resetLastDetectionRef(
   lastDetectionRef: React.RefObject<DetectionResult | null>,

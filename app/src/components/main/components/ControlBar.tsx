@@ -1,4 +1,4 @@
-import { Dropdown } from "../../shared";
+import { Dropdown } from "@/components/shared";
 
 interface ControlBarProps {
   cameraDevices: MediaDeviceInfo[];

@@ -1,2 +1,2 @@
-export { useGroupStore } from "./groupStore";
-export { useGroupUIStore } from "./groupUIStore";
+export { useGroupStore } from "@/components/group/stores/groupStore";
+export { useGroupUIStore } from "@/components/group/stores/groupUIStore";

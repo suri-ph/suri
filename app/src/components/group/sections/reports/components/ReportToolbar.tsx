@@ -4,7 +4,7 @@ import type {
   ColumnKey,
   GroupByKey,
   ReportStatusFilter,
-} from "../types";
+} from "@/components/group/sections/reports/types";
 
 interface ReportToolbarProps {
   // Views

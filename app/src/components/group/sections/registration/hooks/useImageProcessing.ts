@@ -4,7 +4,7 @@ import {
   toBase64Payload,
   readFileAsDataUrl,
   getImageDimensions,
-} from "../../../../../utils/imageHelpers";
+} from "@/utils/imageHelpers";
 
 export { makeId, toBase64Payload, readFileAsDataUrl, getImageDimensions };
 

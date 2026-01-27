@@ -7,7 +7,7 @@ import type {
   PersonUpdateResponse,
   PersonListResponse,
   DatabaseClearResponse,
-} from "./recognition.js";
+} from "@/types/recognition.js";
 
 export {};
 

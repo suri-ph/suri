@@ -1,9 +1,9 @@
-import { Dropdown } from "../../shared";
+import { Dropdown } from "@/components/shared";
 
-import { useGroupStore, useGroupUIStore } from "../stores";
-import { useGroupModals } from "../hooks";
-import { GroupHeader } from "./GroupHeader";
-import { GroupNav } from "./GroupNav";
+import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
+import { useGroupModals } from "@/components/group/hooks";
+import { GroupHeader } from "@/components/group/components/GroupHeader";
+import { GroupNav } from "@/components/group/components/GroupNav";
 
 interface GroupSidebarProps {
   onBack: () => void;

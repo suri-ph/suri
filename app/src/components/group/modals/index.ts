@@ -1,5 +1,5 @@
-export { AddMember } from "./AddMember";
+export { AddMember } from "@/components/group/modals/AddMember";
 
-export { CreateGroup } from "./CreateGroup";
-export { EditGroup } from "./EditGroup";
-export { EditMember } from "./EditMember";
+export { CreateGroup } from "@/components/group/modals/CreateGroup";
+export { EditGroup } from "@/components/group/modals/EditGroup";
+export { EditMember } from "@/components/group/modals/EditMember";

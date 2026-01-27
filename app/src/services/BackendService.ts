@@ -8,7 +8,7 @@ import type {
   SimilarityThresholdResponse,
   DatabaseStatsResponse,
   PersonInfo,
-} from "../types/recognition.js";
+} from "@/types/recognition.js";
 
 interface DetectionRequest {
   image: string;

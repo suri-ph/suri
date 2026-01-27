@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { AttendanceMember } from "../../../types/recognition";
-import type { GroupSection } from "../types";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
+import type { AttendanceMember } from "@/types/recognition";
+import type { GroupSection } from "@/components/group/types";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 
 interface GroupUIState {
   // Navigation

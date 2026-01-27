@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { DetectionResult, TrackedFace } from "../types";
-import type { ExtendedFaceRecognitionResponse } from "../utils";
+import type { DetectionResult, TrackedFace } from "@/components/main/types";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/utils";
 
 interface DetectionState {
   // Detection state

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { CapturedFrame } from "../types";
+import type { CapturedFrame } from "@/components/group/sections/registration/types";
 
 export function ImagePreviewWithBbox({ frame }: { frame: CapturedFrame }) {
   const containerRef = useRef<HTMLDivElement>(null);

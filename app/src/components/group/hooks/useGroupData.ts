@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import type { AttendanceGroup } from "../../../types/recognition";
+import type { AttendanceGroup } from "@/types/recognition";
 
-import { useGroupStore } from "../stores";
+import { useGroupStore } from "@/components/group/stores";
 
 /**
  * Hook that provides access to group data from Zustand store

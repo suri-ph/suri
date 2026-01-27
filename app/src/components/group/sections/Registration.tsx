@@ -1,12 +1,9 @@
 import { useEffect, useCallback } from "react";
-import { CameraQueue } from "./registration/CameraQueue";
-import { BulkRegistration } from "./registration/BulkRegistration";
-import { FaceCapture } from "../sections";
-import { useGroupUIStore } from "../stores";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition.js";
+import { CameraQueue } from "@/components/group/sections/registration/CameraQueue";
+import { BulkRegistration } from "@/components/group/sections/registration/BulkRegistration";
+import { FaceCapture } from "@/components/group/sections";
+import { useGroupUIStore } from "@/components/group/stores";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition.js";
 
 interface RegistrationProps {
   group: AttendanceGroup;

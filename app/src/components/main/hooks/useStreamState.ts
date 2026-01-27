@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { useCameraStore } from "../stores";
+import { useCameraStore } from "@/components/main/stores";
 
 interface UseStreamStateOptions {
   isProcessingRef: React.RefObject<boolean>;

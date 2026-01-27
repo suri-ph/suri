@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { persistentSettings } from "../../../../../services/PersistentSettingsService";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 import type {
   SavedViewConfig,
   ColumnKey,
   GroupByKey,
   ReportStatusFilter,
-} from "../types";
+} from "@/components/group/sections/reports/types";
 
 export function useReportViews(groupId: string, defaultColumns: ColumnKey[]) {
   const [views, setViews] = useState<SavedViewConfig[]>([]);

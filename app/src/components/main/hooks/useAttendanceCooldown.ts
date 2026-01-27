@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { startTransition } from "react";
-import { useAttendanceStore } from "../stores";
+import { useAttendanceStore } from "@/components/main/stores";
 
 export function useAttendanceCooldown() {
   const {
@@ -9,7 +9,7 @@ export function useAttendanceCooldown() {
     attendanceCooldownSeconds,
   } = useAttendanceStore();
   const persistentCooldownsRef = useRef<
-    Map<string, import("../types").CooldownInfo>
+    Map<string, import("@/components/main/types").CooldownInfo>
   >(new Map());
 
   useEffect(() => {

@@ -1,19 +1,16 @@
 import { useState, useCallback, useMemo } from "react";
 // Hook for bulk registration logic
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../../types/recognition";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 import type {
   DetectedFace,
   BulkRegistrationResult,
   BulkRegisterResponseItem,
-} from "../types";
+} from "@/components/group/sections/registration/types";
 import {
   makeId,
   readFileAsDataUrl,
   toBase64Payload,
-} from "../../../../../utils/imageHelpers";
+} from "@/utils/imageHelpers";
 
 const API_BASE_URL = "http://127.0.0.1:8700";
 

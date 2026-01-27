@@ -4,7 +4,7 @@ import type {
   AttendanceGroup,
   AttendanceMember,
   AttendanceRecord,
-} from "../../types/recognition";
+} from "@/types/recognition";
 
 export interface DetectionResult {
   faces: Array<{

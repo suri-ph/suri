@@ -1,5 +1,5 @@
-import type { CapturedFrame } from "../types";
-import { ImagePreviewWithBbox } from "./ImagePreviewWithBbox";
+import type { CapturedFrame } from "@/components/group/sections/registration/types";
+import { ImagePreviewWithBbox } from "@/components/group/sections/registration/components/ImagePreviewWithBbox";
 
 interface ResultViewProps {
   frames: CapturedFrame[];

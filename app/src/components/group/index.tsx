@@ -1,18 +1,18 @@
 import { useEffect, useRef, useCallback, memo } from "react";
 
-export type { GroupSection } from "./types";
-import type { GroupPanelProps } from "./types";
-import type { AttendanceGroup } from "../../types/recognition";
+export type { GroupSection } from "@/components/group/types";
+import type { GroupPanelProps } from "@/components/group/types";
+import type { AttendanceGroup } from "@/types/recognition";
 
-import { useGroupStore, useGroupUIStore } from "./stores";
-import { useGroupData } from "./hooks";
+import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
+import { useGroupData } from "@/components/group/hooks";
 import {
   ErrorBanner,
   GroupContent,
   GroupModals,
   GroupSidebar,
   MobileDrawer,
-} from "./components";
+} from "@/components/group/components";
 
 function GroupPanelComponent({
   onBack,

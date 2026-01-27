@@ -1,11 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { attendanceManager, backendService } from "../../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition";
-import { useCamera } from "./hooks/useCamera";
-import { toBase64Payload } from "./hooks/useImageProcessing";
+import { attendanceManager, backendService } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import { useCamera } from "@/components/group/sections/registration/hooks/useCamera";
+import { toBase64Payload } from "@/components/group/sections/registration/hooks/useImageProcessing";
 
 type CaptureStatus =
   | "pending"

@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { attendanceManager } from "../../../services";
-import { getLocalDateString, createDisplayNameMap } from "../../../utils";
-import { StatsCard } from "../shared";
+import { attendanceManager } from "@/services";
+import { getLocalDateString, createDisplayNameMap } from "@/utils";
+import { StatsCard } from "@/components/group/shared";
 import type {
   AttendanceGroup,
   AttendanceMember,
   AttendanceStats,
   AttendanceRecord,
   AttendanceSession,
-} from "../../../types/recognition.js";
+} from "@/types/recognition.js";
 
 interface OverviewProps {
   group: AttendanceGroup;

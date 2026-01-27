@@ -1,4 +1,4 @@
-import type { BulkRegistrationResult } from "../types";
+import type { BulkRegistrationResult } from "@/components/group/sections/registration/types";
 
 interface RegistrationResultsProps {
   results: BulkRegistrationResult[];

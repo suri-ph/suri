@@ -1,5 +1,5 @@
-import { Dropdown } from "../../../../shared";
-import type { CaptureSource } from "../types";
+import { Dropdown } from "@/components/shared";
+import type { CaptureSource } from "@/components/group/sections/registration/types";
 
 interface CaptureControlsProps {
   source: CaptureSource;

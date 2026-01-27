@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { useCameraStore, useUIStore } from "../stores";
+import { useCameraStore, useUIStore } from "@/components/main/stores";
 
 interface UseVideoStreamOptions {
   videoRef: React.RefObject<HTMLVideoElement | null>;

@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from "react";
-import { useDetectionStore } from "../stores";
+import { useDetectionStore } from "@/components/main/stores";
 
 export function useFaceTracking() {
   const { setTrackedFaces } = useDetectionStore();

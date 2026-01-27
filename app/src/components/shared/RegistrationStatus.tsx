@@ -1,4 +1,4 @@
-import type { AttendanceMember } from "../../types/recognition";
+import type { AttendanceMember } from "@/types/recognition";
 
 interface RegistrationStatusProps {
   members: AttendanceMember[];

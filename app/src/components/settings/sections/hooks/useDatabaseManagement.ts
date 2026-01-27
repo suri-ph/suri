@@ -1,17 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { attendanceManager } from "../../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition";
-import { useAttendanceStore } from "../../../main/stores";
+import { attendanceManager } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import { useAttendanceStore } from "@/components/main/stores";
 import type {
   GroupWithMembers,
   EditingMember,
   EditingGroup,
   MemberField,
   GroupField,
-} from "../types";
+} from "@/components/settings/sections/types";
 
 export function useDatabaseManagement(
   groups: AttendanceGroup[],

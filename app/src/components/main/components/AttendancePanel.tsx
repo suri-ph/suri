@@ -1,9 +1,12 @@
 import { useState, useMemo, useEffect, memo, useCallback } from "react";
-import { createDisplayNameMap } from "../../../utils";
-import { Dropdown } from "../../shared";
-import type { AttendanceGroup, AttendanceRecord } from "../types";
+import { createDisplayNameMap } from "@/utils";
+import { Dropdown } from "@/components/shared";
+import type {
+  AttendanceGroup,
+  AttendanceRecord,
+} from "@/components/main/types";
 
-import { useAttendanceStore, useUIStore } from "../stores";
+import { useAttendanceStore, useUIStore } from "@/components/main/stores";
 
 interface AttendancePanelProps {
   handleSelectGroup: (group: AttendanceGroup) => void;

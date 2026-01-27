@@ -1,18 +1,15 @@
 import { useState, useCallback, useMemo } from "react";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../../types/recognition";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 import type {
   DetectedFace,
   BulkRegistrationResult,
   BulkRegisterResponseItem,
-} from "../types";
+} from "@/components/group/modals/types";
 import {
   makeId,
   readFileAsDataUrl,
   toBase64Payload,
-} from "../../../../utils/imageHelpers";
+} from "@/utils/imageHelpers";
 
 const API_BASE_URL = "http://127.0.0.1:8700";
 

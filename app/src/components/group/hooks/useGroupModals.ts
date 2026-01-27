@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useGroupUIStore } from "../stores";
+import { useGroupUIStore } from "@/components/group/stores";
 
 /**
  * Hook that provides access to modal state from Zustand store

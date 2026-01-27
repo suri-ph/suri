@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import type { AttendanceMember } from "../../../../../types/recognition";
-import { generateDisplayNames } from "../../../../../utils";
+import type { AttendanceMember } from "@/types/recognition";
+import { generateDisplayNames } from "@/utils";
 
 interface MemberSidebarProps {
   members: AttendanceMember[];

@@ -1,6 +1,6 @@
-import type { DetectionResult } from "../types";
-import type { ExtendedFaceRecognitionResponse } from "../index";
-import type { QuickSettings } from "../../settings";
+import type { DetectionResult } from "@/components/main/types";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/index";
+import type { QuickSettings } from "@/components/settings";
 
 export const getFaceColor = (
   recognitionResult: {

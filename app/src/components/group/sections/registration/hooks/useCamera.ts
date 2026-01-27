@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { persistentSettings } from "../../../../../services";
+import { persistentSettings } from "@/services";
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);

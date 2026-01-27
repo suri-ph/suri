@@ -1,4 +1,4 @@
-import type { QuickSettings } from "../types";
+import type { QuickSettings } from "@/components/settings/types";
 
 interface DisplayProps {
   quickSettings: QuickSettings;

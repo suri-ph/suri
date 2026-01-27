@@ -1,2 +1,2 @@
-export { default as WindowBar } from "./WindowBar";
-export { default as WindowFooter } from "./WindowFooter";
+export { default as WindowBar } from "@/components/electron/WindowBar";
+export { default as WindowFooter } from "@/components/electron/WindowFooter";

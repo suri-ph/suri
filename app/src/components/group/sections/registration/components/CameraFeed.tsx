@@ -1,4 +1,4 @@
-import type { CaptureSource } from "../types";
+import type { CaptureSource } from "@/components/group/sections/registration/types";
 
 // Helper hook or props could be passed here if needed
 interface CameraFeedProps {

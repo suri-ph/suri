@@ -1,2 +1,2 @@
-export { Dropdown } from "./Dropdown";
-export { RegistrationStatus } from "./RegistrationStatus";
+export { Dropdown } from "@/components/shared/Dropdown";
+export { RegistrationStatus } from "@/components/shared/RegistrationStatus";

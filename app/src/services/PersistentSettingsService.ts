@@ -1,8 +1,8 @@
-import type { QuickSettings } from "../components/settings/types.js";
+import type { QuickSettings } from "@/components/settings/types.js";
 import {
   defaultSettings,
   type PersistentSettingsSchema,
-} from "./persistentSettingsDefaults.js";
+} from "@/services/persistentSettingsDefaults.js";
 
 class PersistentSettingsService {
   /**

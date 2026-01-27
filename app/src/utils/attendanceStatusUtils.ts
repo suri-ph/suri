@@ -1,4 +1,4 @@
-import type { AttendanceSession } from "../types/recognition.js";
+import type { AttendanceSession } from "@/types/recognition.js";
 
 export type AttendanceStatusDisplay =
   | "present"

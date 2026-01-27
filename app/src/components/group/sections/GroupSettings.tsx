@@ -1,4 +1,4 @@
-import type { AttendanceGroup } from "../../../types/recognition.js";
+import type { AttendanceGroup } from "@/types/recognition.js";
 
 interface GroupSettingsProps {
   group: AttendanceGroup;

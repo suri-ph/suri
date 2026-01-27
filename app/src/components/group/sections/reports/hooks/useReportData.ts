@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
-import { attendanceManager } from "../../../../../services";
-import { getLocalDateString } from "../../../../../utils";
+import { attendanceManager } from "@/services";
+import { getLocalDateString } from "@/utils";
 import type {
   AttendanceGroup,
   AttendanceReport,
   AttendanceSession,
   AttendanceMember,
-} from "../../../../../types/recognition";
+} from "@/types/recognition";
 
 export function useReportData(
   group: AttendanceGroup,

@@ -2,16 +2,19 @@ export {
   cleanupStream,
   cleanupVideo,
   cleanupAnimationFrame,
-} from "./cleanupHelpers";
+} from "@/components/main/utils/cleanupHelpers";
 
-export { resetLastDetectionRef, resetFrameCounters } from "./stateResetHelpers";
+export {
+  resetLastDetectionRef,
+  resetFrameCounters,
+} from "@/components/main/utils/stateResetHelpers";
 
-export type { ExtendedFaceRecognitionResponse } from "./recognitionHelpers";
+export type { ExtendedFaceRecognitionResponse } from "@/components/main/utils/recognitionHelpers";
 export {
   trimTrackingHistory,
   areRecognitionMapsEqual,
   isRecognitionResponseEqual,
-} from "./recognitionHelpers";
+} from "@/components/main/utils/recognitionHelpers";
 
-export { getMemberFromCache } from "./memberCacheHelpers";
-export { drawOverlays } from "./overlayRenderer";
+export { getMemberFromCache } from "@/components/main/utils/memberCacheHelpers";
+export { drawOverlays } from "@/components/main/utils/overlayRenderer";

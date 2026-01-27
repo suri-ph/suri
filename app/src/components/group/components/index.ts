@@ -1,8 +1,8 @@
-export { ErrorBanner } from "./ErrorBanner";
-export { GroupContent } from "./GroupContent";
-export { GroupHeader } from "./GroupHeader";
-export { GroupModals } from "./GroupModals";
-export { GroupNav } from "./GroupNav";
-export { GroupSidebar } from "./GroupSidebar";
-export { MobileDrawer } from "./MobileDrawer";
-export { MobileNav } from "./MobileNav";
+export { ErrorBanner } from "@/components/group/components/ErrorBanner";
+export { GroupContent } from "@/components/group/components/GroupContent";
+export { GroupHeader } from "@/components/group/components/GroupHeader";
+export { GroupModals } from "@/components/group/components/GroupModals";
+export { GroupNav } from "@/components/group/components/GroupNav";
+export { GroupSidebar } from "@/components/group/components/GroupSidebar";
+export { MobileDrawer } from "@/components/group/components/MobileDrawer";
+export { MobileNav } from "@/components/group/components/MobileNav";

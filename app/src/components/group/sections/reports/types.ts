@@ -1,4 +1,4 @@
-import type { AttendanceSession } from "../../../../types/recognition";
+import type { AttendanceSession } from "@/types/recognition";
 
 export type ColumnKey =
   | "name"

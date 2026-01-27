@@ -1,4 +1,7 @@
-import type { RowData, ColumnKey } from "../types";
+import type {
+  RowData,
+  ColumnKey,
+} from "@/components/group/sections/reports/types";
 
 export function exportReportToCSV(
   groupedRows: Record<string, RowData[]>,

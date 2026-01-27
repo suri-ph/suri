@@ -1,3 +1,3 @@
-export { EmptyState } from "./EmptyState";
-export { StatsCard } from "./StatsCard";
-export { BulkUploadArea } from "./BulkUploadArea";
+export { EmptyState } from "@/components/group/shared/EmptyState";
+export { StatsCard } from "@/components/group/shared/StatsCard";
+export { BulkUploadArea } from "@/components/group/shared/BulkUploadArea";

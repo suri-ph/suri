@@ -1,11 +1,15 @@
 import { useMemo } from "react";
-import { generateDateRange, createDisplayNameMap } from "../../../../../utils";
+import { generateDateRange, createDisplayNameMap } from "@/utils";
 import type {
   AttendanceSession,
   AttendanceMember,
   AttendanceReport,
-} from "../../../../../types/recognition";
-import type { RowData, GroupByKey, ReportStatusFilter } from "../types";
+} from "@/types/recognition";
+import type {
+  RowData,
+  GroupByKey,
+  ReportStatusFilter,
+} from "@/components/group/sections/reports/types";
 
 export function useReportTransform(
   members: AttendanceMember[],

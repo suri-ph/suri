@@ -1,4 +1,4 @@
-import type { AttendanceSettings } from "../types";
+import type { AttendanceSettings } from "@/components/settings/types";
 
 interface AttendanceProps {
   attendanceSettings: AttendanceSettings;

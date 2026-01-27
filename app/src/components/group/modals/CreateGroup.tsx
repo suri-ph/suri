@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { attendanceManager } from "../../../services";
-import type { AttendanceGroup } from "../../../types/recognition.js";
-import { ErrorMessage, FormInput, FormTextarea } from "../../common";
+import { attendanceManager } from "@/services";
+import type { AttendanceGroup } from "@/types/recognition.js";
+import { ErrorMessage, FormInput, FormTextarea } from "@/components/common";
 
 interface CreateGroupProps {
   onClose: () => void;

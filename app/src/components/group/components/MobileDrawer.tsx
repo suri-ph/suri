@@ -1,9 +1,9 @@
 import { useEffect, useCallback } from "react";
-import { Dropdown } from "../../shared";
+import { Dropdown } from "@/components/shared";
 
-import { useGroupStore, useGroupUIStore } from "../stores";
-import { useGroupModals } from "../hooks";
-import { MobileNav } from "./MobileNav";
+import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
+import { useGroupModals } from "@/components/group/hooks";
+import { MobileNav } from "@/components/group/components/MobileNav";
 
 export function MobileDrawer() {
   // Zustand stores

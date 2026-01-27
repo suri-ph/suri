@@ -1,4 +1,4 @@
-import type { AttendanceGroup } from "../types";
+import type { AttendanceGroup } from "@/components/main/types";
 
 interface DeleteConfirmationModalProps {
   showDeleteConfirmation: boolean;

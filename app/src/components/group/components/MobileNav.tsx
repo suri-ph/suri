@@ -1,5 +1,5 @@
-import type { GroupSection } from "../types";
-import type { AttendanceGroup } from "../../../types/recognition";
+import type { GroupSection } from "@/components/group/types";
+import type { AttendanceGroup } from "@/types/recognition";
 
 interface MobileNavProps {
   activeSection: GroupSection;

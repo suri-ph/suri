@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback, lazy, Suspense } from "react";
 const Settings = lazy(() =>
-  import("../settings").then((module) => ({ default: module.Settings })),
+  import("@/components/settings").then((module) => ({
+    default: module.Settings,
+  })),
 );
-import { attendanceManager, BackendService } from "../../services";
+import { attendanceManager, BackendService } from "@/services";
 import {
   useStreamState,
   useAttendanceCooldown,
@@ -14,26 +16,26 @@ import {
   useAttendanceGroups,
   useBackendService,
   useCameraControl,
-} from "./hooks";
+} from "@/components/main/hooks";
 import {
   cleanupStream,
   cleanupVideo,
   cleanupAnimationFrame,
   resetLastDetectionRef,
-} from "./utils";
+} from "@/components/main/utils";
 import {
   useCameraStore,
   useDetectionStore,
   useAttendanceStore,
   useUIStore,
-} from "./stores";
+} from "@/components/main/stores";
 
-import { ControlBar } from "./components/ControlBar";
-import { VideoCanvas } from "./components/VideoCanvas";
-import { Sidebar } from "./components/Sidebar";
-import { GroupManagementModal } from "./components/GroupManagementModal";
-import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
-import type { DetectionResult } from "./types";
+import { ControlBar } from "@/components/main/components/ControlBar";
+import { VideoCanvas } from "@/components/main/components/VideoCanvas";
+import { Sidebar } from "@/components/main/components/Sidebar";
+import { GroupManagementModal } from "@/components/main/components/GroupManagementModal";
+import { DeleteConfirmationModal } from "@/components/main/components/DeleteConfirmationModal";
+import type { DetectionResult } from "@/components/main/types";
 
 export default function Main() {
   const videoRef = useRef<HTMLVideoElement>(null);

@@ -1,10 +1,10 @@
 import { memo, useMemo } from "react";
 import type { RefObject } from "react";
-import type { QuickSettings } from "../../settings";
-import type { DetectionResult } from "../types";
-import type { ExtendedFaceRecognitionResponse } from "../utils";
-import { createDisplayNameMap } from "../../../utils";
-import type { AttendanceMember } from "../../../types/recognition";
+import type { QuickSettings } from "@/components/settings";
+import type { DetectionResult } from "@/components/main/types";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/utils";
+import { createDisplayNameMap } from "@/utils";
+import type { AttendanceMember } from "@/types/recognition";
 
 interface VideoCanvasProps {
   videoRef: RefObject<HTMLVideoElement | null>;

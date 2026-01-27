@@ -1,10 +1,7 @@
 import { useRef, useCallback, useEffect } from "react";
-import { attendanceManager, persistentSettings } from "../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition";
-import { useAttendanceStore, useUIStore } from "../stores";
+import { attendanceManager, persistentSettings } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import { useAttendanceStore, useUIStore } from "@/components/main/stores";
 
 export function useAttendanceGroups() {
   // Zustand stores

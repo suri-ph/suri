@@ -4,12 +4,12 @@ import type {
   DetectionResult,
   TrackedFace,
   CooldownInfo,
-} from "../types";
-import type { ExtendedFaceRecognitionResponse } from "../utils";
-import { AttendancePanel } from "./AttendancePanel";
-import { CooldownList } from "./CooldownList";
-import { DetectionPanel } from "./DetectionPanel";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
+} from "@/components/main/types";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/utils";
+import { AttendancePanel } from "@/components/main/components/AttendancePanel";
+import { CooldownList } from "@/components/main/components/CooldownList";
+import { DetectionPanel } from "@/components/main/components/DetectionPanel";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 
 // Get asset path that works in both dev and production (Electron)
 // In Electron with loadFile, we need to use paths relative to the HTML file
@@ -22,7 +22,7 @@ const getAssetPath = (assetName: string): string => {
 const sidebarCollapseIcon = getAssetPath("sidebar-collapse.svg");
 const sidebarExpandIcon = getAssetPath("sidebar-expand.svg");
 
-import { useAttendanceStore, useUIStore } from "../stores";
+import { useAttendanceStore, useUIStore } from "@/components/main/stores";
 
 // ... existing imports ...
 

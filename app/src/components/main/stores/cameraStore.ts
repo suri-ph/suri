@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persistentSettings } from "../../../services/PersistentSettingsService";
+import { persistentSettings } from "@/services/PersistentSettingsService";
 
 interface CameraState {
   // Streaming state

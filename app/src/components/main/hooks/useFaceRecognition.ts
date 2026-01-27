@@ -1,20 +1,21 @@
 import { useCallback } from "react";
 import { startTransition } from "react";
-import { attendanceManager } from "../../../services";
-import type { BackendService } from "../../../services";
-import type {
-  AttendanceGroup,
-  AttendanceMember,
-} from "../../../types/recognition";
-import type { DetectionResult } from "../types";
-import type { ExtendedFaceRecognitionResponse } from "../utils";
+import { attendanceManager } from "@/services";
+import type { BackendService } from "@/services";
+import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
+import type { DetectionResult } from "@/components/main/types";
+import type { ExtendedFaceRecognitionResponse } from "@/components/main/utils";
 import {
   trimTrackingHistory,
   areRecognitionMapsEqual,
   getMemberFromCache,
-} from "../utils";
-import { NON_LOGGING_ANTISPOOF_STATUSES } from "../constants";
-import { useDetectionStore, useAttendanceStore, useUIStore } from "../stores";
+} from "@/components/main/utils";
+import { NON_LOGGING_ANTISPOOF_STATUSES } from "@/components/main/constants";
+import {
+  useDetectionStore,
+  useAttendanceStore,
+  useUIStore,
+} from "@/components/main/stores";
 
 interface UseFaceRecognitionOptions {
   backendServiceRef: React.RefObject<BackendService | null>;
@@ -30,7 +31,7 @@ interface UseFaceRecognitionOptions {
     ) => number
   >;
   persistentCooldownsRef: React.RefObject<
-    Map<string, import("../types").CooldownInfo>
+    Map<string, import("@/components/main/types").CooldownInfo>
   >;
   loadAttendanceDataRef: React.RefObject<() => Promise<void>>;
 }
@@ -234,7 +235,10 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                               });
                               (
                                 persistentCooldownsRef as React.RefObject<
-                                  Map<string, import("../types").CooldownInfo>
+                                  Map<
+                                    string,
+                                    import("@/components/main/types").CooldownInfo
+                                  >
                                 >
                               ).current = newPersistent;
                               return newPersistent;
@@ -276,7 +280,10 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                             newPersistent.set(cooldownKey, cooldownData);
                             (
                               persistentCooldownsRef as React.RefObject<
-                                Map<string, import("../types").CooldownInfo>
+                                Map<
+                                  string,
+                                  import("@/components/main/types").CooldownInfo
+                                >
                               >
                             ).current = newPersistent;
                             return newPersistent;
@@ -295,7 +302,10 @@ export function useFaceRecognition(options: UseFaceRecognitionOptions) {
                               });
                               (
                                 persistentCooldownsRef as React.RefObject<
-                                  Map<string, import("../types").CooldownInfo>
+                                  Map<
+                                    string,
+                                    import("@/components/main/types").CooldownInfo
+                                  >
                                 >
                               ).current = newPersistent;
                             }

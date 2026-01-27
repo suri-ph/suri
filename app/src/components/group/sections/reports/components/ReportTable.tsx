@@ -1,5 +1,8 @@
 import { Fragment } from "react";
-import type { RowData, ColumnKey } from "../types";
+import type {
+  RowData,
+  ColumnKey,
+} from "@/components/group/sections/reports/types";
 
 interface ReportTableProps {
   groupedRows: Record<string, RowData[]>;

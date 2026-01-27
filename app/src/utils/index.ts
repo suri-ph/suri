@@ -2,27 +2,27 @@ export type {
   PersonWithName,
   HasPersonIdAndName,
   PersonWithDisplayName,
-} from "./displayNameUtils.js";
+} from "@/utils/displayNameUtils.js";
 export {
   generateDisplayNames,
   getDisplayName,
   createDisplayNameMap,
-} from "./displayNameUtils.js";
+} from "@/utils/displayNameUtils.js";
 
 export {
   getLocalDateString,
   parseLocalDate,
   generateDateRange,
-} from "./dateUtils.js";
+} from "@/utils/dateUtils.js";
 
 export type {
   AttendanceStatusDisplay,
   StatusConfig,
-} from "./attendanceStatusUtils.js";
+} from "@/utils/attendanceStatusUtils.js";
 export {
   getStatusConfig,
   getStatusLabel,
   getStatusShortLabel,
   getStatusClassName,
   getStatusColor,
-} from "./attendanceStatusUtils.js";
+} from "@/utils/attendanceStatusUtils.js";
