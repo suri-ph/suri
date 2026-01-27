@@ -14,7 +14,7 @@ export function GroupModals({
   onGroupSuccess,
 }: GroupModalsProps) {
   // Zustand stores
-  const { selectedGroup, fetchGroups, setSelectedGroup } = useGroupStore();
+  const { selectedGroup, fetchGroups, setSelectedGroup, members } = useGroupStore();
   const {
     showAddMemberModal,
     showEditMemberModal,
@@ -31,6 +31,7 @@ export function GroupModals({
       {showAddMemberModal && selectedGroup && (
         <AddMember
           group={selectedGroup}
+          existingMembers={members}
           onClose={closeAddMember}
           onSuccess={onMemberSuccess}
         />

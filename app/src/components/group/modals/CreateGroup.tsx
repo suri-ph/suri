@@ -72,14 +72,14 @@ export function CreateGroup({ onClose, onSuccess }: CreateGroupProps) {
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm"
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={!name.trim() || loading}
-            className="btn-success text-sm px-4 py-2 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm font-medium disabled:opacity-50"
           >
             {loading ? "Creating…" : "Create Group"}
           </button>

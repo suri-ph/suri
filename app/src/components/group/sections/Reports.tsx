@@ -12,6 +12,8 @@ import { ReportToolbar } from "./reports/components/ReportToolbar";
 import { ReportTable } from "./reports/components/ReportTable";
 import { exportReportToCSV } from "./reports/utils/exportUtils";
 
+import type { ColumnKey } from "./reports/types";
+
 interface ReportsProps {
   group: AttendanceGroup;
   onDaysTrackedChange?: (daysTracked: number, loading: boolean) => void;
@@ -21,6 +23,14 @@ interface ReportsProps {
   }) => void;
   onAddMember?: () => void;
 }
+
+const DEFAULT_COLUMNS = [
+  "name",
+  "date",
+  "status",
+  "check_in_time",
+  "is_late",
+] as unknown as ColumnKey[];
 
 export function Reports({
   group,
@@ -58,13 +68,7 @@ export function Reports({
     handleSaveAs,
     handleDeleteView,
     handleViewChange,
-  } = useReportViews(group.id, [
-    "name",
-    "date",
-    "status",
-    "check_in_time",
-    "is_late",
-  ]);
+  } = useReportViews(group.id, DEFAULT_COLUMNS);
 
   // --- Transform Hook ---
   const { groupedRows, daysTracked, allColumns } = useReportTransform(
@@ -136,21 +140,22 @@ export function Reports({
   if (!loading && members.length === 0) {
     return (
       <section className="h-full flex flex-col overflow-hidden p-6">
-        <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="flex flex-col items-center justify-center space-y-3 max-w-md text-center">
-            <div className="text-white/70 text-sm font-medium">
-              No members yet
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center p-12 rounded-3xl border border-white/5 bg-white/[0.02] shadow-2xl max-w-sm text-center">
+            <div className="w-20 h-20 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(34,211,238,0.1)]">
+              <i className="fa-solid fa-users-slash text-3xl text-cyan-400/60"></i>
             </div>
-            <div className="text-white/40 text-xs">
-              Add members first to generate attendance reports and exports.
-            </div>
+            <h2 className="text-lg font-bold text-white mb-2">No members found</h2>
+            <p className="text-sm text-white/40 mb-8 leading-relaxed">
+              This group doesn't have any members registered yet. Add some members to start tracking attendance.
+            </p>
             {onAddMember && (
               <button
                 onClick={onAddMember}
-                className="px-4 py-2 text-xs bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] rounded text-white/70 hover:text-white/90 transition-colors flex items-center gap-2"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-100 hover:bg-cyan-500/30 transition-all font-bold text-sm"
               >
-                <i className="fa-solid fa-user-plus text-xs"></i>
-                Add Member
+                <i className="fa-solid fa-plus-circle"></i>
+                Register Members
               </button>
             )}
           </div>
@@ -160,35 +165,41 @@ export function Reports({
   }
 
   return (
-    <section className="h-full flex flex-col overflow-hidden space-y-4 p-6">
-      <ReportHeader
-        startDate={reportStartDate}
-        endDate={reportEndDate}
-        onStartDateChange={setReportStartDate}
-        onEndDateChange={setReportEndDate}
-        daysTracked={daysTracked}
-        loading={loading}
-      />
-
-      <div className="flex-1 overflow-hidden min-h-0 pr-2">
+    <section className="h-full flex flex-col overflow-hidden p-6 custom-scroll">
+      <div className="flex-1 overflow-hidden min-h-0">
         {error && (
-          <div className="px-4 py-2 bg-red-600/20 border border-red-500/40 text-red-200 rounded-lg text-sm mb-2">
+          <div className="px-4 py-2 bg-red-600/20 border border-red-500/40 text-red-200 rounded-lg text-sm mb-4 animate-in fade-in slide-in-from-top-2">
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
-              <span className="text-sm text-white/60">
-                Generating report...
+          <div className="h-full flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative w-12 h-12">
+                <div className="absolute inset-0 border-4 border-cyan-500/10 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-cyan-500 rounded-full border-t-transparent animate-spin"></div>
+              </div>
+              <span className="text-sm font-medium text-white/40 tracking-wider uppercase">
+                Generating Report
               </span>
             </div>
           </div>
         ) : (
-          <div className="h-full flex flex-col">
-            <div className="rounded-xl border border-white/10 bg-white/5 h-full flex flex-col">
+          <div className="h-full flex flex-col rounded-2xl border border-white/10 bg-white/[0.01] overflow-hidden shadow-2xl">
+            {/* Unified Control Area (Header + Toolbar) */}
+            <div className="bg-white/[0.02] border-b border-white/5">
+              <div className="px-4 pt-3 pb-0">
+                <ReportHeader
+                  startDate={reportStartDate}
+                  endDate={reportEndDate}
+                  onStartDateChange={setReportStartDate}
+                  onEndDateChange={setReportEndDate}
+                  daysTracked={daysTracked}
+                  loading={loading}
+                />
+              </div>
+
               <ReportToolbar
                 views={views}
                 activeViewIndex={activeViewIndex}
@@ -207,21 +218,15 @@ export function Reports({
                 search={search}
                 setSearch={setSearch}
                 allColumns={allColumns}
-                defaultColumns={[
-                  "name",
-                  "date",
-                  "status",
-                  "check_in_time",
-                  "is_late",
-                ]}
-              />
-
-              <ReportTable
-                groupedRows={groupedRows}
-                visibleColumns={visibleColumns}
-                allColumns={allColumns}
+                defaultColumns={DEFAULT_COLUMNS}
               />
             </div>
+
+            <ReportTable
+              groupedRows={groupedRows}
+              visibleColumns={visibleColumns}
+              allColumns={allColumns}
+            />
           </div>
         )}
       </div>

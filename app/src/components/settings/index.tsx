@@ -641,14 +641,16 @@ export const Settings: React.FC<SettingsProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={reportsExportHandlers.exportCSV}
-                    className="btn-success text-xs px-2 py-1 disabled:opacity-50"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300 transition-all text-[11px] font-bold uppercase tracking-wider"
                   >
-                    Export CSV (current view)
+                    <i className="fa-solid fa-file-csv text-[10px]"></i>
+                    Export CSV
                   </button>
                   <button
                     onClick={reportsExportHandlers.print}
-                    className="text-xs px-2 py-1 border border-white/20 rounded hover:bg-white/10"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white transition-all text-[11px] font-bold uppercase tracking-wider"
                   >
+                    <i className="fa-solid fa-print text-[10px]"></i>
                     Print
                   </button>
                 </div>

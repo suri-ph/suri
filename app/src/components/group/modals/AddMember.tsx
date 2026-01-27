@@ -1,14 +1,20 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { attendanceManager } from "../../../services";
-import type { AttendanceGroup } from "../../../types/recognition.js";
+import type { AttendanceGroup, AttendanceMember } from "../../../types/recognition.js";
 
 interface AddMemberProps {
   group: AttendanceGroup;
+  existingMembers?: AttendanceMember[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
+export function AddMember({
+  group,
+  existingMembers = [],
+  onClose,
+  onSuccess,
+}: AddMemberProps) {
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("");
@@ -21,6 +27,8 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
+
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
@@ -29,6 +37,8 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     setBulkMembersText("");
     setBulkResults(null);
     setIsBulkMode(false);
+    setConfirmDuplicate(false);
+    setError(null);
   };
 
   useEffect(() => {
@@ -60,8 +70,28 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
     }
   };
 
+  const isDuplicate = useMemo(() => {
+    if (!newMemberName.trim()) return false;
+    const normalizedName = newMemberName.trim().toLowerCase();
+    return existingMembers.some(
+      (m) => m.name.toLowerCase() === normalizedName,
+    );
+  }, [newMemberName, existingMembers]);
+
+  // Reset confirmation when name changes
+  useEffect(() => {
+    if (confirmDuplicate) {
+      setConfirmDuplicate(false);
+    }
+  }, [newMemberName]);
+
   const handleAddMember = async () => {
     if (!newMemberName.trim()) {
+      return;
+    }
+
+    if (isDuplicate && !confirmDuplicate) {
+      setConfirmDuplicate(true);
       return;
     }
 
@@ -152,12 +182,12 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
             onClick={() => {
               setIsBulkMode(false);
               setBulkMembersText("");
+              setConfirmDuplicate(false);
             }}
-            className={`px-4 py-2 text-sm rounded-lg transition ${
-              !isBulkMode
-                ? "bg-blue-500/20 text-blue-200"
-                : "text-white/60 hover:text-white"
-            }`}
+            className={`px-4 py-2 text-sm rounded-lg transition ${!isBulkMode
+              ? "bg-cyan-500/20 text-cyan-200"
+              : "text-white/60 hover:text-white"
+              }`}
           >
             Single Member
           </button>
@@ -166,12 +196,12 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               setIsBulkMode(true);
               setNewMemberName("");
               setNewMemberRole("");
+              setConfirmDuplicate(false);
             }}
-            className={`px-4 py-2 text-sm rounded-lg transition ${
-              isBulkMode
-                ? "bg-blue-500/20 text-blue-200"
-                : "text-white/60 hover:text-white"
-            }`}
+            className={`px-4 py-2 text-sm rounded-lg transition ${isBulkMode
+              ? "bg-cyan-500/20 text-cyan-200"
+              : "text-white/60 hover:text-white"
+              }`}
           >
             Bulk Add
           </button>
@@ -193,9 +223,21 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
                 type="text"
                 value={newMemberName}
                 onChange={(event) => setNewMemberName(event.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60"
+                className={`w-full bg-white/5 border rounded-xl px-4 py-2 focus:outline-none transition-colors ${isDuplicate && !confirmDuplicate
+                  ? "border-amber-500/50 focus:border-amber-400"
+                  : "border-white/10 focus:border-cyan-500/60"
+                  }`}
                 placeholder="Enter full name"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddMember();
+                }}
               />
+              {isDuplicate && !confirmDuplicate && (
+                <div className="mt-2 text-xs text-amber-300 flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                  A member with this name already exists.
+                </div>
+              )}
             </label>
             <label className="text-sm">
               <span className="text-white/60 block mb-2">Role (optional)</span>
@@ -203,8 +245,11 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
                 type="text"
                 value={newMemberRole}
                 onChange={(event) => setNewMemberRole(event.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-cyan-500/60 transition-colors"
                 placeholder="e.g. Staff, Student, Teacher"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddMember();
+                }}
               />
             </label>
           </div>
@@ -218,7 +263,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
                 <span className="text-sm text-white/60">
                   Upload CSV/TXT file or paste below
                 </span>
-                <label className="px-3 py-1 text-xs rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-200 hover:bg-blue-500/30 cursor-pointer transition">
+                <label className="px-3 py-1 text-xs rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 hover:bg-cyan-500/30 cursor-pointer transition">
                   📁 Upload File
                   <input
                     type="file"
@@ -235,7 +280,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               <textarea
                 value={bulkMembersText}
                 onChange={(event) => setBulkMembersText(event.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500/60 font-mono text-sm min-h-[200px]"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500/60 font-mono text-sm min-h-[200px]"
                 placeholder="Enter one member per line. Format:&#10;Name, Role (optional)&#10;&#10;Example:&#10;John Doe, Student&#10;Jane Smith, Teacher&#10;Bob Johnson"
               />
               <div className="mt-2 text-xs text-white/50">
@@ -248,11 +293,10 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
             {/* Bulk Results */}
             {bulkResults && (
               <div
-                className={`rounded-xl border p-3 ${
-                  bulkResults.failed === 0
-                    ? "border-cyan-500/40 bg-cyan-500/10"
-                    : "border-yellow-500/40 bg-yellow-500/10"
-                }`}
+                className={`rounded-xl border p-3 ${bulkResults.failed === 0
+                  ? "border-cyan-500/40 bg-cyan-500/10"
+                  : "border-yellow-500/40 bg-yellow-500/10"
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold">
@@ -288,7 +332,7 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
               resetForm();
               onClose();
             }}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm"
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
           >
             Cancel
           </button>
@@ -296,15 +340,22 @@ export function AddMember({ group, onClose, onSuccess }: AddMemberProps) {
             <button
               onClick={handleAddMember}
               disabled={!newMemberName.trim() || loading}
-              className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm disabled:opacity-50"
+              className={`px-4 py-2 rounded-xl border transition-colors text-sm font-medium disabled:opacity-50 ${confirmDuplicate
+                ? "bg-amber-500/20 border-amber-400/40 text-amber-200 hover:bg-amber-500/30"
+                : "bg-cyan-500/20 border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30"
+                }`}
             >
-              {loading ? "Adding…" : "Add Member"}
+              {loading
+                ? "Adding…"
+                : confirmDuplicate
+                  ? "Add Anyway"
+                  : "Add Member"}
             </button>
           ) : (
             <button
               onClick={() => void handleBulkAddMembers()}
               disabled={!bulkMembersText.trim() || isProcessingBulk}
-              className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm font-medium disabled:opacity-50"
             >
               {isProcessingBulk ? "Processing…" : `Add Members`}
             </button>

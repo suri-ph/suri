@@ -51,7 +51,7 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="e.g. CS101 Section A, Engineering Team"
-              focusColor="border-blue-500/60"
+              focusColor="border-cyan-500/60"
             />
           </label>
 
@@ -62,7 +62,7 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500/60 min-h-[80px]"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-cyan-500/60 transition-colors min-h-[80px]"
               placeholder="Brief description of this group..."
             />
           </label>
@@ -71,14 +71,14 @@ export function EditGroup({ group, onClose, onSuccess }: EditGroupProps) {
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm"
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim() || loading}
-            className="btn-secondary text-sm px-4 py-2 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-100 hover:bg-cyan-500/30 transition-colors text-sm font-medium disabled:opacity-50"
           >
             {loading ? "Saving…" : "Save Changes"}
           </button>

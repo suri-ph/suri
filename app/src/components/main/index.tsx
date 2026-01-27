@@ -463,7 +463,16 @@ export default function Main() {
       />
 
       {showSettings && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"><i className="fa-solid fa-circle-notch fa-spin text-3xl text-blue-500"></i></div>}>
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-cyan-400 rounded-full border-t-transparent animate-spin"></div>
+              </div>
+            </div>
+          }
+        >
           <Settings
             onBack={() => {
               setShowSettings(false);
