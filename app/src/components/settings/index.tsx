@@ -5,7 +5,7 @@ import { Database } from "./sections/Database";
 import { Attendance } from "./sections/Attendance";
 import { GroupPanel, type GroupSection } from "../group";
 import { Dropdown } from "../shared";
-import { useGroupStore } from "../group/stores";
+import { useGroupStore, useGroupUIStore } from "../group/stores";
 import type {
   QuickSettings,
   AttendanceSettings,
@@ -560,9 +560,9 @@ export const Settings: React.FC<SettingsProps> = ({
                       setTriggerCreateGroup(0);
                     }}
                     className={`w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${activeSection === "group" &&
-                        groupInitialSection === subsection.id
-                        ? "bg-white/10 text-white"
-                        : "text-white/50 hover:bg-white/5 hover:text-white/70"
+                      groupInitialSection === subsection.id
+                      ? "bg-white/10 text-white"
+                      : "text-white/50 hover:bg-white/5 hover:text-white/70"
                       }`}
                   >
                     <i className={`${subsection.icon} text-xs w-4`}></i>
@@ -579,8 +579,8 @@ export const Settings: React.FC<SettingsProps> = ({
               key={section.id}
               onClick={() => setActiveSection(section.id)}
               className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeSection === section.id
-                  ? "bg-white/10 text-white"
-                  : "text-white/60 hover:bg-white/5 hover:text-white/80"
+                ? "bg-white/10 text-white"
+                : "text-white/60 hover:bg-white/5 hover:text-white/80"
                 }`}
             >
               {section.icon && (
