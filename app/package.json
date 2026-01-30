@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "transpile:electron": "tsc --project src/electron/tsconfig.json && tsc --project src/electron/tsconfig.preload.json",
+    "transpile:electron": "tsc --project src/electron/tsconfig.json && tsc --project src/electron/tsconfig.preload.json && node scripts/copy-electron-assets.cjs",
     "dist:win": "npm run transpile:electron && npm run build && electron-builder --win --x64",
     "dist:mac": "npm run transpile:electron && npm run build && electron-builder --mac --arm64",
     "dist:linux": "npm run transpile:electron && npm run build && electron-builder --linux --x64"

@@ -50,8 +50,69 @@ if (process.platform === "win32") {
 }
 
 let mainWindowRef: BrowserWindow | null = null;
+let splashWindow: BrowserWindow | null = null;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Create a lightweight splash window for instant visual feedback
+ * Shows immediately while backend and main window load in parallel
+ */
+function createSplashWindow(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 300,
+    height: 280,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    center: true,
+    roundedCorners: true,
+    backgroundColor: "#00000000", // Fully transparent for rounded effect
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  const splashPath = path.join(__dirname, "splash.html");
+  splash.loadFile(splashPath);
+
+  return splash;
+}
+
+/**
+ * Destroy splash window safely
+ */
+function destroySplash(): void {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.destroy();
+    splashWindow = null;
+  }
+}
+
+/**
+ * Show main window with proper initialization
+ */
+function showMainWindow(): void {
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    // Disable zooming
+    mainWindowRef.webContents.setZoomLevel(0);
+    mainWindowRef.webContents.setZoomFactor(1.0);
+
+    mainWindowRef.show();
+    mainWindowRef.focus();
+
+    if (process.platform === "win32") {
+      try {
+        mainWindowRef.moveTop();
+      } catch (error) {
+        console.warn("Could not move window to top:", error);
+      }
+    }
+  }
+}
 
 // Backend Service Management
 async function startBackend(): Promise<void> {
@@ -549,20 +610,12 @@ function createWindow(): void {
   }
 
   // Set rounded window shape after window is ready
+  // NOTE: We don't auto-show here anymore - splash coordinator handles this
   mainWindow.once("ready-to-show", () => {
-    // Disable zooming
-    mainWindow.webContents.setZoomLevel(0);
-    mainWindow.webContents.setZoomFactor(1.0);
-
-    mainWindow.show();
-    mainWindow.focus();
-
     if (process.platform === "win32") {
       try {
         const { width, height } = mainWindow.getBounds();
         mainWindow.setShape(createShape(width, height));
-        // Ensure window is on top and focused on Windows
-        mainWindow.moveTop();
       } catch (error) {
         console.warn("Could not set window shape:", error);
       }
@@ -698,21 +751,78 @@ app.whenReady().then(async () => {
     callback({ path: resolvedFilePath });
   });
 
-  console.log("[Main] Starting backend service...");
-  try {
-    await startBackend();
-    console.log("[Main] Backend service started successfully!");
-  } catch (error) {
-    console.error("[ERROR] Failed to start backend service:", error);
-  }
+  // =========================================================================
+  // DISCORD-STYLE FAST STARTUP
+  // 1. Show splash immediately (sub-50ms visual feedback)
+  // 2. Start backend and main window loading in PARALLEL
+  // 3. Transition to main window when both are ready
+  // =========================================================================
 
-  createWindow();
+  splashWindow = createSplashWindow();
+
+  // Start parallel loading
+
+  // Promise 1: Backend startup AND models ready (can take 3-30s)
+  const backendPromise = (async () => {
+    try {
+      await startBackend();
+
+      // Now wait for models to be fully loaded
+      // This ensures React won't show a loading screen
+      const maxWaitTime = 120000; // 2 minutes max
+      const pollInterval = 500;
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < maxWaitTime) {
+        try {
+          const readiness = await backendService.checkReadiness();
+          if (readiness.ready && readiness.modelsLoaded) {
+            return true;
+          }
+        } catch {
+          // Keep trying
+        }
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      }
+
+      console.warn("[Main] Models did not load in time");
+      return true;
+    } catch (error) {
+      console.error("[ERROR] Failed to start backend service:", error);
+      return false;
+    }
+  })();
+
+  // Promise 2: Main window ready (React bundle load)
+  const windowPromise = new Promise<void>((resolve) => {
+    createWindow();
+    if (mainWindowRef) {
+      mainWindowRef.once("ready-to-show", () => {
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+
+  // Wait for BOTH to complete
+  await Promise.all([backendPromise, windowPromise]);
+
+  // Smooth transition: destroy splash, show main
+  destroySplash();
+  showMainWindow();
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      // In activate context, show immediately since splash is long gone
+      if (mainWindowRef) {
+        mainWindowRef.once("ready-to-show", () => {
+          showMainWindow();
+        });
+      }
     } else if (mainWindowRef && !mainWindowRef.isVisible()) {
       // Show and focus window if it exists but is hidden
       mainWindowRef.show();
