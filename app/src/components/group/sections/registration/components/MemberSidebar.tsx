@@ -169,22 +169,12 @@ export function MemberSidebar({
           return (
             <div
               key={member.person_id}
-              onClick={() => onSelectMember(member.person_id)}
-              className={`group relative w-full rounded-2xl border transition-all duration-300 px-4 py-4 flex items-center justify-between gap-4 overflow-hidden cursor-pointer ${
+              className={`group relative w-full rounded-2xl border transition-all duration-300 px-4 py-4 flex items-center justify-between gap-4 overflow-hidden ${
                 isSelected
                   ? "border-cyan-500/50 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.1)]"
-                  : "border-white/5 bg-white/[0.02] hover:bg-cyan-500/[0.02] hover:border-cyan-500/20"
+                  : "border-white/5 bg-white/[0.02] hover:bg-white/[0.03]"
               }`}
             >
-              {/* Hover/Selection Glow Effect */}
-              <div
-                className={`absolute inset-0 bg-gradient-to-r from-cyan-500/[0.01] to-transparent transition-opacity duration-500 ${
-                  isSelected
-                    ? "opacity-100"
-                    : "opacity-0 group-hover:opacity-100"
-                }`}
-              />
-
               <div className="flex-1 min-w-0 relative z-10 text-left">
                 <div
                   className={`text-[15px] font-bold tracking-tight mb-1 transition-colors ${
@@ -218,13 +208,29 @@ export function MemberSidebar({
 
               <div className="flex items-center gap-3 flex-shrink-0 relative z-10">
                 {!isRegistered ? (
-                  <div className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(34,211,238,0.1)] group-hover:bg-cyan-500/20 group-hover:border-cyan-500/40">
-                    Register Face
-                  </div>
+                  <button
+                    onClick={() => onSelectMember(member.person_id)}
+                    className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(34,211,238,0.1)] hover:bg-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)] active:scale-95"
+                  >
+                    Register
+                  </button>
                 ) : (
-                  <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-1.5">
-                    Registered
-                  </div>
+                  <button
+                    onClick={() => onSelectMember(member.person_id)}
+                    className="group/btn relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-white/30 transition-all duration-300 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+                  >
+                    {/* Check icon - visible by default, hidden on hover */}
+                    <i className="fa-solid fa-check text-[8px] transition-all duration-300 group-hover/btn:opacity-0 group-hover/btn:scale-75 group-hover/btn:absolute"></i>
+                    {/* Rotate icon - hidden by default, visible on hover */}
+                    <i className="fa-solid fa-rotate-right text-[10px] absolute opacity-0 scale-75 transition-all duration-300 group-hover/btn:opacity-100 group-hover/btn:scale-100 group-hover/btn:relative"></i>
+                    {/* Text swap */}
+                    <span className="transition-all duration-300 group-hover/btn:hidden">
+                      Registered
+                    </span>
+                    <span className="hidden transition-all duration-300 group-hover/btn:inline">
+                      Re-register
+                    </span>
+                  </button>
                 )}
               </div>
 
@@ -234,7 +240,7 @@ export function MemberSidebar({
                     e.stopPropagation();
                     onRemoveFaceData(member);
                   }}
-                  className="absolute bottom-0 left-0 right-0 py-1 bg-red-500/20 text-[8px] font-black uppercase tracking-widest text-red-300 text-center hover:bg-red-500/30 transition-all z-20"
+                  className="absolute bottom-0 left-0 right-0 py-1 bg-red-500/20 text-[8px] font-black uppercase tracking-widest text-red-300 text-center hover:bg-red-500/30 transition-all z-20 cursor-pointer"
                 >
                   Remove Face Data
                 </div>

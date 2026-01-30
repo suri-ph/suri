@@ -30,6 +30,7 @@ function GroupPanelComponent({
   onDaysTrackedChange,
   onExportHandlersReady,
   onAddMemberHandlerReady,
+  onSectionChange,
 }: GroupPanelProps) {
   // Zustand stores - use selectors to prevent unnecessary re-renders
   const selectedGroup = useGroupStore((state) => state.selectedGroup);
@@ -102,6 +103,21 @@ function GroupPanelComponent({
       onAddMemberHandlerReady(openAddMember);
     }
   }, [onAddMemberHandlerReady, openAddMember]);
+
+  // Notify parent when active section changes in the store
+  // This enables Settings to sync its groupInitialSection when jumpToRegistration is called
+  const prevActiveSectionRef = useRef(useGroupUIStore.getState().activeSection);
+
+  useEffect(() => {
+    const unsubscribe = useGroupUIStore.subscribe((state) => {
+      if (state.activeSection !== prevActiveSectionRef.current) {
+        prevActiveSectionRef.current = state.activeSection;
+        onSectionChange?.(state.activeSection);
+      }
+    });
+
+    return unsubscribe;
+  }, [onSectionChange]);
 
   // Embedded mode - just return content without wrapper
   if (isEmbedded) {

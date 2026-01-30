@@ -3,6 +3,7 @@ import { attendanceManager, backendService } from "@/services";
 import type { AttendanceGroup, AttendanceMember } from "@/types/recognition";
 import { useCamera } from "@/components/group/sections/registration/hooks/useCamera";
 import { toBase64Payload } from "@/components/group/sections/registration/hooks/useImageProcessing";
+import { Dropdown } from "@/components/shared";
 
 type CaptureStatus =
   | "pending"
@@ -45,15 +46,23 @@ export function CameraQueue({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [queueStarted, setQueueStarted] = useState(false);
   const autoAdvance = true;
-  const showQualityFeedback = true;
   const [memberSearch, setMemberSearch] = useState("");
   const [registrationFilter, setRegistrationFilter] = useState<
     "all" | "registered" | "non-registered"
   >("all");
 
-  // Use camera hook
-  const { videoRef, isVideoReady, cameraError, startCamera, stopCamera } =
-    useCamera();
+  // Use camera hook - get all needed values for camera selection
+  const {
+    videoRef,
+    cameraDevices,
+    selectedCamera,
+    setSelectedCamera,
+    isStreaming,
+    isVideoReady,
+    cameraError,
+    startCamera,
+    stopCamera,
+  } = useCamera();
 
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -328,14 +337,7 @@ export function CameraQueue({
     capturePhoto,
   ]);
 
-  // Camera lifecycle
-  useEffect(() => {
-    if (queueStarted) {
-      void startCamera();
-      return () => stopCamera();
-    }
-  }, [queueStarted, startCamera, stopCamera]);
-
+  // Camera cleanup on unmount
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   return (
@@ -416,22 +418,24 @@ export function CameraQueue({
                       className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none transition-all"
                     />
                   </div>
-                  <select
+                  <Dropdown
+                    options={[
+                      { value: "all", label: "All members" },
+                      { value: "non-registered", label: "Unregistered" },
+                      { value: "registered", label: "Registered" },
+                    ]}
                     value={registrationFilter}
-                    onChange={(e) =>
-                      setRegistrationFilter(
-                        e.target.value as
-                          | "all"
-                          | "registered"
-                          | "non-registered",
-                      )
-                    }
-                    className="min-w-[170px] rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none"
-                  >
-                    <option value="all">All members</option>
-                    <option value="non-registered">Unregistered</option>
-                    <option value="registered">Registered</option>
-                  </select>
+                    onChange={(value) => {
+                      if (value) {
+                        setRegistrationFilter(
+                          value as "all" | "registered" | "non-registered",
+                        );
+                      }
+                    }}
+                    showPlaceholderOption={false}
+                    allowClear={false}
+                    className="min-w-[170px]"
+                  />
                 </div>
 
                 <div className="max-h-64 overflow-y-auto space-y-1.5 custom-scroll">
@@ -554,285 +558,411 @@ export function CameraQueue({
             )}
           </div>
         ) : (
-          /* Capture Phase */
-          <div className="grid gap-4 lg:grid-cols-[2fr,1fr] h-full">
-            {/* Camera Feed */}
-            <div className="space-y-3 flex flex-col">
-              <div className="flex items-center justify-between flex-shrink-0">
-                <h3 className="text-sm font-semibold text-white">
-                  Live Camera Feed
-                </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQueueStarted(false)}
-                    className="text-xs text-white/50 hover:text-white transition"
-                  >
-                    Edit Queue
-                  </button>
-                  <span
-                    className={`text-xs uppercase ${isVideoReady ? "text-cyan-300" : "text-yellow-200"}`}
-                  >
-                    {isVideoReady ? "● Active" : "○ Loading"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black aspect-video flex-grow max-h-[500px]">
+          /* Capture Phase - Immersive style matching single registration */
+          <div className="flex gap-4 h-full">
+            {/* Camera Feed - Main Focus */}
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1 relative overflow-hidden rounded-xl border border-white/20 bg-black">
                 <video
                   ref={videoRef}
-                  className="w-full h-full object-cover scale-x-[-1]"
+                  className="w-full h-full object-contain scale-x-[-1]"
                   playsInline
                   muted
                 />
-                {!isVideoReady && !cameraError && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white/60 text-sm">
-                    Initializing camera...
-                  </div>
-                )}
-                {cameraError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-center text-sm text-red-200 p-4">
-                    {cameraError}
-                  </div>
-                )}
-                {currentMember && isVideoReady && (
-                  <div className="absolute top-4 left-4 right-4">
-                    <div className="bg-black/70 rounded-lg p-3 border border-white/10">
-                      <div className="text-lg font-semibold text-white">
-                        {currentMember.name}
+
+                {/* Not Streaming State - Show Camera Selection */}
+                {!isStreaming && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/95">
+                    <div className="text-center space-y-4 max-w-xs">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                        <i className="fa-solid fa-video text-2xl text-white/30"></i>
                       </div>
-                      <div className="text-sm text-white/60 mt-1">
-                        Capture: {REQUIRED_ANGLE}
+                      <div className="text-sm text-white/60">
+                        Select a camera to start
+                      </div>
+                      {/* Camera Selection Dropdown */}
+                      {cameraDevices.length > 0 && (
+                        <Dropdown
+                          options={cameraDevices.map((device, index) => ({
+                            value: device.deviceId,
+                            label: device.label || `Camera ${index + 1}`,
+                          }))}
+                          value={selectedCamera || null}
+                          onChange={(deviceId) => {
+                            if (deviceId) {
+                              setSelectedCamera(deviceId);
+                            }
+                          }}
+                          placeholder="Select camera..."
+                          emptyMessage="No cameras available"
+                          showPlaceholderOption={false}
+                          allowClear={false}
+                          buttonClassName="bg-white/10 border-white/20"
+                        />
+                      )}
+                      {cameraDevices.length === 0 && (
+                        <div className="text-xs text-white/40">
+                          No cameras detected
+                        </div>
+                      )}
+                      {/* Start Button */}
+                      <button
+                        onClick={() => void startCamera()}
+                        disabled={!selectedCamera && cameraDevices.length > 0}
+                        className="w-full px-4 py-2.5 rounded-lg border border-cyan-400/50 bg-cyan-500/30 text-cyan-100 hover:bg-cyan-500/40 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <i className="fa-solid fa-play mr-2"></i>
+                        Start Camera
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading State - Camera starting */}
+                {isStreaming && !isVideoReady && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/90">
+                    <div className="text-center space-y-3">
+                      <div className="h-10 w-10 mx-auto rounded-full border-2 border-white/20 border-t-cyan-400 animate-spin" />
+                      <div className="text-xs text-white/50">
+                        Starting camera...
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* Capture Button */}
-              <button
-                onClick={() => void capturePhoto()}
-                disabled={
-                  !isVideoReady ||
-                  isProcessing ||
-                  !currentMember ||
-                  !!cameraError
-                }
-                className="btn-success w-full px-4 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing
-                  ? "Processing..."
-                  : `Capture ${REQUIRED_ANGLE} (Space)`}
-              </button>
+                {/* Error State */}
+                {cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/90 p-4 text-center">
+                    <div className="space-y-3">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                        <i className="fa-solid fa-exclamation-triangle text-lg text-red-400"></i>
+                      </div>
+                      <div className="text-xs text-red-300 max-w-xs">
+                        {cameraError}
+                      </div>
+                      <button
+                        onClick={() => void startCamera()}
+                        className="px-4 py-2 rounded-lg border border-white/20 bg-white/10 text-white/70 hover:text-white text-xs font-medium transition-all"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-4 gap-2 text-xs">
-                <button
-                  onClick={() => {
-                    if (currentIndex > 0) {
-                      setCurrentIndex((prev) => prev - 1);
-                      setError(null);
-                    }
-                  }}
-                  disabled={currentIndex === 0}
-                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentMember) {
-                      setMemberQueue((prev) =>
-                        prev.map((m, idx) =>
-                          idx === currentIndex
-                            ? { ...m, status: "skipped" as CaptureStatus }
-                            : m,
-                        ),
-                      );
+                {/* Current Member Info - Minimal overlay */}
+                {currentMember && (
+                  <div className="absolute top-2 left-2 z-10">
+                    <div className="text-md font-medium text-white/80 truncate">
+                      {currentMember.name}
+                    </div>
+                    {currentMember.role && (
+                      <div className="text-xs text-white/40">
+                        {currentMember.role}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Progress indicator and controls */}
+                <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+                  <span className="text-xs text-white/50">
+                    {currentIndex + 1}/{totalMembers}
+                  </span>
+                  {isStreaming && (
+                    <button
+                      onClick={() => stopCamera()}
+                      className="px-2 py-1 rounded-md bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 text-xs font-medium transition-all"
+                    >
+                      <i className="fa-solid fa-stop mr-1"></i>
+                      Stop
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setQueueStarted(false)}
+                    className="px-2 py-1 rounded-md bg-white/10 border border-white/10 text-white/50 hover:text-white hover:bg-white/20 text-xs font-medium transition-all"
+                  >
+                    <i className="fa-solid fa-list-ul mr-1"></i>
+                    Queue
+                  </button>
+                </div>
+
+                {/* Navigation Controls - Left/Right arrows */}
+                <div className="absolute inset-y-0 left-2 flex items-center z-10">
+                  <button
+                    onClick={() => {
+                      if (currentIndex > 0) {
+                        setCurrentIndex((prev) => prev - 1);
+                        setError(null);
+                      }
+                    }}
+                    disabled={currentIndex === 0}
+                    className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <i className="fa-solid fa-chevron-left text-sm"></i>
+                  </button>
+                </div>
+                <div className="absolute inset-y-0 right-2 flex items-center z-10">
+                  <button
+                    onClick={() => {
                       if (currentIndex < memberQueue.length - 1) {
                         setCurrentIndex((prev) => prev + 1);
+                        setError(null);
                       }
-                    }
-                  }}
-                  disabled={!currentMember}
-                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentMember) {
-                      setMemberQueue((prev) =>
-                        prev.map((m, idx) =>
-                          idx === currentIndex
-                            ? {
-                                ...m,
-                                status: "pending" as CaptureStatus,
-                                error: undefined,
-                                qualityWarning: undefined,
-                              }
-                            : m,
-                        ),
-                      );
-                      setError(null);
-                    }
-                  }}
-                  disabled={!currentMember}
-                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
-                >
-                  Retry
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentIndex < memberQueue.length - 1) {
-                      setCurrentIndex((prev) => prev + 1);
-                      setError(null);
-                    }
-                  }}
-                  disabled={currentIndex >= memberQueue.length - 1}
-                  className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-
-              {/* Keyboard Shortcuts */}
-              <div className="rounded-lg bg-white/5 border border-white/10 p-3 flex-shrink-0">
-                <div className="text-xs font-semibold text-white/60 uppercase mb-2">
-                  Shortcuts
+                    }}
+                    disabled={currentIndex >= memberQueue.length - 1}
+                    className="p-2 rounded-full bg-black/40 border border-white/10 text-white/60 hover:text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <i className="fa-solid fa-chevron-right text-sm"></i>
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 rounded bg-white/10 text-white/80">
-                      Space
-                    </kbd>
-                    <span className="text-white/60">Capture</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 rounded bg-white/10 text-white/80">
-                      N
-                    </kbd>
-                    <span className="text-white/60">Next</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 rounded bg-white/10 text-white/80">
-                      P
-                    </kbd>
-                    <span className="text-white/60">Prev</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 rounded bg-white/10 text-white/80">
-                      R
-                    </kbd>
-                    <span className="text-white/60">Retry</span>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Queue Status */}
-            <div className="space-y-3 flex flex-col h-full overflow-hidden">
-              <div className="flex items-center justify-between flex-shrink-0">
-                <h3 className="text-sm font-semibold text-white">Queue</h3>
-                <span className="text-xs text-white/50">
-                  {completedMembers}/{totalMembers}
-                </span>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/10 pr-2">
-                {memberQueue.map((member, idx) => {
-                  const isCurrent = idx === currentIndex;
-                  const statusColor =
-                    member.status === "completed"
-                      ? "border-cyan-400/60 bg-cyan-500/10"
-                      : member.status === "skipped"
-                        ? "border-white/20 bg-white/5"
-                        : member.status === "error"
-                          ? "border-red-400/60 bg-red-500/10"
-                          : isCurrent
-                            ? "border-white/20 bg-white/10"
-                            : "border-white/10 bg-white/5";
+                {/* Bottom Actions - Floating */}
+                <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-2">
+                  {/* Skip Button */}
+                  <button
+                    onClick={() => {
+                      if (currentMember) {
+                        setMemberQueue((prev) =>
+                          prev.map((m, idx) =>
+                            idx === currentIndex
+                              ? { ...m, status: "skipped" as CaptureStatus }
+                              : m,
+                          ),
+                        );
+                        if (currentIndex < memberQueue.length - 1) {
+                          setCurrentIndex((prev) => prev + 1);
+                        }
+                      }
+                    }}
+                    disabled={!currentMember}
+                    className="px-3 py-2 rounded-md backdrop-blur-sm border border-white/10 bg-black/40 text-white/70 hover:text-white hover:bg-black/60 text-xs font-medium transition-all disabled:opacity-40"
+                  >
+                    Skip
+                  </button>
 
-                  return (
-                    <div
-                      key={member.personId}
-                      className={`rounded-lg border p-3 ${statusColor}`}
+                  {/* Capture Button - Primary Action */}
+                  <button
+                    onClick={() => void capturePhoto()}
+                    disabled={
+                      !isVideoReady ||
+                      isProcessing ||
+                      !currentMember ||
+                      !!cameraError
+                    }
+                    className="flex-1 px-4 py-2 rounded-md backdrop-blur-sm border border-cyan-400/50 bg-cyan-500/40 text-cyan-100 hover:bg-cyan-500/50 text-xs font-medium transition-all disabled:bg-black/40 disabled:border-white/10 disabled:text-white/30 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      "Capture (Space)"
+                    )}
+                  </button>
+
+                  {/* Retry Button */}
+                  {currentMember?.status === "error" && (
+                    <button
+                      onClick={() => {
+                        if (currentMember) {
+                          setMemberQueue((prev) =>
+                            prev.map((m, idx) =>
+                              idx === currentIndex
+                                ? {
+                                    ...m,
+                                    status: "pending" as CaptureStatus,
+                                    error: undefined,
+                                    qualityWarning: undefined,
+                                  }
+                                : m,
+                            ),
+                          );
+                          setError(null);
+                        }
+                      }}
+                      className="px-3 py-2 rounded-md backdrop-blur-sm border border-amber-400/50 bg-amber-500/40 text-amber-100 hover:bg-amber-500/50 text-xs font-medium transition-all"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-white flex items-center gap-2">
-                            {isCurrent && (
-                              <span className="text-cyan-300">→</span>
+                      Retry
+                    </button>
+                  )}
+                </div>
+
+                {/* Status Badge - Shows completed/error state */}
+                {currentMember &&
+                  currentMember.status !== "pending" &&
+                  currentMember.status !== "capturing" && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+                      <div
+                        className={`px-6 py-4 rounded-2xl border ${
+                          currentMember.status === "completed"
+                            ? "bg-cyan-500/20 border-cyan-500/30"
+                            : currentMember.status === "skipped"
+                              ? "bg-white/10 border-white/20"
+                              : "bg-red-500/20 border-red-500/30"
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div
+                            className={`text-2xl mb-1 ${
+                              currentMember.status === "completed"
+                                ? "text-cyan-400"
+                                : currentMember.status === "skipped"
+                                  ? "text-white/60"
+                                  : "text-red-400"
+                            }`}
+                          >
+                            {currentMember.status === "completed" && (
+                              <i className="fa-solid fa-check-circle"></i>
                             )}
-                            {member.name}
+                            {currentMember.status === "skipped" && (
+                              <i className="fa-solid fa-forward"></i>
+                            )}
+                            {currentMember.status === "error" && (
+                              <i className="fa-solid fa-exclamation-circle"></i>
+                            )}
                           </div>
-                          {member.role && (
-                            <div className="text-xs text-white/50">
-                              {member.role}
+                          <div className="text-sm font-medium text-white">
+                            {currentMember.status === "completed" &&
+                              "Registered"}
+                            {currentMember.status === "skipped" && "Skipped"}
+                            {currentMember.status === "error" && "Error"}
+                          </div>
+                          {currentMember.error && (
+                            <div className="text-xs text-red-300 mt-1 max-w-[200px]">
+                              {currentMember.error}
                             </div>
                           )}
                         </div>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded ${
-                            member.status === "completed"
-                              ? "bg-cyan-500/20 text-cyan-200"
-                              : member.status === "skipped"
-                                ? "bg-white/10 text-white/60"
-                                : member.status === "error"
-                                  ? "bg-red-500/20 text-red-200"
-                                  : member.status === "processing"
-                                    ? "bg-amber-500/20 text-amber-200"
-                                    : "bg-white/10 text-white/60"
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              {/* Keyboard shortcuts - Compact */}
+              <div className="mt-2 flex items-center justify-center gap-4 text-[10px] text-white/40">
+                <span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/60 mr-1">
+                    Space
+                  </kbd>
+                  Capture
+                </span>
+                <span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/60 mr-1">
+                    ←
+                  </kbd>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/60 mr-1">
+                    →
+                  </kbd>
+                  Navigate
+                </span>
+                <span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/60 mr-1">
+                    S
+                  </kbd>
+                  Skip
+                </span>
+                <span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/60 mr-1">
+                    R
+                  </kbd>
+                  Retry
+                </span>
+              </div>
+            </div>
+
+            {/* Queue Sidebar - Compact */}
+            <div className="w-64 flex-shrink-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
+              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                <span className="text-xs font-semibold text-white/70">
+                  Queue
+                </span>
+                <span className="text-xs text-white/40">
+                  {completedMembers}/{totalMembers}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll">
+                {memberQueue.map((member, idx) => {
+                  const isCurrent = idx === currentIndex;
+                  const statusIcon =
+                    member.status === "completed"
+                      ? "fa-check"
+                      : member.status === "skipped"
+                        ? "fa-forward"
+                        : member.status === "error"
+                          ? "fa-exclamation"
+                          : member.status === "processing"
+                            ? "fa-spinner fa-spin"
+                            : "";
+
+                  return (
+                    <button
+                      key={member.personId}
+                      onClick={() => {
+                        setCurrentIndex(idx);
+                        setError(null);
+                      }}
+                      className={`w-full text-left rounded-lg px-2 py-1.5 transition-all flex items-center gap-2 ${
+                        isCurrent
+                          ? "bg-white/10 border border-white/20"
+                          : "hover:bg-white/5 border border-transparent"
+                      }`}
+                    >
+                      {/* Status Icon */}
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 ${
+                          member.status === "completed"
+                            ? "bg-cyan-500/20 text-cyan-400"
+                            : member.status === "skipped"
+                              ? "bg-white/10 text-white/40"
+                              : member.status === "error"
+                                ? "bg-red-500/20 text-red-400"
+                                : member.status === "processing"
+                                  ? "bg-amber-500/20 text-amber-400"
+                                  : isCurrent
+                                    ? "bg-white/20 text-white/60"
+                                    : "bg-white/5 text-white/30"
+                        }`}
+                      >
+                        {statusIcon ? (
+                          <i className={`fa-solid ${statusIcon}`}></i>
+                        ) : (
+                          <span className="text-[8px]">{idx + 1}</span>
+                        )}
+                      </div>
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`text-xs font-medium truncate ${
+                            isCurrent ? "text-white" : "text-white/70"
                           }`}
                         >
-                          {member.status === "completed"
-                            ? "✓ Done"
-                            : member.status === "skipped"
-                              ? "Skipped"
-                              : member.status === "error"
-                                ? "✕"
-                                : member.status === "processing"
-                                  ? "..."
-                                  : "Pending"}
-                        </span>
+                          {member.name}
+                        </div>
                       </div>
-                      {member.capturedAngles.length > 0 && (
-                        <div className="text-xs text-white/50">
-                          Captured: {member.capturedAngles.join(", ")}
-                        </div>
-                      )}
-                      {member.error && (
-                        <div className="text-xs text-red-300 mt-1">
-                          {member.error}
-                        </div>
-                      )}
-                      {member.qualityWarning && showQualityFeedback && (
-                        <div className="text-xs text-yellow-300 mt-1">
-                          ⚠️ {member.qualityWarning}
-                        </div>
-                      )}
-                      {member.previewUrl && (
-                        <img
-                          src={member.previewUrl}
-                          alt="Preview"
-                          className="w-full h-20 object-cover rounded-lg mt-2"
-                        />
-                      )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+              {/* Finish Button */}
               {completedMembers === totalMembers && totalMembers > 0 && (
-                <button
-                  onClick={async () => {
-                    if (onRefresh) {
-                      await onRefresh();
-                    }
-                    if (onClose) {
-                      onClose();
-                    }
-                  }}
-                  className="btn-success w-full px-4 py-3 text-sm font-semibold"
-                >
-                  Finish Registration
-                </button>
+                <div className="p-2 border-t border-white/10">
+                  <button
+                    onClick={async () => {
+                      if (onRefresh) {
+                        await onRefresh();
+                      }
+                      if (onClose) {
+                        onClose();
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-xs font-semibold transition-all"
+                  >
+                    <i className="fa-solid fa-check mr-1.5"></i>
+                    Done
+                  </button>
+                </div>
               )}
             </div>
           </div>

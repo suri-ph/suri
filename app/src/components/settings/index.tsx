@@ -560,6 +560,12 @@ export const Settings: React.FC<SettingsProps> = ({
                       setGroupInitialSection(subsection.id as GroupSection);
                       // Reset trigger when switching subsections to prevent accidental modal opening
                       setTriggerCreateGroup(0);
+                      // Reset registration state when navigating to registration via sidebar
+                      // This ensures we start at the root (source selection) without Back button
+                      if (subsection.id === "registration") {
+                        setRegistrationState(null, null);
+                        useGroupUIStore.setState({ preSelectedMemberId: null });
+                      }
                     }}
                     className={`w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
                       activeSection === "group" &&
@@ -675,7 +681,9 @@ export const Settings: React.FC<SettingsProps> = ({
                       setRegistrationState(registrationSource, null);
                     } else if (registrationSource) {
                       // If in mode selection, go back to source selection
+                      // Also clear preSelectedMemberId to prevent Registration from re-setting source/mode
                       setRegistrationState(null, null);
+                      useGroupUIStore.setState({ preSelectedMemberId: null });
                     }
                   }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white transition-all text-[11px] font-bold uppercase tracking-wider"
@@ -710,6 +718,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 onExportHandlersReady={handleExportHandlersReady}
                 onAddMemberHandlerReady={handleAddMemberHandlerReady}
                 onGroupsChanged={handleGroupsChanged}
+                onSectionChange={setGroupInitialSection}
                 isEmbedded={true}
               />
             </div>

@@ -53,7 +53,7 @@ export function ResultView({
               <span>Saving...</span>
             </>
           ) : (
-            "Register Face"
+            "Register"
           )}
         </button>
       </div>

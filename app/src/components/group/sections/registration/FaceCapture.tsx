@@ -143,48 +143,33 @@ export function FaceCapture({
 
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
-      {/* Messages */}
+      {/* Success Modal with Backdrop */}
       {successMessage && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 rounded-[1.5rem] border border-cyan-500/30 bg-black/80 backdrop-blur-xl p-5 text-sm text-cyan-200 flex flex-col items-center gap-4 min-w-[400px] max-w-[95%] intro-y shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-b-cyan-500/50">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center mb-1">
-            <i className="fa-solid fa-check-double text-xl text-cyan-400"></i>
-          </div>
-          <div className="text-center">
-            <h4 className="text-base font-black text-white mb-1">Success</h4>
-            <p className="text-xs text-cyan-200/60 font-medium">
-              {successMessage}
-            </p>
-          </div>
+        <>
+          {/* Backdrop - blocks clicks on capture area only, sidebar remains clickable */}
+          <div className="absolute inset-0 bg-black/40 z-40" />
 
-          <div className="flex items-center gap-2 w-full pt-1">
-            <button
-              onClick={() => {
-                setSuccessMessage(null);
-                useGroupUIStore.getState().setActiveSection("reports");
-              }}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-[10px] font-black uppercase tracking-widest transition-all"
-            >
-              See results
-            </button>
+          {/* Modal */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 rounded-[1.5rem] border border-cyan-500/30 bg-black/90 backdrop-blur-xl p-6 text-sm text-cyan-200 flex flex-col items-center gap-3 min-w-[280px] max-w-[95%] intro-y shadow-[0_20px_50px_rgba(0,0,0,0.7)] border-b-cyan-500/50">
+            <div className="text-center">
+              <h4 className="text-base font-black text-white mb-1">Success</h4>
+              <p className="text-xs text-cyan-200/60 font-medium">
+                {successMessage}
+              </p>
+            </div>
+
             <button
               onClick={() => {
                 setSuccessMessage(null);
                 setSelectedMemberId("");
                 resetFrames();
               }}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-[10px] font-black uppercase tracking-widest transition-all"
+              className="w-full px-4 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-[10px] font-black uppercase tracking-widest transition-all"
             >
-              Next person
+              Done
             </button>
           </div>
-
-          <button
-            onClick={() => setSuccessMessage(null)}
-            className="absolute top-4 right-4 text-white/20 hover:text-white transition-colors"
-          >
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        </div>
+        </>
       )}
 
       {globalError && (

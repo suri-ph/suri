@@ -26,4 +26,5 @@ export interface GroupPanelProps {
     print: () => void;
   }) => void; // Callback when export handlers are ready in Reports
   onAddMemberHandlerReady?: (handler: () => void) => void; // Callback when add member handler is ready
+  onSectionChange?: (section: GroupSection) => void; // Callback when active section changes (for syncing with parent)
 }
