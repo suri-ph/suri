@@ -117,6 +117,8 @@ export default function Main() {
     setIsSettingsFullScreen,
     groupInitialSection,
     setGroupInitialSection,
+    settingsInitialSection,
+    setSettingsInitialSection,
     quickSettings,
     setQuickSettings,
   } = useUIStore();
@@ -372,6 +374,30 @@ export default function Main() {
     };
   }, [cleanupOnUnload]);
 
+  // Listen for openSettings event (e.g., from WindowFooter update notification)
+  useEffect(() => {
+    const handleOpenSettings = (event: CustomEvent<{ section?: string }>) => {
+      const section = event.detail?.section;
+      if (section) {
+        setSettingsInitialSection(section);
+        setGroupInitialSection(undefined);
+      }
+      setShowSettings(true);
+    };
+
+    window.addEventListener(
+      "openSettings",
+      handleOpenSettings as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "openSettings",
+        handleOpenSettings as EventListener,
+      );
+    };
+  }, [setShowSettings, setGroupInitialSection, setSettingsInitialSection]);
+
   // ===== RENDER =====
   return (
     <div className="h-full bg-black text-white flex flex-col overflow-hidden">
@@ -465,6 +491,7 @@ export default function Main() {
               setShowSettings(false);
               setIsSettingsFullScreen(false);
               setGroupInitialSection(undefined);
+              setSettingsInitialSection(undefined);
               loadAttendanceDataRef.current();
             }}
             isFullScreen={isSettingsFullScreen}
@@ -540,6 +567,7 @@ export default function Main() {
             }}
             isStreaming={isStreaming}
             initialGroupSection={groupInitialSection}
+            initialSection={settingsInitialSection}
             currentGroup={currentGroup}
             onGroupSelect={handleSelectGroup}
             onGroupsChanged={() => loadAttendanceDataRef.current()}

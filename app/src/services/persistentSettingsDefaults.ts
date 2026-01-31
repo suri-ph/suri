@@ -1,4 +1,5 @@
 import type { QuickSettings } from "../components/settings/types";
+import type { UpdateInfo } from "../types/global";
 
 // Define the persistent settings schema (shared between main and renderer)
 export interface PersistentSettingsSchema {
@@ -29,6 +30,11 @@ export interface PersistentSettingsSchema {
   // Report Views (per group)
   reportViews: Record<string, unknown>;
   reportDefaultViewNames: Record<string, string>;
+  // Updater Info
+  updater: {
+    lastChecked: string | null;
+    cachedInfo: UpdateInfo | null;
+  };
 }
 
 // Default values (shared between main and renderer processes)
@@ -58,4 +64,8 @@ export const defaultSettings: PersistentSettingsSchema = {
   },
   reportViews: {},
   reportDefaultViewNames: {},
+  updater: {
+    lastChecked: null,
+    cachedInfo: null,
+  },
 };

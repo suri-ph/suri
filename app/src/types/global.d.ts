@@ -11,6 +11,19 @@ import type {
 
 export {};
 
+// Update info from GitHub releases
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  releaseUrl: string;
+  releaseNotes: string;
+  publishedAt: string;
+  downloadUrl: string | null;
+  error?: string;
+  isOffline?: boolean;
+}
+
 declare global {
   interface SuriWSClientAPI {
     connect: (url?: string) => Promise<void>;
@@ -60,6 +73,16 @@ declare global {
       cpu: number;
       memory: { total: number; free: number; appUsage: number };
     }>;
+    getVersion: () => Promise<string>;
+  }
+
+  interface UpdaterAPI {
+    checkForUpdates: (force?: boolean) => Promise<UpdateInfo>;
+    getVersion: () => Promise<string>;
+    openReleasePage: (url?: string) => Promise<boolean>;
+    onUpdateAvailable: (
+      callback: (updateInfo: UpdateInfo) => void,
+    ) => () => void;
   }
 
   interface BackendAPI {
@@ -148,6 +171,7 @@ declare global {
     backend_ready: BackendReadyAPI;
     backend: BackendAPI;
     store: StoreAPI;
+    updater: UpdaterAPI;
   }
 
   interface Window {

@@ -84,7 +84,8 @@ export function BulkRegistration({
               </div>
               {pendingDuplicates.newFiles.length > 0 && (
                 <p className="text-[10px] text-white/40 mt-2">
-                  {pendingDuplicates.newFiles.length} new file(s) will be added regardless.
+                  {pendingDuplicates.newFiles.length} new file(s) will be added
+                  regardless.
                 </p>
               )}
             </div>
@@ -131,10 +132,11 @@ export function BulkRegistration({
 
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-y-auto px-6 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent ${!registrationResults && uploadedFiles.length === 0
-          ? "flex flex-col justify-center"
-          : ""
-          }`}
+        className={`flex-1 overflow-y-auto px-6 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent ${
+          !registrationResults && uploadedFiles.length === 0
+            ? "flex flex-col justify-center"
+            : ""
+        }`}
       >
         {/* Step 1: Upload Files */}
         {!registrationResults && (

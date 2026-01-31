@@ -1,3 +1,4 @@
 export { AttendanceManager, attendanceManager } from "./AttendanceManager";
 export { BackendService, backendService } from "./BackendService";
 export { persistentSettings } from "./PersistentSettingsService";
+export { updaterService } from "./UpdaterService";

@@ -3,6 +3,7 @@ import { backendService, attendanceManager } from "@/services";
 import { Display } from "@/components/settings/sections/Display";
 import { Database } from "@/components/settings/sections/Database";
 import { Attendance } from "@/components/settings/sections/Attendance";
+import { About } from "@/components/settings/sections/About";
 import { GroupPanel, type GroupSection } from "@/components/group";
 import { Dropdown } from "@/components/shared";
 import { useGroupStore, useGroupUIStore } from "@/components/group/stores";
@@ -32,6 +33,8 @@ interface SettingsProps {
   onGroupsChanged?: () => void;
   // Pre-loaded data to avoid refetching
   initialGroups?: AttendanceGroup[];
+  // Initial main section (e.g., 'about', 'attendance', 'display', 'database')
+  initialSection?: string;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -49,9 +52,10 @@ export const Settings: React.FC<SettingsProps> = ({
   onGroupSelect,
   onGroupsChanged,
   initialGroups = [],
+  initialSection,
 }) => {
   const [activeSection, setActiveSection] = useState<string>(
-    initialGroupSection ? "group" : "attendance",
+    initialSection || (initialGroupSection ? "group" : "attendance"),
   );
   const [groupInitialSection, setGroupInitialSection] = useState<
     GroupSection | undefined
@@ -255,6 +259,7 @@ export const Settings: React.FC<SettingsProps> = ({
     { id: "attendance", label: "Attendance", icon: "fa-solid fa-user-check" },
     { id: "display", label: "Display", icon: "fa-solid fa-desktop" },
     { id: "database", label: "Database", icon: "fa-solid fa-database" },
+    { id: "about", label: "About", icon: "fa-solid fa-circle-info" },
   ];
 
   // Use a selector that only updates when the groups list actually changes (by IDs)
@@ -765,6 +770,7 @@ export const Settings: React.FC<SettingsProps> = ({
               }}
             />
           )}
+          {activeSection === "about" && <About />}
         </div>
       </div>
     </div>

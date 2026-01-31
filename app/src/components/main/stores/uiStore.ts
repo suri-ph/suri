@@ -11,6 +11,7 @@ interface UIState {
   showSettings: boolean;
   isSettingsFullScreen: boolean;
   groupInitialSection: GroupSection | undefined;
+  settingsInitialSection: string | undefined;
 
   // Quick settings
   quickSettings: QuickSettings;
@@ -20,6 +21,7 @@ interface UIState {
   setShowSettings: (show: boolean) => void;
   setIsSettingsFullScreen: (fullScreen: boolean) => void;
   setGroupInitialSection: (section: GroupSection | undefined) => void;
+  setSettingsInitialSection: (section: string | undefined) => void;
   setQuickSettings: (
     settings: QuickSettings | ((prev: QuickSettings) => QuickSettings),
   ) => void;
@@ -36,6 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
   showSettings: false,
   isSettingsFullScreen: false,
   groupInitialSection: undefined,
+  settingsInitialSection: undefined,
   quickSettings: {
     cameraMirrored: true,
     showFPS: false,
@@ -49,6 +52,8 @@ export const useUIStore = create<UIState>((set) => ({
   setIsSettingsFullScreen: (fullScreen) =>
     set({ isSettingsFullScreen: fullScreen }),
   setGroupInitialSection: (section) => set({ groupInitialSection: section }),
+  setSettingsInitialSection: (section) =>
+    set({ settingsInitialSection: section }),
   setQuickSettings: (settings) => {
     const newSettings =
       typeof settings === "function"

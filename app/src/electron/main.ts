@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 import isDev from "./util.js";
 import { backendService, type DetectionOptions } from "./backendService.js";
 import { persistentStore } from "./persistentStore.js";
+import {
+  checkForUpdates,
+  getCurrentVersion,
+  openReleasePage,
+  startBackgroundUpdateCheck,
+} from "./updater.js";
 // Set consistent app name across all platforms for userData directory
 app.setName("Suri");
 
@@ -509,6 +515,40 @@ ipcMain.handle("backend:is-ready", async () => {
   }
 });
 
+// =============================================================================
+// UPDATE CHECKER IPC HANDLERS
+// =============================================================================
+
+// Check for updates (manual or automatic)
+ipcMain.handle("updater:check-for-updates", async (_event, force?: boolean) => {
+  try {
+    return await checkForUpdates(force);
+  } catch (error) {
+    console.error("[Main] Update check failed:", error);
+    return {
+      currentVersion: getCurrentVersion(),
+      latestVersion: getCurrentVersion(),
+      hasUpdate: false,
+      releaseUrl: "",
+      releaseNotes: "",
+      publishedAt: "",
+      downloadUrl: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+// Get current app version
+ipcMain.handle("updater:get-version", () => {
+  return getCurrentVersion();
+});
+
+// Open release page in browser
+ipcMain.handle("updater:open-release-page", (_event, url?: string) => {
+  openReleasePage(url);
+  return true;
+});
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -818,6 +858,11 @@ app.whenReady().then(async () => {
   // Smooth transition: destroy splash, show main
   destroySplash();
   showMainWindow();
+
+  // Start background update check (1 minute after startup, non-blocking)
+  if (!isDev()) {
+    startBackgroundUpdateCheck(mainWindowRef, 60000);
+  }
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the

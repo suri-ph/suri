@@ -159,6 +159,21 @@ class PersistentSettingsService {
       });
     }
   }
+
+  /**
+   * Updater Info
+   */
+  async getUpdaterInfo(): Promise<PersistentSettingsSchema["updater"]> {
+    const info = await this.get<PersistentSettingsSchema["updater"]>("updater");
+    return info || defaultSettings.updater;
+  }
+
+  async setUpdaterInfo(
+    info: Partial<PersistentSettingsSchema["updater"]>,
+  ): Promise<void> {
+    const current = await this.getUpdaterInfo();
+    await this.set("updater", { ...current, ...info });
+  }
 }
 
 export const persistentSettings = new PersistentSettingsService();

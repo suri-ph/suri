@@ -35,7 +35,8 @@ export function useBulkRegistration(
   >(null);
 
   // Pending duplicates that need user confirmation
-  const [pendingDuplicates, setPendingDuplicates] = useState<PendingDuplicateFiles | null>(null);
+  const [pendingDuplicates, setPendingDuplicates] =
+    useState<PendingDuplicateFiles | null>(null);
 
   const availableMembers = useMemo(() => {
     const assignedIds = new Set(
@@ -259,7 +260,10 @@ export function useBulkRegistration(
   const handleConfirmDuplicates = useCallback(async () => {
     if (!pendingDuplicates) return;
 
-    const allFiles = [...pendingDuplicates.newFiles, ...pendingDuplicates.duplicates];
+    const allFiles = [
+      ...pendingDuplicates.newFiles,
+      ...pendingDuplicates.duplicates,
+    ];
     setPendingDuplicates(null);
     await processFiles(allFiles);
   }, [pendingDuplicates, processFiles]);

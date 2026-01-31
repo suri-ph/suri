@@ -103,6 +103,37 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return ipcRenderer.invoke("store:reset");
     },
   },
+  // Updater API
+  updater: {
+    checkForUpdates: (force?: boolean) => {
+      return ipcRenderer.invoke("updater:check-for-updates", force);
+    },
+    getVersion: () => {
+      return ipcRenderer.invoke("updater:get-version");
+    },
+    openReleasePage: (url?: string) => {
+      return ipcRenderer.invoke("updater:open-release-page", url);
+    },
+    onUpdateAvailable: (
+      callback: (updateInfo: {
+        currentVersion: string;
+        latestVersion: string;
+        hasUpdate: boolean;
+        releaseUrl: string;
+        releaseNotes: string;
+        publishedAt: string;
+        downloadUrl: string | null;
+      }) => void,
+    ) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        updateInfo: Parameters<typeof callback>[0],
+      ) => callback(updateInfo);
+      ipcRenderer.on("updater:update-available", listener);
+      return () =>
+        ipcRenderer.removeListener("updater:update-available", listener);
+    },
+  },
 });
 
 // Window control functions
@@ -121,4 +152,6 @@ contextBridge.exposeInMainWorld("suriElectron", {
     return () => ipcRenderer.removeListener("window:unmaximized", listener);
   },
   getSystemStats: () => ipcRenderer.invoke("system:get-stats"),
+  // Shorthand for getting current app version
+  getVersion: () => ipcRenderer.invoke("updater:get-version"),
 });
