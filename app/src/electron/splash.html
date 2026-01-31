@@ -1,59 +1,41 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SURI</title>
-    <link rel="stylesheet" href="./splash.css" />
-  </head>
 
-  <body>
-    <div class="splash-container">
-      <div class="logo-wrapper">
-        <div class="logo-glow"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SURI</title>
+  <link rel="stylesheet" href="./splash.css" />
+</head>
 
-        <!-- SURI Emblem -->
-        <img
-          class="logo"
-          src="./suri_primary_emblem_transparent.png"
-          onerror="
+<body>
+  <div class="splash-container">
+    <div class="logo-wrapper">
+      <div class="logo-glow"></div>
+
+      <!-- SURI Emblem -->
+      <img class="logo" src="./suri_primary_emblem_transparent.png" onerror="
             this.onerror = null;
             this.src = '../../public/icons/suri_primary_emblem_transparent.png';
-          "
-          alt="SURI"
-        />
+          " alt="SURI" />
 
-        <!-- Tightened Symmetrical Electric Hexagon -->
-        <svg class="electric-hexagon" viewBox="0 0 140 140">
-          <!-- Edge 1: Top to TR (70,8 -> 118,40) -->
-          <path
-            class="bolt edge-1"
-            d="M70,8 L85,14 L78,20 L98,26 L90,32 L118,40"
-          />
-          <!-- Edge 2: TR to BR (118,40 -> 118,100) -->
-          <path
-            class="bolt edge-2"
-            d="M118,40 L112,55 L122,70 L114,85 L118,100"
-          />
-          <!-- Edge 3: BR to Bottom (118,100 -> 70,128) - Pulled up and tightened -->
-          <path
-            class="bolt edge-3"
-            d="M118,100 L108,105 L114,110 L94,115 L102,120 L82,124 L70,128"
-          />
-          <!-- Edge 4: Bottom to BL (70,128 -> 22,100) - Pulled up and tightened -->
-          <path
-            class="bolt edge-4"
-            d="M70,128 L58,124 L38,120 L46,115 L26,110 L32,105 L22,100"
-          />
-          <!-- Edge 5: BL to TL (22,100 -> 22,40) -->
-          <path class="bolt edge-5" d="M22,100 L28,85 L18,70 L26,55 L22,40" />
-          <!-- Edge 6: TL to Top (22,40 -> 70,8) -->
-          <path
-            class="bolt edge-6"
-            d="M22,40 L50,32 L42,26 L62,20 L55,14 L70,8"
-          />
-        </svg>
-      </div>
+      <!-- Tightened Symmetrical Electric Hexagon -->
+      <svg class="electric-hexagon" viewBox="0 0 140 140">
+        <!-- Edge 1: Top to TR (70,14 -> 118,40) - Pulled down further 2px -->
+        <path class="bolt edge-1" d="M70,14 L85,16 L78,20 L98,26 L90,33 L118,40" />
+        <!-- Edge 2: TR to BR (118,40 -> 118,100) -->
+        <path class="bolt edge-2" d="M118,40 L112,55 L122,70 L114,85 L118,100" />
+        <!-- Edge 3: BR to Bottom (118,100 -> 70,124) - Hugs closer to slant -->
+        <path class="bolt edge-3" d="M118,100 L105,102 L111,105 L91,109 L99,112 L79,117 L70,124" />
+        <!-- Edge 4: Bottom to BL (70,124 -> 22,100) - Hugs closer to slant -->
+        <path class="bolt edge-4" d="M70,124 L61,117 L41,112 L49,109 L29,105 L35,102 L22,100" />
+        <!-- Edge 5: BL to TL (22,100 -> 22,40) -->
+        <path class="bolt edge-5" d="M22,100 L28,85 L18,70 L26,55 L22,40" />
+        <!-- Edge 6: TL to Top (22,40 -> 70,14) - Pulled down further 2px -->
+        <path class="bolt edge-6" d="M22,40 L50,33 L42,26 L62,20 L55,16 L70,14" />
+      </svg>
     </div>
-  </body>
+  </div>
+</body>
+
 </html>
