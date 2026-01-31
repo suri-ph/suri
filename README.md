@@ -43,7 +43,7 @@
 <br />
 
 <!-- INTRO -->
-**Suri** is a desktop application for automated attendance tracking using facial recognition. Designed for secure environments, it runs the complete AI pipeline locally on the device to ensure speed and privacy.
+**Suri** is a desktop application for automated attendance tracking using facial recognition. It runs the complete AI pipeline locally on the device to ensure speed and privacy.
 
 Unlike cloud-based services, Suri executes all processing on the local hardware (CPU/GPU). This approach eliminates network latency and keeps data within the local infrastructure.
 
