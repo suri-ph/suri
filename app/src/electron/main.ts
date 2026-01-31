@@ -1,6 +1,17 @@
-import { app, BrowserWindow, ipcMain, protocol, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  protocol,
+  shell,
+  Tray,
+  Menu,
+  nativeImage,
+} from "electron";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { exec } from "child_process";
+import { promisify } from "util";
 import isDev from "./util.js";
 import { backendService, type DetectionOptions } from "./backendService.js";
 import { persistentStore } from "./persistentStore.js";
@@ -57,6 +68,8 @@ if (process.platform === "win32") {
 
 let mainWindowRef: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -116,6 +129,11 @@ function showMainWindow(): void {
       } catch (error) {
         console.warn("Could not move window to top:", error);
       }
+    }
+
+    // Create tray icon if it doesn't exist
+    if (!tray) {
+      createTray();
     }
   }
 }
@@ -602,10 +620,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         startX = offset;
       }
@@ -614,10 +632,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         endX = width - offset;
       }
@@ -727,7 +745,7 @@ function createWindow(): void {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http://") || url.startsWith("https://")) {
-      shell.openExternal(url).catch(() => {});
+      shell.openExternal(url).catch(() => { });
     }
 
     return { action: "deny" };
@@ -742,14 +760,88 @@ function createWindow(): void {
     if (!isAllowed) {
       event.preventDefault();
       if (url.startsWith("http://") || url.startsWith("https://")) {
-        shell.openExternal(url).catch(() => {});
+        shell.openExternal(url).catch(() => { });
       }
     }
   });
 
-  // Handle window close
+  // Handle window close (Minimize to Tray)
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.minimize();
+      mainWindow.setSkipTaskbar(true);
+      return false;
+    }
+  });
+
+  // Handle window closed
   mainWindow.on("closed", () => {
     mainWindowRef = null;
+  });
+}
+
+function createTray() {
+  const iconPath = isDev()
+    ? path.join(__dirname, "../../public/icons/suri_mark_logo_transparent.png")
+    : path.join(process.resourcesPath, "icons/suri_mark_logo_transparent.png"); // Adjust for prod
+
+  // Fallback for icon if specific one missing, though checking dev path above.
+  // Ideally we use a known good path. Let's assume the public folder structure is preserved in dist or resources.
+  // Actually, in prod, resources are usually in `resources` folder or `dist-react` if copied there.
+  // Let's stick to a safe bet: if dev, public/icons. If prod, likely in resources or we can use app.getAppPath().
+
+  let image;
+  try {
+    image = nativeImage.createFromPath(iconPath);
+  } catch (e) {
+    console.warn("Failed to load tray icon", e);
+    return;
+  }
+
+  tray = new Tray(image.resize({ width: 16, height: 16 }));
+  tray.setToolTip("Suri");
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Quit Suri",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  tray.on("click", () => {
+    if (!mainWindowRef) return;
+
+    // Smart Toggle Logic (Discord-like)
+    // We use minimized state + skipTaskbar to emulate "Close to Tray"
+    const isVisible = mainWindowRef.isVisible();
+    const isMinimized = mainWindowRef.isMinimized();
+    const isFocused = mainWindowRef.isFocused();
+
+    if (isMinimized || !isVisible) {
+      // Restore from tray/minimized state
+      if (isMinimized) mainWindowRef.restore();
+      else mainWindowRef.show();
+
+      mainWindowRef.setSkipTaskbar(false);
+      mainWindowRef.focus();
+      return;
+    }
+
+    // It is visible and fully open
+    if (isFocused) {
+      // Minimize to tray if actively focused
+      mainWindowRef.minimize();
+      mainWindowRef.setSkipTaskbar(true);
+    } else {
+      // Just bring to front if obscured
+      mainWindowRef.focus();
+    }
   });
 }
 
@@ -804,6 +896,34 @@ app.whenReady().then(async () => {
   // 2. Start backend and main window loading in PARALLEL
   // 3. Transition to main window when both are ready
   // =========================================================================
+
+  // Minimize all other windows to focus on Splash Screen
+  const execAsync = promisify(exec);
+
+  const minimizeAllWindows = async () => {
+    try {
+      if (process.platform === "win32") {
+        // -NoProfile for faster startup
+        await execAsync(
+          'powershell -NoProfile -Command "(New-Object -ComObject Shell.Application).MinimizeAll()"',
+        );
+      } else if (process.platform === "darwin") {
+        await execAsync(
+          `osascript -e 'tell application "System Events" to set visible of (every process whose visible is true) to false'`,
+        );
+      } else if (process.platform === "linux") {
+        await execAsync("wmctrl -k on");
+      }
+    } catch (error) {
+      console.error("Failed to minimize windows:", error);
+    }
+  };
+
+  // Wait for minimization (max 1s) to ensure clean desktop before splash
+  await Promise.race([
+    minimizeAllWindows(),
+    new Promise((resolve) => setTimeout(resolve, 1000)),
+  ]);
 
   splashWindow = createSplashWindow();
 
@@ -888,7 +1008,7 @@ app.whenReady().then(async () => {
 // Simplified cleanup that matches backend signal handling
 // =============================================================================
 
-let isQuitting = false;
+
 
 /**
  * Cleanup backend - synchronous kill that blocks until complete
