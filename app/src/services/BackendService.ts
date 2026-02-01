@@ -40,47 +40,41 @@ interface ModelInfo {
   version?: string;
 }
 
-interface IPCMessage {
-  type?: string;
-  message?: string;
-  status?: string;
-  error?: string;
-  timestamp?: number;
-  data?: unknown;
-  faces?: Array<{
-    bbox?: number[];
-    confidence?: number;
-    liveness?: {
-      is_real?: boolean | null;
-      logit_diff?: number;
-      real_logit?: number;
-      spoof_logit?: number;
-      confidence?: number;
-      status?: "real" | "spoof" | "error" | "move_closer";
-      label?: string;
-      attack_type?: string;
-      message?: string;
-    };
-    track_id?: number;
-  }>;
-  model_used?: string;
-  [key: string]: unknown;
-}
+// IPCMessage is no longer used after removing WebSocket logic
+// interface IPCMessage {
+//   type?: string;
+//   message?: string;
+//   status?: string;
+//   error?: string;
+//   timestamp?: number;
+//   data?: unknown;
+//   faces?: Array<{
+//     bbox?: number[];
+//     confidence?: number;
+//     liveness?: {
+//       is_real?: boolean | null;
+//       logit_diff?: number;
+//       real_logit?: number;
+//       spoof_logit?: number;
+//       confidence?: number;
+//       status?: "real" | "spoof" | "error" | "move_closer";
+//       label?: string;
+//       attack_type?: string;
+//       message?: string;
+//     };
+//   }>;
+// }
+
+import type { IBackendAdapter } from "../types/backend";
+import { ElectronAdapter } from "./adapters/ElectronAdapter";
 
 export class BackendService {
   private config: BackendConfig;
-  private clientId: string;
-  private messageHandlers: Map<string, (data: IPCMessage) => void> = new Map();
-  private ws: WebSocket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectTimeout: number | null = null;
-  private pingInterval: number | null = null;
-  private isConnecting = false;
-  private connectionPromise: Promise<void> | null = null;
+  private adapter: IBackendAdapter;
   private enableLivenessDetection: boolean = true;
+  // Removed unused fields: clientId, messageHandlers, ws, etc. since they belonged to the old websocket logic
 
-  constructor(config?: Partial<BackendConfig>) {
+  constructor(config?: Partial<BackendConfig>, adapter?: IBackendAdapter) {
     this.config = {
       baseUrl: "http://127.0.0.1:8700",
       timeout: 30000,
@@ -88,7 +82,8 @@ export class BackendService {
       ...config,
     };
 
-    this.clientId = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Default to ElectronAdapter (Local) if no adapter provided
+    this.adapter = adapter || new ElectronAdapter();
   }
 
   async isBackendAvailable(): Promise<boolean> {
@@ -200,247 +195,10 @@ export class BackendService {
     }
   }
 
-  async connectWebSocket(): Promise<void> {
-    if (this.isConnecting && this.connectionPromise) {
-      return this.connectionPromise;
-    }
-
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      return Promise.resolve();
-    }
-
-    this.isConnecting = true;
-    this.connectionPromise = new Promise((resolve, reject) => {
-      try {
-        if (this.ws) {
-          this.ws.close();
-          this.ws = null;
-        }
-
-        const wsUrl = this.config.baseUrl
-          .replace("http://", "ws://")
-          .replace("https://", "wss://");
-        const url = `${wsUrl}/ws/detect/${this.clientId}`;
-
-        this.ws = new WebSocket(url);
-        this.ws.binaryType = "arraybuffer";
-
-        this.ws.onopen = () => {
-          this.reconnectAttempts = 0;
-          this.isConnecting = false;
-          this.connectionPromise = null;
-          this.startPingInterval();
-          this.sendConfig();
-          resolve();
-        };
-
-        this.ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            this.handleMessage(data);
-          } catch (error) {
-            console.error("[BackendService] Failed to parse message:", error);
-          }
-        };
-
-        this.ws.onclose = (event) => {
-          console.log(
-            `[BackendService] WebSocket closed - code: ${event.code}, wasClean: ${event.wasClean}, reason: ${event.reason || "none"}`,
-          );
-          this.stopPingInterval();
-          this.isConnecting = false;
-          this.connectionPromise = null;
-
-          if (
-            !event.wasClean &&
-            this.reconnectAttempts < this.maxReconnectAttempts
-          ) {
-            console.log(
-              "[BackendService] WebSocket closed unexpectedly, will attempt reconnect...",
-            );
-            this.scheduleReconnect();
-          } else {
-            console.log(
-              "[BackendService] WebSocket closed cleanly or max reconnect attempts reached",
-            );
-            this.handleMessage({
-              type: "connection",
-              status: "disconnected",
-              timestamp: Date.now(),
-            });
-          }
-        };
-
-        this.ws.onerror = (error) => {
-          console.error("[BackendService] WebSocket error:", error);
-          this.isConnecting = false;
-          this.connectionPromise = null;
-          reject(error);
-        };
-      } catch (error) {
-        console.error("[BackendService] Failed to create WebSocket:", error);
-        this.isConnecting = false;
-        this.connectionPromise = null;
-        reject(error);
-      }
-    });
-
-    return this.connectionPromise;
-  }
-
-  private scheduleReconnect(): void {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    this.reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
-
-    this.reconnectTimeout = window.setTimeout(() => {
-      this.connectWebSocket().catch((error) => {
-        console.error("[BackendService] Reconnection failed:", error);
-      });
-    }, delay);
-  }
-
-  private startPingInterval(): void {
-    this.stopPingInterval();
-
-    this.pingInterval = window.setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(
-          JSON.stringify({
-            type: "ping",
-            client_id: this.clientId,
-            timestamp: Date.now(),
-          }),
-        );
-      }
-    }, 30000);
-  }
-
-  private stopPingInterval(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
-  }
-
   setLivenessDetection(enabled: boolean): void {
     this.enableLivenessDetection = enabled;
-    this.sendConfig();
-  }
-
-  private sendConfig(): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(
-        JSON.stringify({
-          type: "config",
-          enable_liveness_detection: this.enableLivenessDetection,
-          timestamp: Date.now(),
-        }),
-      );
-    }
-  }
-
-  async sendDetectionRequest(frameData: ArrayBuffer): Promise<void> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    try {
-      this.ws.send(frameData);
-    } catch (error) {
-      this.handleMessage({
-        type: "error",
-        message: error instanceof Error ? error.message : String(error),
-        timestamp: Date.now(),
-      });
-    }
-  }
-
-  ping(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(
-        JSON.stringify({
-          type: "ping",
-          client_id: this.clientId,
-          timestamp: Date.now(),
-        }),
-      );
-    }
-  }
-
-  onMessage(type: string, handler: (data: IPCMessage) => void): void {
-    this.messageHandlers.set(type, handler);
-  }
-
-  offMessage(type: string): void {
-    this.messageHandlers.delete(type);
-  }
-
-  disconnect(): void {
-    console.log("[BackendService] Disconnecting WebSocket...");
-    this.stopPingInterval();
-
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-
-    this.isConnecting = false;
-    this.connectionPromise = null;
-
-    if (this.ws) {
-      try {
-        if (this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(
-            JSON.stringify({
-              type: "disconnect",
-              client_id: this.clientId,
-              timestamp: Date.now(),
-            }),
-          );
-          this.ws.close(1000, "Client disconnect");
-        } else if (this.ws.readyState === WebSocket.CONNECTING) {
-          this.ws.close(1000, "Client disconnect");
-        }
-        console.log("[BackendService] WebSocket close() called");
-      } catch (error) {
-        console.warn("[BackendService] Error closing WebSocket:", error);
-      } finally {
-        this.ws = null;
-      }
-    }
-  }
-
-  getConnectionStatus(): {
-    http: boolean;
-    websocket: boolean;
-    clientId: string;
-  } {
-    return {
-      http: true,
-      websocket: this.ws?.readyState === WebSocket.OPEN,
-      clientId: this.clientId,
-    };
-  }
-
-  getWebSocketStatus(): "disconnected" | "connecting" | "connected" {
-    if (!this.ws) return "disconnected";
-
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING:
-        return "connecting";
-      case WebSocket.OPEN:
-        return "connected";
-      default:
-        return "disconnected";
-    }
-  }
-
-  isWebSocketReady(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    // this.sendConfig() was removed because it was WebSocket logic.
+    // Adapters might need a way to receive this config update if they maintain state.
   }
 
   async recognizeFace(
@@ -458,7 +216,7 @@ export class BackendService {
       });
       const base64Image = dataUrl.split(",")[1];
 
-      return await window.electronAPI.backend.recognizeFace(
+      return await this.adapter.recognizeFace(
         base64Image,
         bbox || [],
         groupId,
@@ -478,7 +236,7 @@ export class BackendService {
     groupId?: string,
   ): Promise<FaceRegistrationResponse> {
     try {
-      return await window.electronAPI.backend.registerFace(
+      return await this.adapter.registerFace(
         imageData,
         personId,
         bbox || [],
@@ -493,7 +251,7 @@ export class BackendService {
 
   async removePerson(personId: string): Promise<PersonRemovalResponse> {
     try {
-      return await window.electronAPI.backend.removePerson(personId);
+      return await this.adapter.removePerson(personId);
     } catch (error) {
       console.error("Person removal failed:", error);
       throw error;
@@ -505,10 +263,7 @@ export class BackendService {
     newPersonId: string,
   ): Promise<PersonUpdateResponse> {
     try {
-      return await window.electronAPI.backend.updatePerson(
-        oldPersonId,
-        newPersonId,
-      );
+      return await this.adapter.updatePerson(oldPersonId, newPersonId);
     } catch (error) {
       console.error("Person update failed:", error);
       throw error;
@@ -517,7 +272,7 @@ export class BackendService {
 
   async getAllPersons(): Promise<PersonInfo[]> {
     try {
-      const result = await window.electronAPI.backend.getAllPersons();
+      const result = await this.adapter.getAllPersons();
       return result.persons || [];
     } catch (error) {
       console.error("Failed to get persons:", error);
@@ -529,7 +284,7 @@ export class BackendService {
     threshold: number,
   ): Promise<SimilarityThresholdResponse> {
     try {
-      return await window.electronAPI.backend.setThreshold(threshold);
+      return await this.adapter.setThreshold(threshold);
     } catch (error) {
       console.error("Failed to set similarity threshold:", error);
       throw error;
@@ -538,7 +293,7 @@ export class BackendService {
 
   async clearDatabase(): Promise<{ success: boolean; message: string }> {
     try {
-      return await window.electronAPI.backend.clearDatabase();
+      return await this.adapter.clearDatabase();
     } catch (error) {
       console.error("Failed to clear database:", error);
       throw error;
@@ -581,23 +336,10 @@ export class BackendService {
 
   async getDatabaseStats(): Promise<DatabaseStatsResponse> {
     try {
-      return await window.electronAPI.backend.getFaceStats();
+      return await this.adapter.getFaceStats();
     } catch (error) {
       console.error("Failed to get database stats:", error);
       throw error;
-    }
-  }
-
-  private handleMessage(data: IPCMessage): void {
-    const messageType = data.type || "unknown";
-    const handler = this.messageHandlers.get(messageType);
-    if (handler) {
-      handler(data);
-    }
-
-    const broadcastHandler = this.messageHandlers.get("*");
-    if (broadcastHandler && messageType !== "*") {
-      broadcastHandler(data);
     }
   }
 }

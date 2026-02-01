@@ -14,11 +14,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 
 
-class Base(AsyncAttrs, DeclarativeBase):
-    pass
+
+class OrganizationMixin(AsyncAttrs):
+    """
+    Mixin to add multi-tenancy support.
+    In local mode, organization_id can be null or 'local'.
+    In SaaS mode, it must be populated from the authenticated user's token.
+    """
+    organization_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
 
 
-class AttendanceGroup(Base):
+class AttendanceGroup(Base, OrganizationMixin):
     __tablename__ = "attendance_groups"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -47,7 +53,7 @@ class AttendanceGroup(Base):
         }
 
 
-class AttendanceMember(Base):
+class AttendanceMember(Base, OrganizationMixin):
     __tablename__ = "attendance_members"
 
     person_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -69,7 +75,7 @@ class AttendanceMember(Base):
     __table_args__ = (Index("ix_member_group_id", "group_id"),)
 
 
-class AttendanceRecord(Base):
+class AttendanceRecord(Base, OrganizationMixin):
     __tablename__ = "attendance_records"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -97,7 +103,7 @@ class AttendanceRecord(Base):
     )
 
 
-class AttendanceSession(Base):
+class AttendanceSession(Base, OrganizationMixin):
     __tablename__ = "attendance_sessions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -127,7 +133,7 @@ class AttendanceSession(Base):
     )
 
 
-class AttendanceSettings(Base):
+class AttendanceSettings(Base, OrganizationMixin):
     __tablename__ = "attendance_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)  # Singleton
