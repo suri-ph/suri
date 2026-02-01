@@ -14,6 +14,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs
 
 
+class Base(AsyncAttrs, DeclarativeBase):
+    pass
+
 
 class OrganizationMixin(AsyncAttrs):
     """
