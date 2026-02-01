@@ -74,7 +74,7 @@ export function GroupManagementModal({
       onClick={handleOverlayClick}
     >
       <div
-        className="bg-[#0f0f0f] border border-white/10 rounded-3xl p-4 sm:p-6 w-full max-w-lg max-h-[80vh] flex flex-col shadow-[0_40px_80px_rgba(0,0,0,0.6)]"
+        className="bg-[#0f0f0f] border border-white/10 rounded-3xl p-4 sm:p-6 w-full max-w-lg max-h-[80vh] flex flex-col"
         onClick={handleModalContentClick}
       >
         {/* Scrollable Content */}
@@ -129,11 +129,10 @@ export function GroupManagementModal({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleSelectGroup(group)}
-                        className={`px-3 py-1 rounded text-sm ${
-                          currentGroup?.id === group.id
+                        className={`px-3 py-1 rounded text-sm ${currentGroup?.id === group.id
                             ? "btn-accent"
                             : "btn-secondary"
-                        }`}
+                          }`}
                       >
                         {currentGroup?.id === group.id ? "Active" : "Select"}
                       </button>

@@ -21,7 +21,7 @@ export function DeleteMemberModal({
       onClick={onClose}
     >
       <div
-        className="bg-[#0f0f0f] border border-white/10 p-6 rounded-2xl max-w-md w-full shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+        className="bg-[#0f0f0f] border border-white/10 p-6 rounded-2xl max-w-md w-full"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-semibold mb-3 text-red-200 flex items-center gap-2">
