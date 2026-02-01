@@ -28,6 +28,7 @@ interface UIState {
   setQuickSettings: (
     settings: QuickSettings | ((prev: QuickSettings) => QuickSettings),
   ) => void;
+  setIsHydrated: (isHydrated: boolean) => void;
 }
 
 // Load initial QuickSettings from store
@@ -75,6 +76,7 @@ export const useUIStore = create<UIState>((set) => ({
     // Save to store asynchronously (don't block)
     persistentSettings.setQuickSettings(newSettings).catch(console.error);
   },
+  setIsHydrated: (isHydrated: boolean) => set({ isHydrated }),
 }));
 
 // Load Settings from store on initialization

@@ -620,10 +620,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         startX = offset;
       }
@@ -632,10 +632,10 @@ function createWindow(): void {
       if (y >= height - radius) {
         const offset = Math.ceil(
           radius -
-            Math.sqrt(
-              radius * radius -
-                (y - (height - radius)) * (y - (height - radius)),
-            ),
+          Math.sqrt(
+            radius * radius -
+            (y - (height - radius)) * (y - (height - radius)),
+          ),
         );
         endX = width - offset;
       }
@@ -754,7 +754,7 @@ function createWindow(): void {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http://") || url.startsWith("https://")) {
-      shell.openExternal(url).catch(() => {});
+      shell.openExternal(url).catch(() => { });
     }
 
     return { action: "deny" };
@@ -769,7 +769,7 @@ function createWindow(): void {
     if (!isAllowed) {
       event.preventDefault();
       if (url.startsWith("http://") || url.startsWith("https://")) {
-        shell.openExternal(url).catch(() => {});
+        shell.openExternal(url).catch(() => { });
       }
     }
   });

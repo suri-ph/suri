@@ -110,14 +110,27 @@ class PersistentSettingsService {
    */
   async getUIState(): Promise<PersistentSettingsSchema["ui"]> {
     const state = await this.get<PersistentSettingsSchema["ui"]>("ui");
-    return state || defaultSettings.ui;
+
+    if (!state) {
+      // Match AttendanceSettings pattern: Write defaults if missing to ensure key exists
+      await this.set("ui", defaultSettings.ui);
+      return defaultSettings.ui;
+    }
+
+    // Merge with defaults to ensure all fields are present (e.g. new fields added in updates)
+    return { ...defaultSettings.ui, ...state };
   }
 
   async setUIState(
     state: Partial<PersistentSettingsSchema["ui"]>,
   ): Promise<void> {
-    const current = await this.getUIState();
-    await this.set("ui", { ...current, ...state });
+    // Use granular updates to prevent race conditions (read-modify-write patterns were overwriting each other)
+    // electron-store supports dot notation for nested updates
+    const updates = Object.entries(state).map(([key, value]) => {
+      return this.set(`ui.${key}`, value);
+    });
+
+    await Promise.all(updates);
   }
 
   /**
